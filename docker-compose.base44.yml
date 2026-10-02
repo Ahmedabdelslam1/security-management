@@ -1,0 +1,35 @@
+name: sec-admin
+# Local development stack for the "إدارة الأمن" Apps Script web app.
+# The app itself is a Google Apps Script project; dev-server/ runs Code.gs on an
+# emulated Apps Script runtime so the real frontend can be previewed locally.
+services:
+  web:
+    image: node:22
+    working_dir: /app
+    command: ["node", "dev-server/server.js"]
+    ports:
+      - "3000:3000"
+    volumes:
+      # source is bind-mounted so edits to Code.gs / the HTML files are live
+      - ./:/app
+      # spreadsheet + uploaded images live outside the repo
+      - app_data:/data
+    environment:
+      - PORT=3000
+      - APP_DATA_DIR=/data
+      - TZ=Africa/Cairo
+      - NODE_ENV=development
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: on-failure
+
+volumes:
+  app_data:
