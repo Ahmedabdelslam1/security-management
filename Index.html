@@ -13,7 +13,6 @@
 <div id="loginView" class="auth-wrap">
   <div class="auth-card">
     <h1>إدارة الأمن</h1>
-    <p class="sub">نظام إدارة العاملين اليومية</p>
     <div class="clock">
       <div class="clock-face">
         <span class="tick t12"></span><span class="tick t3"></span>
@@ -29,7 +28,7 @@
 
     <div class="tab-row">
       <button class="tab active" id="tabLogin" onclick="showAuthTab('login')">تسجيل الدخول</button>
-      <button class="tab" id="tabReg" onclick="showAuthTab('reg')">إنشاء حساب جديد</button>
+      <button class="tab" id="tabReg" onclick="showAuthTab('reg')">&#128100; مستخدم جديد</button>
     </div>
 
     <div id="authLogin">
@@ -119,7 +118,7 @@
                   <th>اسم العامل</th>
                   <th>الموقف</th>
                   <th>مكان الحضور</th>
-                  <th>ساعات إضافية</th>
+                  
                   <th>المستحق</th>
                   <th>ملاحظات</th>
                 </tr>
@@ -142,7 +141,7 @@
               <thead>
                 <tr>
                   <th>التاريخ</th><th>اسم العامل</th><th>الموقف</th>
-                  <th>مكان الحضور</th><th>ساعات إضافية</th><th>ملاحظات</th>
+                  <th>مكان الحضور</th><th>ملاحظات</th>
                 </tr>
               </thead>
               <tbody id="perBody"></tbody>
@@ -175,7 +174,7 @@
             <thead>
               <tr>
                 <th><input type="checkbox" onclick="toggleAllSettle(this.checked)"></th>
-                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th><th>موقف التسوية</th>
+                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>موقف التسوية</th>
               </tr>
             </thead>
             <tbody id="setBody"></tbody>
@@ -235,7 +234,7 @@
           <div class="totals" id="rwTotals"></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>ساعات إضافية</th><th>القيمة</th><th>ملاحظات</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>القيمة</th><th>ملاحظات</th></tr></thead>
               <tbody id="rwBody"></tbody>
             </table>
           </div>
@@ -255,7 +254,7 @@
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th><th>ملاحظات</th>
+                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>ملاحظات</th>
               </tr></thead>
               <tbody id="rlBody"></tbody>
             </table>
@@ -275,7 +274,7 @@
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th><th>التوقيع</th>
+                <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>التوقيع</th>
               </tr></thead>
               <tbody id="rsBody"></tbody>
               <tfoot id="rsFoot"></tfoot>
@@ -316,6 +315,8 @@
           </div>
           <div class="perm-box">
             <label>الصلاحيات:</label>
+            <label class="chk"><input type="checkbox" id="npAll" onchange="npToggleAll(this)"> كل الشاشات</label>
+            <label class="chk"><input type="checkbox" id="npDash"> لوحة التحكم</label>
             <label class="chk"><input type="checkbox" id="npWorkers"> العاملين</label>
             <label class="chk"><input type="checkbox" id="npAtt"> الحضور</label>
             <label class="chk"><input type="checkbox" id="npRep"> التقارير</label>

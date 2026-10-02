@@ -61,35 +61,38 @@ function imgThumb(id) { return 'https://drive.google.com/thumbnail?id=' + id + '
 
 function isAllowed(perm) { return USER && (USER.role === 'admin' || USER.permissions[perm]); }
 
-/* ================= الطباعة ================= */
-
-function printedAtLine_() {
-  return '<div class="meta printed-at">تحريرًا في: ' + fmtDate(todayStr()) + '</div>';
+function notesWithExtra(x) {
+  var n = String((x && x.notes) || '');
+  var xh = Number((x && x.extraHours) || 0);
+  return (xh ? 'ساعات إضافية: ' + xh + '. ' : '') + n;
 }
+
+/* ================= الطباعة ================= */
 
 function printHTML(title, innerHtml) {
   var w = window.open('', '_blank');
   if (!w) { showMsg('يرجى السماح بالنوافذ المنبثقة لتفعيل الطباعة', true); return; }
-  // يضاف سطر "تحريرًا في" تلقائيًا أسفل عنوان كل صفحة مطبوعة
-  if (innerHtml.indexOf('</h2>') !== -1) {
-    innerHtml = innerHtml.replace('</h2>', '</h2>' + printedAtLine_());
-  } else {
-    innerHtml = printedAtLine_() + innerHtml;
-  }
   var style = ''
-    + 'body{font-family:Cairo,Arial,sans-serif;padding:24px;color:#182236;background:#fff}'
-    + 'h2{text-align:center;margin-bottom:4px}'
-    + '.meta{text-align:center;color:#555;margin-bottom:16px;font-size:13px}'
-    + '.printed-at{color:#888;font-size:11px}'
-    + 'table{width:100%;border-collapse:collapse;margin-top:10px}'
-    + 'th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:13px}'
-    + 'th{background:#eee}'
-    + '.tot{font-weight:bold;margin-top:14px;font-size:14px}'
-    + '.sign{margin-top:34px;font-size:14px}'
-    + 'img.thumb{max-height:50px;max-width:50px;border-radius:4px}'
+    + '@page{size:A4;margin:14mm}'
+    + 'body{font-family:"Times New Roman",Times,serif;color:#000;background:#fff;margin:0 auto;max-width:190mm;font-size:12.5px}'
+    + 'h2{text-align:center;margin:0 0 6px;font-size:16px;font-weight:bold}'
+    + '.meta{text-align:center;color:#000;margin-bottom:10px;font-size:12.5px}'
+    + '.greet-c{text-align:center;font-weight:bold;margin:2px 0 8px}'
+    + 'table{width:100%;border-collapse:collapse;margin:8px auto}'
+    + 'th,td{border:1px solid #000;padding:5px 7px;text-align:center;font-size:12.5px;color:#000}'
+    + 'th{background:#f0f0f0;font-weight:bold}'
+    + 'td b{font-weight:bold}'
+    + 'tfoot th{font-weight:bold;border:1px solid #000}'
+    + 'img.thumb{max-height:50px;max-width:50px}'
+    + '.pfoot{display:flex;justify-content:space-between;margin-top:30px;font-weight:bold;font-size:13px}'
+    + '.pfoot .pl{margin-right:auto;margin-left:0}'
     + '@media print{.noprint{display:none}}';
+  var footer = '<div class="greet-c" style="margin-top:22px">ولسيادتكم فائق التحية والاحترام</div>' +
+    '<div class="pfoot"><span>تحريرًا في: ' + fmtDate(todayStr()) + '</span>' +
+    '<span class="pl">يعتمد ..............</span></div>';
   w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title +
-    '</title><style>' + style + '</style></head><body>' + innerHtml +
+    '</title><style>' + style + '</style></head><body>' +
+    '<div class="greet-c">تحية طيبة وبعد ،،،</div>' + innerHtml + footer +
     '<script>setTimeout(function(){window.print();},400);<\/script></body></html>');
   w.document.close();
 }
@@ -99,24 +102,25 @@ function printLetterHTML(title, innerHtml) {
   if (!w) { showMsg('يرجى السماح بالنوافذ المنبثقة لتفعيل الطباعة', true); return; }
   var printedBar = '<div class="printed-at">تحريرًا في: ' + fmtDate(todayStr()) + '</div>';
   var style = ''
-    + 'body{font-family:Cairo,Arial,sans-serif;margin:0;padding:26px;color:#13213d;background:#fff}'
-    + '.printed-at{text-align:left;color:#888;font-size:11px;margin-bottom:8px}'
-    + '.letter{border:1px solid #13213d;padding:8px}'
-    + '.letter-inner{border:3px solid #13213d;padding:26px 30px}'
-    + '.letter-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}'
-    + '.company{font-weight:800;font-size:22px}'
-    + '.company img{max-height:54px;max-width:220px;object-fit:contain}'
-    + '.addressee{font-weight:700;font-size:16px}'
-    + '.greet{margin-top:4px;margin-bottom:14px;font-weight:600}'
-    + 'p{font-size:14px;line-height:2}'
-    + '.title{text-align:center;text-decoration:underline;margin:16px 0;font-size:18px;font-weight:800}'
-    + '.letter-table{width:100%;margin:0 0 16px;border-collapse:collapse}'
-    + '.letter-table th,.letter-table td{border:1px solid #13213d;padding:6px 8px;text-align:center;font-size:13px}'
-    + '.letter-table th{background:#eef2fb}'
-    + '.amount-words{font-weight:700}'
-    + '.closing{margin-top:16px}'
-    + '.approve{text-align:left;font-weight:700;margin-top:36px}'
-    + '@media print{@page{margin:12mm}}';
+    + '@page{size:A4;margin:14mm}'
+    + 'body{font-family:"Times New Roman",Times,serif;color:#000;background:#fff;margin:0 auto;max-width:190mm;font-size:12.5px}'
+    + '.printed-at{text-align:left;color:#555;font-size:11px;margin-bottom:8px}'
+    + '.letter{border:1px solid #000;padding:6px}'
+    + '.letter-inner{border:3px double #000;padding:22px 26px}'
+    + '.addressee{font-weight:bold;font-size:15px;margin-bottom:6px}'
+    + '.greet{text-align:center;font-weight:bold;margin:4px 0 10px}'
+    + 'p{font-size:12.5px;line-height:1.9}'
+    + '.title{text-align:center;text-decoration:underline;margin:12px 0;font-weight:bold;font-size:15px}'
+    + '.letter-table{width:100%;margin:0 0 12px;border-collapse:collapse}'
+    + '.letter-table th,.letter-table td{border:1px solid #000;padding:5px 7px;text-align:center;font-size:12.5px}'
+    + '.letter-table th{background:#f0f0f0}'
+    + '.letter-table tfoot th{border:1px solid #000}'
+    + '.amount-words{font-weight:bold}'
+    + '.closing{text-align:center;font-weight:bold;margin-top:12px}'
+    + '.approve{text-align:left;font-weight:bold;margin-top:30px}'
+    + '.pfoot{display:flex;justify-content:space-between;margin-top:26px;font-weight:bold;font-size:13px}'
+    + '.pfoot .pl{margin-right:auto;margin-left:0}'
+    + '@media print{.noprint{display:none}}';
   w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title +
     '</title><style>' + style + '</style></head><body>' + printedBar + innerHtml +
     '<script>setTimeout(function(){window.print();},400);<\/script></body></html>');
@@ -195,9 +199,8 @@ function showApp() {
   document.getElementById('appView').style.display = 'block';
   document.getElementById('hdrName').textContent = USER.name || USER.username;
   buildNav();
-  var first = isAllowed('attendance') ? 'attendance' : isAllowed('workers') ? 'workers' :
-    isAllowed('reports') ? 'reports' : 'users';
-  switchTab(first);
+  var first = NAV_TABS.length ? NAV_TABS[0][0] : null;
+  if (first) switchTab(first);
   loadLocations();
   refreshWorkers();
 }
@@ -265,7 +268,8 @@ function doChangePass() {
 /* ================= التنقل ================= */
 
 function buildNav() {
-  var tabs = [['dashboard', 'لوحة التحكم']];
+  var tabs = [];
+  if (isAllowed('dashboard')) tabs.push(['dashboard', 'لوحة التحكم']);
   if (isAllowed('attendance')) tabs.push(['attendance', 'الحضور']);
   if (isAllowed('attendance')) tabs.push(['settlement', 'التسوية']);
   if (isAllowed('attendance')) tabs.push(['locations', 'الأماكن']);
@@ -277,7 +281,10 @@ function buildNav() {
   nav.innerHTML = tabs.map(function (t) {
     return '<button class="ntab" id="nav-' + t[0] + '" onclick="switchTab(\'' + t[0] + '\')">' + t[1] + '</button>';
   }).join('');
+  NAV_TABS = tabs;
 }
+
+var NAV_TABS = [];
 
 var TAB_LABELS = { dashboard: 'لوحة التحكم', attendance: 'الحضور', settlement: 'التسوية', locations: 'الأماكن',
   workers: 'العاملين', reports: 'التقارير', users: 'المستخدمين', monitor: 'المتابعة' };
@@ -433,9 +440,13 @@ function printDashboard() {
   var html = '<h2>لوحة التحكم</h2>' +
     '<table><thead><tr><th>المؤشر</th><th>القيمة</th></tr></thead><tbody>' + kpiRows + '</tbody></table>' +
     '<h3 style="margin:14px 0 4px">الحضور خلال آخر 14 يوم</h3>' +
-    '<table><thead><tr><th>التاريخ</th><th>الحضور</th></tr></thead><tbody>' + seriesRows + '</tbody></table>' +
+    '<table><thead><tr><th>التاريخ</th><th>الحضور</th></tr></thead><tbody>' + seriesRows +
+    '</tbody><tfoot><tr><th>الإجمالي</th><th>' + d.series.reduce(function (a, x) { return a + x.count; }, 0) +
+    '</th></tr></tfoot></table>' +
     '<h3 style="margin:14px 0 4px">توزيع المواقف (30 يوم)</h3>' +
-    '<table><thead><tr><th>الموقف</th><th>العدد</th></tr></thead><tbody>' + (statusRows || '') + '</tbody></table>';
+    '<table><thead><tr><th>الموقف</th><th>العدد</th></tr></thead><tbody>' + (statusRows || '') +
+    '</tbody><tfoot><tr><th>الإجمالي</th><th>' + Object.keys(d.statusMix).reduce(function (a, k) { return a + d.statusMix[k]; }, 0) +
+    '</th></tr></tfoot></table>';
   printHTML('لوحة التحكم', html);
 }
 
@@ -475,10 +486,12 @@ function renderDay() {
           return '<option value="' + s + '"' + (rec.status === s ? ' selected' : '') + '>' + s + '</option>';
         }).join('') + '</select></td>' +
       '<td><input class="loc" list="locList" value="' + esc(rec.location || '') + '" placeholder="مكان الحضور"></td>' +
-      '<td><input class="xh" type="number" min="0" step="0.5" value="' + (rec.extraHours || '') + '"' +
-        (needsExtra ? '' : ' style="display:none"') + '></td>' +
       '<td class="unset">' + w.unsettled + '</td>' +
-      '<td><input class="note" value="' + esc(rec.notes || '') + '"></td>' +
+      '<td class="ncell">' +
+        '<span class="xhwrap"' + (needsExtra ? '' : ' style="display:none"') + '>ساعات إضافية ' +
+        '<input class="xh" type="number" min="0" step="0.5" value="' + (rec.extraHours || '') + '"></span>' +
+        '<input class="note" value="' + esc(rec.notes || '') + '" placeholder="ملاحظات">' +
+      '</td>' +
       '</tr>';
   }).join('');
 }
@@ -487,12 +500,13 @@ var EXTRA_STATUSES = ['مبيت', 'يوم + وقت اضافى'];
 
 function toggleExtra(sel) {
   var tr = sel.closest('tr');
+  var wrap = tr.querySelector('.xhwrap');
   var xh = tr.querySelector('.xh');
   if (EXTRA_STATUSES.indexOf(sel.value) !== -1) {
-    xh.style.display = 'block';
+    wrap.style.display = 'flex';
     if (!xh.value) xh.value = 0;
   } else {
-    xh.style.display = 'none';
+    wrap.style.display = 'none';
     xh.value = '';
   }
 }
@@ -531,14 +545,24 @@ function printAttendanceDay() {
     var tr = document.querySelector('#attBody tr[data-wid="' + w.id + '"]');
     var status = tr ? tr.querySelector('.st').value : (rec.status || '--');
     var loc = tr ? tr.querySelector('.loc').value : (rec.location || '');
-    var xh = tr ? tr.querySelector('.xh').value : (rec.extraHours || '');
-    var note = tr ? tr.querySelector('.note').value : (rec.notes || '');
+    var note = notesWithExtra(rec);
+    if (tr) note = tr.querySelector('.note').value ||
+      (tr.querySelector('.xh') && tr.querySelector('.xh').value ? 'ساعات إضافية: ' + tr.querySelector('.xh').value : '');
     return '<tr><td>' + esc(w.name) + '</td><td>' + esc(status) + '</td><td>' + esc(loc) + '</td><td>' +
-      esc(xh) + '</td><td>' + w.unsettled + '</td><td>' + esc(note) + '</td></tr>';
+      w.unsettled + '</td><td>' + esc(note) + '</td></tr>';
   }).join('');
+  var present = DAY_WORKERS.filter(function (w) {
+    var rec = dayRecords[w.id] || {};
+    var tr = document.querySelector('#attBody tr[data-wid="' + w.id + '"]');
+    var status = tr ? tr.querySelector('.st').value : (rec.status || '--');
+    return status !== '--';
+  }).length;
+  var unsettledSum = DAY_WORKERS.reduce(function (s, w) { return s + w.unsettled; }, 0);
   var html = '<h2>تسجيل حضور العاملين</h2><div class="meta">التاريخ: ' + fmtDate(date) + '</div>' +
-    '<table><thead><tr><th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th><th>ساعات إضافية</th>' +
-    '<th>المستحق</th><th>ملاحظات</th></tr></thead><tbody>' + (rows || '') + '</tbody></table>';
+    '<table><thead><tr><th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th>' +
+    '<th>المستحق</th><th>ملاحظات</th></tr></thead><tbody>' + (rows || '') +
+    '</tbody><tfoot><tr><th>الإجمالي</th><th>' + present + '</th><th></th><th>' + unsettledSum +
+    '</th><th></th></tr></tfoot></table>';
   printHTML('تسجيل حضور - ' + date, html);
 }
 
@@ -568,7 +592,7 @@ function renderPeriod(rows, from, to, selectedWorker) {
   var html = '';
   if (!selectedWorker) {
     if (!rows.length) {
-      html = '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال هذه الفترة</td></tr>';
+      html = '<tr><td colspan="5" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال هذه الفترة</td></tr>';
     } else {
       html = rows.map(function (r) { return periodRow(r.date, r.workerName, r.status, r.location, r.extraHours, r.notes); }).join('');
     }
@@ -584,7 +608,7 @@ function renderPeriod(rows, from, to, selectedWorker) {
       d.setDate(d.getDate() + 1);
     }
     html = parts.length ? parts.join('') :
-      '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>';
+      '<tr><td colspan="5" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>';
   }
   body.innerHTML = html;
 }
@@ -592,7 +616,7 @@ function renderPeriod(rows, from, to, selectedWorker) {
 function periodRow(date, name, status, loc, xh, notes) {
   return '<tr><td>' + fmtDate(date) + '</td><td>' + esc(name) + '</td>' +
     '<td style="color:' + (status !== '--' ? 'var(--ok)' : 'var(--mut)') + '">' + esc(status) + '</td>' +
-    '<td>' + esc(loc) + '</td><td>' + (xh || '') + '</td><td>' + esc(notes) + '</td></tr>';
+    '<td>' + esc(loc) + '</td><td>' + esc((xh ? 'ساعات إضافية: ' + xh + '. ' : '') + (notes || '')) + '</td></tr>';
 }
 
 function printPeriodTable() {
@@ -602,9 +626,15 @@ function printPeriodTable() {
       return '<td>' + esc(td.textContent.trim()) + '</td>';
     }).join('') + '</tr>';
   }).join('');
+  var trEls = Array.prototype.slice.call(document.querySelectorAll('#perBody tr'));
+  var cnt = trEls.filter(function (tr) {
+    var tds = tr.querySelectorAll('td');
+    return tds.length >= 3 && tds[2].textContent.trim() !== '--' && tds[2].textContent.trim() !== '';
+  }).length;
   var html = '<h2>سجل الحضور - فترة سابقة</h2><div class="meta">من ' + fmtDate(from) + ' إلى ' + fmtDate(to) + '</div>' +
     '<table><thead><tr><th>التاريخ</th><th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th>' +
-    '<th>أجر اليوم</th><th>ملاحظات</th></tr></thead><tbody>' + trs + '</tbody></table>';
+    '<th>ملاحظات</th></tr></thead><tbody>' + trs +
+    '</tbody><tfoot><tr><th colspan="4">إجمالي سجلات الحضور</th><th>' + cnt + '</th></tr></tfoot></table>';
   printHTML('سجل الحضور', html);
 }
 
@@ -636,11 +666,11 @@ function renderSettlement() {
   document.getElementById('setBody').innerHTML = s.rows.map(function (r) {
     return '<tr data-wid="' + r.workerId + '"><td><input type="checkbox" class="setChk"' +
       (r.settled ? '' : ' checked') + '></td>' +
-      '<td>' + esc(r.workerName) + '</td><td>' + r.days + '</td><td>' + r.wage + '</td><td>' +
-      (r.extraHours || 0) + '</td><td>' + r.total + '</td>' +
+      '<td>' + esc(r.workerName) + '</td><td>' + r.days + '</td><td>' + r.wage + '</td>' +
+      '<td>' + r.total + '</td>' +
       '<td>' + (r.settled ? '<span style="color:var(--ok)">مُسوّى</span>' :
         '<span style="color:var(--warn)">المستحق</span>') + '</td></tr>';
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال هذه الفترة</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال هذه الفترة</td></tr>';
   document.getElementById('setLetterBtn').disabled = !s.location;
 }
 
@@ -665,14 +695,15 @@ function printSettlementTable() {
   var s = LAST_SETTLEMENT;
   if (!s) return showMsg('اعرض الجدول أولاً', true);
   var rows = s.rows.map(function (r) {
-    return '<tr><td>' + esc(r.workerName) + '</td><td>' + r.days + '</td><td>' + r.wage + '</td><td>' +
-      (r.extraHours || 0) + '</td><td>' + r.total + '</td><td>' + (r.settled ? 'مُسوّى' : 'المستحق') + '</td></tr>';
+    return '<tr><td>' + esc(r.workerName) + '</td><td>' + r.days + '</td><td>' + r.wage + '</td>' +
+      '<td>' + r.total + '</td><td>' + (r.settled ? 'مُسوّى' : 'المستحق') + '</td></tr>';
   }).join('');
   var html = '<h2>تسوية العاملين</h2><div class="meta">من ' + fmtDate(s.from) + ' إلى ' + fmtDate(s.to) +
     (s.location ? (' | مكان الحضور: ' + esc(s.location)) : ' | جميع الأماكن') + '</div>' +
-    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th>' +
-    '<th>موقف التسوية</th></tr></thead><tbody>' + (rows || '') + '</tbody></table>' +
-    '<div class="tot">إجمالي الأيام: ' + s.totalDays + ' &nbsp;|&nbsp; الإجمالي: ' + s.totalAmount + '</div>';
+    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th>' +
+    '<th>الإجمالي</th><th>موقف التسوية</th></tr></thead><tbody>' + (rows || '') +
+    '</tbody><tfoot><tr><th>الإجمالي</th><th>' + s.totalDays + '</th><th></th><th>' + s.totalAmount +
+    '</th><th></th></tr></tfoot></table>';
   printHTML('تسوية العاملين', html);
 }
 
@@ -685,11 +716,11 @@ function printApprovalLetter() {
   }).join('');
   var padCount = Math.max(0, 10 - s.rows.length);
   for (var i = 0; i < padCount; i++) rowsHtml += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>';
+  var letterTot = '<tfoot><tr><th>الإجمالي</th><th>' + s.totalDays + '</th><th></th><th>' + s.totalAmount +
+    '</th><th></th></tr></tfoot>';
 
   var html = '<div class="letter"><div class="letter-inner">' +
-    '<div class="letter-head">' +
-      '<div class="addressee">السيد / مدير ' + esc(s.location) + '</div>' +
-    '</div>' +
+    '<div class="addressee">السيد / مدير ' + esc(s.location) + '</div>' +
     '<p class="greet">تحية طيبة وبعد ،،،</p>' +
     '<p>برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( <b>' + s.totalAmount + '</b> ) فقط ' +
     'وقدرة : ( <span class="amount-words">' + esc(s.amountWords) + '</span> )</p>' +
@@ -697,9 +728,10 @@ function printApprovalLetter() {
       '</b> حتى <b>' + fmtDate(s.to) + '</b></p>' +
     '<h3 class="title">تسويه</h3>' +
     '<table class="letter-table"><thead><tr><th>اسم العامل</th><th>عدد أيام الحضور</th><th>أجر اليوم</th>' +
-      '<th>إجمالى</th><th>ملاحظات</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+      '<th>إجمالى</th><th>ملاحظات</th></tr></thead><tbody>' + rowsHtml + '</tbody>' + letterTot + '</table>' +
     '<p class="closing">ولسيادتكم فائق التحية والاحترام</p>' +
-    '<p class="approve">يعتمد</p>' +
+    '<div class="pfoot"><span>تحريرًا في: ' + fmtDate(todayStr()) + '</span>' +
+      '<span class="pl">يعتمد ..............</span></div>' +
   '</div></div>';
   printLetterHTML('خطاب اعتماد وتسوية', html);
 }
@@ -752,7 +784,8 @@ function printWorkersTable() {
   var html = '<h2>كشف العاملين اليومية</h2>' +
     '<table><thead><tr><th>الاسم</th><th>رقم البطاقة</th><th>التليفون</th><th>أجر اليوم</th><th>ساعات العمل</th>' +
     '<th>صورة البطاقة</th><th>الصورة الشخصية</th><th>آخر تسوية</th><th>المستحق</th></tr></thead>' +
-    '<tbody>' + (rows || '') + '</tbody></table>';
+    '<tbody>' + (rows || '') + '</tbody><tfoot><tr><th colspan="8">إجمالي المستحق (أيام)</th><th>' +
+    WORKERS.reduce(function (s, w) { return s + w.unsettled; }, 0) + '</th></tr></tfoot></table>';
   printHTML('كشف العاملين', html);
 }
 
@@ -895,12 +928,12 @@ function runWorkerReport(workerId, from, to, inModal) {
       });
       var box = document.getElementById('modalRepBox');
       box.innerHTML = '<div class="totals">' +
-        tbox('عدد الأيام', r.days) + tbox('أجر اليوم', r.wage) + tbox('ساعات إضافية', r.extraHours) + tbox('الإجمالي', r.total) + '</div>' +
-        '<div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>ساعات إضافية</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody>' +
+        tbox('عدد الأيام', r.days) + tbox('أجر اليوم', r.wage) + tbox('الإجمالي', r.total) + '</div>' +
+        '<div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody>' +
         r.rows.map(function (x) {
-          return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + (x.extraHours || '') + '</td><td>' + x.value + '</td><td>' + esc(x.notes) + '</td></tr>';
+          return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + x.value + '</td><td>' + esc(notesWithExtra(x)) + '</td></tr>';
         }).join('') +
-        (r.rows.length ? '' : '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>') +
+        (r.rows.length ? '' : '<tr><td colspan="5" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>') +
         '</tbody></table></div>';
     }).catch(fail);
     return;
@@ -919,10 +952,10 @@ function runWorkerReport(workerId, from, to, inModal) {
     });
     LAST_WORKER_REPORT = r;
     document.getElementById('rwTotals').innerHTML =
-      tbox('عدد الأيام', r.days) + tbox('أجر اليوم', r.wage) + tbox('ساعات إضافية', r.extraHours) + tbox('الإجمالي', r.total);
+      tbox('عدد الأيام', r.days) + tbox('أجر اليوم', r.wage) + tbox('الإجمالي', r.total);
     document.getElementById('rwBody').innerHTML = r.rows.map(function (x) {
-      return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + (x.extraHours || '') + '</td><td>' + x.value + '</td><td>' + esc(x.notes) + '</td></tr>';
-    }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال الفترة</td></tr>';
+      return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + x.value + '</td><td>' + esc(notesWithExtra(x)) + '</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--mut)">لا توجد سجلات خلال الفترة</td></tr>';
   }).catch(fail);
 }
 
@@ -944,8 +977,8 @@ function runLocationReport() {
       tbox('المكان', esc(r.location)) + tbox('إجمالي الأيام', days) + tbox('الإجمالي', total);
     document.getElementById('rlBody').innerHTML = r.workers.map(function (w) {
       return '<tr><td>' + esc(w.workerName) + '</td><td>' + w.days + '</td><td>' + w.wage + '</td><td>' +
-        (w.extraHours || '') + '</td><td>' + w.total + '</td><td>' + esc(w.notes.join(' | ')) + '</td></tr>';
-    }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>';
+        w.total + '</td><td>' + esc(w.notes.join(' | ')) + '</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--mut)">لا توجد سجلات</td></tr>';
   }).catch(fail);
 }
 
@@ -962,10 +995,10 @@ function runSummary() {
     document.getElementById('rsBody').innerHTML = r.workers.map(function (w) {
       return '<tr><td><span class="name-link" onclick="openWorkerDetail(\'' + w.workerId + '\')">' +
         esc(w.workerName) + '</span></td><td>' + w.days + '</td><td>' + w.wage + '</td><td>' +
-        (w.extraHours || 0) + '</td><td>' + w.total + '</td><td></td></tr>';
+        w.total + '</td><td></td></tr>';
     }).join('');
     document.getElementById('rsFoot').innerHTML =
-      '<tr><th>الإجمالي</th><th>' + days + '</th><th></th><th></th><th>' + total + '</th><th></th></tr>';
+      '<tr><th>الإجمالي</th><th>' + days + '</th><th></th><th>' + total + '</th><th></th></tr>';
   }).catch(fail);
 }
 
@@ -984,13 +1017,13 @@ function printWorkerReport() {
   var r = LAST_WORKER_REPORT;
   if (!r) return showMsg('اعرض التقرير أولاً', true);
   var rows = r.rows.map(function (x) {
-    return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + (x.extraHours || '') + '</td><td>' + x.value + '</td><td>' + esc(x.notes) + '</td></tr>';
+    return '<tr><td>' + fmtDate(x.date) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.location) + '</td><td>' + x.value + '</td><td>' + esc(notesWithExtra(x)) + '</td></tr>';
   }).join('');
   var html = '<h2>تقرير العامل: ' + esc(r.workerName || '') + '</h2><div class="meta">من ' +
     fmtDate(r.from) + ' إلى ' + fmtDate(r.to) + '</div>' +
-    '<table><thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>ساعات إضافية</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody>' +
-    (rows || '') + '</tbody></table>' +
-    '<div class="tot">عدد الأيام: ' + r.days + ' &nbsp;|&nbsp; أجر اليوم: ' + r.wage + ' &nbsp;|&nbsp; ساعات إضافية: ' + r.extraHours + ' &nbsp;|&nbsp; الإجمالي: ' + r.total + '</div>';
+    '<table><thead><tr><th>التاريخ</th><th>الموقف</th><th>مكان الحضور</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody>' +
+    (rows || '') + '</tbody><tfoot><tr><th colspan="3">الإجمالي — عدد الأيام: ' + r.days + '</th><th>' +
+    r.total + '</th><th></th></tr></tfoot></table>';
   printHTML('تقرير عامل', html);
 }
 
@@ -999,13 +1032,13 @@ function printLocationReport() {
   if (!r) return showMsg('اعرض التقرير أولاً', true);
   var rows = r.workers.map(function (w) {
     return '<tr><td>' + esc(w.workerName) + '</td><td>' + w.days + '</td><td>' + w.wage + '</td><td>' +
-      (w.extraHours || '') + '</td><td>' + w.total + '</td><td>' + esc(w.notes.join(' | ')) + '</td></tr>';
+      w.total + '</td><td>' + esc(w.notes.join(' | ')) + '</td></tr>';
   }).join('');
   var html = '<h2>تقرير مكان الحضور: ' + esc(r.location) + '</h2><div class="meta">من ' +
     fmtDate(r.from) + ' إلى ' + fmtDate(r.to) + '</div>' +
-    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead><tbody>' +
-    (rows || '') + '</tbody></table>' +
-    '<div class="tot">إجمالي الأيام: ' + r.totalDays + ' &nbsp;|&nbsp; الإجمالي: ' + r.totalAmount + '</div>';
+    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>ملاحظات</th></tr></thead><tbody>' +
+    (rows || '') + '</tbody><tfoot><tr><th>الإجمالي</th><th>' + r.totalDays + '</th><th></th><th>' +
+    r.totalAmount + '</th><th></th></tr></tfoot></table>';
   printHTML('تقرير مكان حضور', html);
 }
 
@@ -1014,10 +1047,10 @@ function printSummaryReport() {
   if (!r) return showMsg('اعرض التقرير أولاً', true);
   var rows = r.workers.map(function (w) {
     return '<tr><td>' + esc(w.workerName) + '</td><td>' + w.days + '</td><td>' + w.wage + '</td><td>' +
-      (w.extraHours || 0) + '</td><td>' + w.total + '</td><td></td></tr>';
+      w.total + '</td><td></td></tr>';
   }).join('');
   var html = '<h2>تقرير مجمع للعاملين</h2><div class="meta">من ' + fmtDate(r.from) + ' إلى ' + fmtDate(r.to) + '</div>' +
-    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>ساعات إضافية</th><th>الإجمالي</th><th>التوقيع</th></tr></thead><tbody>' +
+    '<table><thead><tr><th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>التوقيع</th></tr></thead><tbody>' +
     (rows || '') + '</tbody><tfoot><tr><th>الإجمالي</th><th>' + r.totalDays + '</th><th></th><th></th><th>' + r.totalAmount +
     '</th><th></th></tr></tfoot></table>';
   printHTML('تقرير مجمع', html);
@@ -1118,8 +1151,10 @@ function printLocations() {
   var rows = LOCS_DATA.map(function (l) {
     return '<tr><td>' + esc(l.name) + '</td><td>' + l.count + '</td></tr>';
   }).join('');
+  var total = LOCS_DATA.reduce(function (s, l) { return s + (Number(l.count) || 0); }, 0);
   printHTML('أماكن الحضور', '<h2>أماكن الحضور</h2>' +
-    '<table><thead><tr><th>اسم المكان</th><th>مرات الاستخدام</th></tr></thead><tbody>' + (rows || '') + '</tbody></table>');
+    '<table><thead><tr><th>اسم المكان</th><th>مرات الاستخدام</th></tr></thead><tbody>' + (rows || '') +
+    '</tbody><tfoot><tr><th>الإجمالي</th><th>' + total + '</th></tr></tfoot></table>');
 }
 
 /* ================= متابعة المستخدمين (للمدير) ================= */
@@ -1158,10 +1193,11 @@ function printMonitor() {
   }).join('');
   var html = '<h2>متابعة المستخدمين وسجل النشاط</h2>' +
     '<table><thead><tr><th>المستخدم</th><th>آخر دخول</th><th>آخر نشاط</th><th>الاتصال</th><th>عدد الإجراءات</th></tr></thead><tbody>' +
-    (uRows || '') + '</tbody></table>' +
+    (uRows || '') + '</tbody><tfoot><tr><th colspan="4">إجمالي الإجراءات</th><th>' +
+    MON.users.reduce(function (s, u) { return s + (Number(u.actions) || 0); }, 0) + '</th></tr></tfoot></table>' +
     '<h3 style="margin:14px 0 4px">سجل الإجراءات</h3>' +
     '<table><thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>الصفحة</th><th>التفاصيل</th></tr></thead><tbody>' +
-    (lRows || '') + '</tbody></table>';
+    (lRows || '') + '</tbody><tfoot><tr><th colspan="4">إجمالي السجلات</th><th>' + MON.log.length + '</th></tr></tfoot></table>';
   printHTML('متابعة المستخدمين', html);
 }
 
@@ -1194,6 +1230,8 @@ function renderUsers() {
       '<td>' + (u.role === 'admin' ? 'مدير' : 'مستخدم') + '</td>' +
       '<td>' + statusLabel(u.status) + '</td>' +
       '<td class="perm-cell">' +
+        '<label class="chk"><input type="checkbox" class="pm-all" onchange="toggleAllPerms(this)"> كل الشاشات</label> ' +
+        '<label class="chk"><input type="checkbox" class="pm-d"' + (p.dashboard ? ' checked' : '') + '> لوحة التحكم</label> ' +
         '<label class="chk"><input type="checkbox" class="pm-w"' + (p.workers ? ' checked' : '') + '> العاملين</label> ' +
         '<label class="chk"><input type="checkbox" class="pm-a"' + (p.attendance ? ' checked' : '') + '> الحضور</label> ' +
         '<label class="chk"><input type="checkbox" class="pm-r"' + (p.reports ? ' checked' : '') + '> التقارير</label> ' +
@@ -1213,9 +1251,21 @@ function setUStatus(id, status) {
   gs('apiSetUserStatus', TOKEN, id, status).then(function (m) { showMsg(m); refreshUsers(); }).catch(fail);
 }
 
+function toggleAllPerms(box) {
+  var tr = box.closest('tr');
+  tr.querySelectorAll('.pm-w,.pm-a,.pm-r,.pm-d').forEach(function (c) { c.checked = box.checked; });
+}
+
+function npToggleAll(box) {
+  ['npDash', 'npWorkers', 'npAtt', 'npRep'].forEach(function (id) {
+    document.getElementById(id).checked = box.checked;
+  });
+}
+
 function savePerms(id) {
   var tr = document.querySelector('tr[data-uid="' + id + '"]');
   var perms = {
+    dashboard: tr.querySelector('.pm-d').checked,
     workers: tr.querySelector('.pm-w').checked,
     attendance: tr.querySelector('.pm-a').checked,
     reports: tr.querySelector('.pm-r').checked
@@ -1235,10 +1285,12 @@ function delUser(id) {
 }
 
 function createUser() {
+  var allChecked = document.getElementById('npAll').checked;
   var perms = {
-    workers: document.getElementById('npWorkers').checked,
-    attendance: document.getElementById('npAtt').checked,
-    reports: document.getElementById('npRep').checked,
+    dashboard: allChecked || document.getElementById('npDash').checked,
+    workers: allChecked || document.getElementById('npWorkers').checked,
+    attendance: allChecked || document.getElementById('npAtt').checked,
+    reports: allChecked || document.getElementById('npRep').checked,
     users: document.getElementById('npAdmin').checked
   };
   var role = document.getElementById('npAdmin').checked ? 'admin' : 'user';
