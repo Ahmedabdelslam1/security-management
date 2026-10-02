@@ -471,6 +471,18 @@ function apiDeleteWorkers(token, workerIds) {
 
 /* ===================== أماكن الحضور ===================== */
 
+function apiResetAllData(token) {
+  var user = auth_(token);
+  if (user.role !== 'admin') throw new Error('هذا الإجراء للمدير فقط');
+  ['Workers', 'Attendance', 'Locations'].forEach(function (name) {
+    var sh = sheet_(name);
+    var last = sh.getLastRow();
+    if (last > 1) sh.getRange(2, 1, last - 1, sh.getLastColumn()).clearContent();
+  });
+  logActivity_(user, 'تصفير البرنامج', 'النظام', 'تم حذف كل بيانات العاملين والحضور والأماكن نهائيًا');
+  return 'تم تصفير البرنامج وحذف كل البيانات بنجاح';
+}
+
 function touchLocation_(loc) {
   if (!loc) return;
   loc = String(loc).trim();
@@ -493,63 +505,6 @@ function apiGetLocations(token) {
     .map(function (r) { return String(r.name); });
 }
 
-function apiGetLocationsFull(token) {
-  auth_(token);
-  return getAll_('Locations')
-    .sort(function (a, b) { return Number(b.count) - Number(a.count); })
-    .map(function (r) { return { name: String(r.name), count: Number(r.count) || 0 }; });
-}
-
-// إضافة / تعديل مكان (oldName فارغ = إضافة)
-function apiSaveLocation(token, oldName, newName) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  newName = String(newName || '').trim();
-  if (!newName) throw new Error('اسم المكان مطلوب');
-  var sh = sheet_('Locations');
-  oldName = String(oldName || '').trim();
-
-  if (oldName) {
-    var rows = getAll_('Locations');
-    var found = null;
-    for (var i = 0; i < rows.length; i++) {
-      if (String(rows[i].name).trim() === oldName) { found = rows[i]; break; }
-    }
-    if (!found) throw new Error('المكان غير موجود');
-    sh.getRange(found._row, 1).setValue(newName);
-    // تحديث سجلات الحضور القديمة بالاسم الجديد
-    var attSh = sheet_('Attendance');
-    getAll_('Attendance').forEach(function (r) {
-      if (String(r.location || '').trim() === oldName) attSh.getRange(r._row, 6).setValue(newName);
-    });
-    logActivity_(user, 'تعديل مكان', 'الأماكن', oldName + ' ← ' + newName);
-    return 'تم تعديل المكان';
-  }
-
-  var rows2 = getAll_('Locations');
-  for (var j = 0; j < rows2.length; j++) {
-    if (String(rows2[j].name).trim() === newName) throw new Error('المكان موجود بالفعل');
-  }
-  sh.appendRow([newName, 0]);
-  logActivity_(user, 'إضافة مكان', 'الأماكن', newName);
-  return 'تمت إضافة المكان';
-}
-
-// حذف مكان أو عدة أماكن
-function apiDeleteLocations(token, names) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  if (!names || !names.length) throw new Error('برجاء تحديد مكان واحد على الأقل');
-  var set = {};
-  names.forEach(function (n) { set[String(n).trim()] = true; });
-  var sh = sheet_('Locations');
-  var rows = getAll_('Locations');
-  var del = [];
-  rows.forEach(function (r) { if (set[String(r.name).trim()]) del.push(r._row); });
-  del.sort(function (a, b) { return b - a; }).forEach(function (row) { sh.deleteRow(row); });
-  logActivity_(user, 'حذف أماكن', 'الأماكن', 'تم حذف ' + del.length + ' مكان');
-  return 'تم حذف ' + del.length + ' مكان';
-}
 
 /* ===================== الحضور ===================== */
 
@@ -680,100 +635,6 @@ function apiSettleBulk(token, workerIds, to) {
 
 /* ===================== لوحة التحكم ===================== */
 
-function apiDashboard(token) {
-  var user = auth_(token);
-  var tz = Session.getScriptTimeZone();
-  var att = getAll_('Attendance');
-  var workers = getAll_('Workers').filter(isActive_).map(function (w) { return workerOut_(w, att); });
-  var today = todayStr_();
-
-  // حضور اليوم
-  var todayCount = 0, todayDetails = [];
-  att.forEach(function (r) {
-    if (String(r.date) === today && r.status && r.status !== '--') {
-      todayCount++;
-      todayDetails.push({ name: r.workerName, status: r.status,
-        location: String(r.location || ''), extraHours: Number(r.extraHours) || 0 });
-    }
-  });
-
-  // المستحق لكل عامل
-  var unsettledDetails = [];
-  var unsettledDays = 0, unsettledAmount = 0;
-  workers.forEach(function (w) {
-    if (w.unsettled > 0) {
-      var amount = w.unsettled * w.dailyWage;
-      var ls = w.lastSettlement || '';
-      var hourly = (Number(w.dailyWage) || 0) / ((Number(w.workHours) || 8) || 8);
-      att.forEach(function (r) {
-        if (r.workerId === w.id && r.status && r.status !== '--' &&
-            (!ls || String(r.date) > ls) && String(r.date) <= today) {
-          amount += (Number(r.extraHours) || 0) * hourly;
-        }
-      });
-      amount = Math.round(amount * 100) / 100;
-      unsettledDetails.push({ name: w.name, days: w.unsettled, amount: amount });
-      unsettledDays += w.unsettled; unsettledAmount += amount;
-    }
-  });
-  unsettledAmount = Math.round(unsettledAmount * 100) / 100;
-
-  // آخر 14 يوم
-  var series = [];
-  for (var i = 13; i >= 0; i--) {
-    var d = new Date(); d.setDate(d.getDate() - i);
-    var ds = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
-    var c = 0;
-    att.forEach(function (r) { if (String(r.date) === ds && r.status && r.status !== '--') c++; });
-    series.push({ date: ds, count: c });
-  }
-
-  // توزيع المواقف والأماكن خلال آخر 30 يوم + أيام الشهر الحالي
-  var from30 = Utilities.formatDate(new Date(Date.now() - 29 * 86400000), tz, 'yyyy-MM-dd');
-  var statusMix = {}, locCount = {}, monthDays = 0;
-  var monthPrefix = today.slice(0, 7);
-  att.forEach(function (r) {
-    if (!r.status || r.status === '--') return;
-    var ds = String(r.date);
-    if (ds >= from30 && ds <= today) {
-      statusMix[r.status] = (statusMix[r.status] || 0) + 1;
-      if (r.location) locCount[String(r.location)] = (locCount[String(r.location)] || 0) + 1;
-    }
-    if (ds.slice(0, 7) === monthPrefix) monthDays++;
-  });
-
-  var locationsTop = Object.keys(locCount).map(function (k) { return { name: k, count: locCount[k] }; })
-    .sort(function (a, b) { return b.count - a.count; }).slice(0, 8);
-  var locationsCount = getAll_('Locations').length;
-
-  var out = {
-    workersCount: workers.length,
-    workers: workers.map(function (w) {
-      return { name: w.name, dailyWage: w.dailyWage, workHours: w.workHours };
-    }),
-    todayCount: todayCount, todayDetails: todayDetails,
-    unsettledDays: unsettledDays, unsettledAmount: unsettledAmount, unsettledDetails: unsettledDetails,
-    series: series, statusMix: statusMix, monthDays: monthDays,
-    locationsCount: locationsCount, locationsTop: locationsTop
-  };
-
-  if (user.role === 'admin') {
-    var users = getAll_('Users');
-    out.usersCount = users.filter(function (u) { return u.status === 'approved'; }).length;
-    out.users = users.map(function (u) {
-      return { name: u.name, username: u.username, status: u.status };
-    });
-    var todayActs = getAll_('ActivityLog').filter(function (r) {
-      var dt = r.created ? new Date(r.created) : null;
-      return dt && Utilities.formatDate(dt, tz, 'yyyy-MM-dd') === today;
-    });
-    out.actionsToday = todayActs.length;
-    out.lastActions = todayActs.slice(-5).reverse().map(function (r) {
-      return { name: r.name, action: r.action, page: r.page };
-    });
-  }
-  return out;
-}
 
 /* ===================== تحويل الأرقام إلى كلمات عربية (للخطاب) ===================== */
 
