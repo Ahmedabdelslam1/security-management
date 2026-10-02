@@ -1,0 +1,32 @@
+# بيئة تطوير Base44 — المشروع أصلاً تطبيق Google Apps Script
+#
+# Code.gs وملفات الواجهة تُشغَّل كما هي دون أي تعديل:
+#   - devserver/server.js   : يقدّم الصفحة (مع حلّ include) وينفّذ دوال Code.gs
+#   - devserver/gas-env.js  : محاكاة محلية لخدمات Apps Script (Sheets/Drive/Cache)
+#
+# لا يعتمد المشروع على أي خدمة خارجية هنا، لذلك لا يحتاج أي مفاتيح.
+
+services:
+  web:
+    image: node:22
+    restart: on-failure
+    working_dir: /app
+    command: ["node", "devserver/server.js"]
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - TZ=Africa/Cairo
+    volumes:
+      - ./:/app
+      - gas-data:/data
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/__gas/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+volumes:
+  gas-data:
