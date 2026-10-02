@@ -1,790 +1,465 @@
-/**********************************************************************
- * إدارة الأمن – نظام إدارة العاملين اليومية (Google Apps Script)
- * ------------------------------------------------------------------
- * طريقة النشر:
- *   1) أنشئ مشروعًا جديدًا على https://script.google.com
- *   2) انسخ هذا الملف في Code.gs وأنشئ ملفات HTML الثلاثة
- *   3) نشر ← نشر جديد ← تطبيق ويب (Web App)
- *      - Execute as: Me     -  Who has access: Anyone
- *   4) افتح الرابط في المتصفح أو على أندرويد
- *
- * حساب المدير الافتراضي:  admin / admin123   (غيّر كلمة المرور فور الدخول)
- **********************************************************************/
+/**
+ * إدارة الأمن — الخلفية (Google Apps Script)
+ * ------------------------------------------------------------
+ * الإعداد:
+ *  1) أنشئ Google Sheet جديدًا ثم: الإضافات/الامتدادات > Apps Script.
+ *  2) الصق هذا الملف في Code.gs، وأنشئ ملف HTML باسم index والصق فيه ملف index.html.
+ *  3) (اختياري) شغّل الدالة setup() مرة واحدة لمنح الصلاحيات وإنشاء الجداول.
+ *  4) نشر > نشر كتطبيق ويب: التنفيذ بصفتي، الوصول: أي شخص. افتح الرابط.
+ *  الدخول الأول:  admin / admin123  (غيّر كلمة المرور فورًا من زر 🔑)
+ *  لو نسيت كلمة مرور المدير: شغّل resetAdminPassword() من المحرر.
+ */
 
-const SESSION_HOURS = 12;
+var TZ = 'Africa/Cairo';
+var STATUSES = ['حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
+var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
+var PERMS = ['workers', 'attendance', 'reports'];
+var SESSION_TTL = 21600;            // 6 ساعات
+var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
+var MAX_LOG_ROWS = 5000;
 
-/* ===================== Web App Entry ===================== */
+var SHEETS = {
+  Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo'],
+  Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes'],
+  Locations:  ['name'],
+  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
+  Log:        ['time', 'user', 'action', 'page', 'details']
+};
 
+/* ===================== الصفحة ===================== */
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
+  return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('إدارة الأمن')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function include(name) {
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
+function setup() {
+  Object.keys(SHEETS).forEach(function (n) { sh_(n); });
+  ensureAdmin_();
+  return 'تم الإعداد: ' + ss_().getUrl();
 }
 
-/* ===================== Helpers ===================== */
-
-function hash_(s) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s))
-    .map(function (b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('');
+function resetAdminPassword() {
+  var salt = Utilities.getUuid();
+  var users = readAll_('Users');
+  var found = false;
+  users.forEach(function (u) {
+    if (u.username === 'admin') { u.salt = salt; u.hash = hash_(salt, 'admin123'); u.status = 'approved'; u.role = 'admin'; found = true; }
+  });
+  if (!found) { ensureAdmin_(); return; }
+  writeAll_('Users', users);
 }
 
-function todayStr_() {
-  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-}
-
-function getDB_() {
+/* ===================== أدوات الشيت ===================== */
+function ss_() {
   var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty('DB_ID');
-  if (id) {
-    try {
-      var ss = SpreadsheetApp.openById(id);
-      migrateCols_(ss);
-      return ss;
-    } catch (e) {}
+  var id = props.getProperty('SS_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  var a = SpreadsheetApp.getActiveSpreadsheet();
+  if (a) return a;
+  var n = SpreadsheetApp.create('إدارة الأمن - البيانات');
+  props.setProperty('SS_ID', n.getId());
+  return n;
+}
+
+function sh_(name) {
+  var s = ss_();
+  var sheet = s.getSheetByName(name);
+  if (!sheet) {
+    var h = SHEETS[name];
+    sheet = s.insertSheet(name);
+    sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
+    sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.setRightToLeft(true);
   }
-  var ss = SpreadsheetApp.create('إدارة الأمن - قاعدة البيانات');
-  props.setProperty('DB_ID', ss.getId());
-  initSheets_(ss);
-  return ss;
+  return sheet;
 }
 
-
-function sheet_(name) {
-  var ss = getDB_();
-  return ss.getSheetByName(name) || ss.insertSheet(name);
+function str_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  return v == null ? '' : String(v);
 }
 
-// ترقية قواعد البيانات القديمة: إضافة الأعمدة الجديدة
-function migrateCols_(ss) {
-  var need = { Workers: ['workHours'], Attendance: ['extraHours'] };
-  Object.keys(need).forEach(function (name) {
-    var sh = ss.getSheetByName(name);
-    if (!sh) return;
-    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    need[name].forEach(function (col) {
-      if (head.indexOf(col) === -1) {
-        var colIdx = head.length + 1;
-        sh.getRange(1, colIdx).setValue(col);
-        if (col === 'workHours') {
-          var rows = sh.getLastRow() - 1;
-          if (rows > 0) sh.getRange(2, colIdx, rows, 1).setValue(8);
-        }
-      }
-    });
+function readAll_(name) {
+  var sheet = sh_(name), h = SHEETS[name], n = sheet.getLastRow();
+  if (n < 2) return [];
+  var vals = sheet.getRange(2, 1, n - 1, h.length).getValues();
+  return vals.filter(function (r) { return String(r[0]) !== ''; }).map(function (r) {
+    var o = {};
+    h.forEach(function (k, i) { o[k] = str_(r[i]); });
+    return o;
   });
 }
 
-function getAll_(name) {
-  var sh = sheet_(name);
-  var vals = sh.getDataRange().getValues();
-  if (vals.length < 2) return [];
-  var head = vals[0];
-  var out = [];
-  for (var i = 1; i < vals.length; i++) {
-    if (vals[i].join('') === '') continue;
-    var o = { _row: i + 1 };
-    for (var j = 0; j < head.length; j++) o[head[j]] = vals[i][j];
-    out.push(o);
-  }
-  return out;
+function writeAll_(name, objs) {
+  var sheet = sh_(name), h = SHEETS[name], last = sheet.getLastRow();
+  if (last > 1) sheet.getRange(2, 1, last - 1, h.length).clearContent();
+  if (!objs.length) return;
+  var rows = objs.map(function (o) { return h.map(function (k) { return o[k] == null ? '' : String(o[k]); }); });
+  var need = rows.length + 1 - sheet.getMaxRows();
+  if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need);
+  sheet.getRange(2, 1, rows.length, h.length).setNumberFormat('@').setValues(rows);
 }
 
-function initSheets_(ss) {
-  var defs = {
-    Users:      ['id', 'username', 'passHash', 'name', 'phone', 'role', 'status', 'permissions', 'created'],
-    Workers:    ['id', 'name', 'cardNumber', 'phone', 'dailyWage', 'cardImg', 'photo', 'lastSettlement', 'active', 'created', 'workHours'],
-    Attendance: ['id', 'date', 'workerId', 'workerName', 'status', 'location', 'wage', 'notes', 'created', 'extraHours'],
-    Locations:  ['name', 'count'],
-    ActivityLog: ['id', 'username', 'name', 'action', 'page', 'details', 'created']
-  };
-  Object.keys(defs).forEach(function (name) {
-    var sh = ss.getSheetByName(name) || ss.insertSheet(name);
-    if (sh.getLastRow() === 0) sh.appendRow(defs[name]);
-  });
-  // حساب المدير الافتراضي
-  var u = ss.getSheetByName('Users');
-  u.appendRow([Utilities.getUuid(), 'admin', hash_('admin123'), 'مدير النظام', '', 'admin', 'approved',
-    JSON.stringify({ workers: true, attendance: true, reports: true, users: true }), new Date()]);
+function locked_(fn) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try { return fn(); } finally { lock.releaseLock(); }
 }
 
-function adminOnly_(user) {
-  if (user.role !== 'admin') throw new Error('هذه الشاشة متاحة للمدير فقط');
+function now_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
+function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
+function clip_(v, n) { return String(v == null ? '' : v).trim().slice(0, n); }
+function num_(v, d) { var x = Number(v); return isFinite(x) ? x : (d || 0); }
+function validDate_(d) { return /^\d{4}-\d{2}-\d{2}$/.test(String(d)); }
+
+/* ===================== المستخدمون والجلسات ===================== */
+function hash_(salt, pass) {
+  var d = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + pass, Utilities.Charset.UTF_8);
+  return d.map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
 }
 
-/* ===================== الصور (Google Drive) ===================== */
-
-function getFolder_() {
-  var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty('IMG_FOLDER');
-  if (id) {
-    try { return DriveApp.getFolderById(id); } catch (e) {}
-  }
-  var it = DriveApp.getFoldersByName('إدارة الأمن - الصور');
-  var folder = it.hasNext() ? it.next() : DriveApp.createFolder('إدارة الأمن - الصور');
-  props.setProperty('IMG_FOLDER', folder.getId());
-  return folder;
+function ensureAdmin_() {
+  if (readAll_('Users').length) return;
+  var salt = Utilities.getUuid();
+  writeAll_('Users', [{
+    username: 'admin', name: 'مدير النظام', salt: salt, hash: hash_(salt, 'admin123'),
+    status: 'approved', role: 'admin', perms: '{}', lastLogin: '', lastActive: ''
+  }]);
 }
 
-function uploadImage_(b64, filename) {
-  var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', filename);
-  var file = getFolder_().createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getId();
+function parsePerms_(p) {
+  try { var o = JSON.parse(p || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
 }
 
-/* ===================== الجلسات والدخول ===================== */
-
-function makeSession_(u) {
-  var token = Utilities.getUuid();
-  var data = {
-    id: u.id, username: u.username, name: u.name, role: u.role,
-    permissions: (function () { try { return JSON.parse(u.permissions || '{}'); } catch (e) { return {}; } })()
-  };
-  CacheService.getScriptCache().put('sess_' + token, JSON.stringify(data), SESSION_HOURS * 3600);
-  return { token: token, user: data };
+function can_(u, perm) {
+  if (u.role === 'admin') return true;
+  if (perm === 'admin') return false;
+  var list = Array.isArray(perm) ? perm : [perm];
+  return list.some(function (p) { return u.perms && u.perms[p]; });
 }
 
-function auth_(token) {
-  if (!token) throw new Error('انتهت الجلسة، برجاء تسجيل الدخول من جديد');
-  var raw = CacheService.getScriptCache().get('sess_' + token);
-  if (!raw) throw new Error('انتهت الجلسة، برجاء تسجيل الدخول من جديد');
-  return JSON.parse(raw);
+function auth_(token, perm) {
+  if (!token) throw new Error('SESSION');
+  var cache = CacheService.getScriptCache();
+  var un = cache.get('S_' + token);
+  if (!un) throw new Error('SESSION');
+  var u = readAll_('Users').filter(function (x) { return x.username === un; })[0];
+  if (!u || u.status !== 'approved') throw new Error('SESSION');
+  u.perms = parsePerms_(u.perms);
+  cache.put('S_' + token, un, SESSION_TTL);
+  if (perm && !can_(u, perm)) throw new Error('غير مصرح لك بهذا الإجراء');
+  return u;
 }
 
-function needPerm_(user, perm) {
-  if (user.role !== 'admin' && !user.permissions[perm])
-    throw new Error('لا تمتلك صلاحية لهذه الشاشة');
-}
-
-function apiLogin(username, password) {
-  username = String(username || '').trim().toLowerCase();
-  var users = getAll_('Users');
-  var u = null;
-  for (var i = 0; i < users.length; i++) {
-    if (String(users[i].username).toLowerCase() === username) { u = users[i]; break; }
-  }
-  if (!u || u.passHash !== hash_(password)) throw new Error('بيانات الدخول غير صحيحة');
-  if (u.status !== 'approved') {
-    if (u.status === 'pending') throw new Error('حسابك بانتظار موافقة الإدارة');
-    throw new Error('تم إيقاف هذا الحساب، راجع الإدارة');
-  }
-  logActivity_(u, 'دخول', 'تسجيل الدخول', 'دخول ناجح');
-  return makeSession_(u);
-}
-
-function apiRegister(name, username, password, phone) {
-  username = String(username || '').trim().toLowerCase();
-  if (!name || !username || !password) throw new Error('برجاء إكمال جميع البيانات');
-  if (String(password).length < 4) throw new Error('كلمة المرور يجب ألا تقل عن 4 أحرف');
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (String(users[i].username).toLowerCase() === username)
-      throw new Error('اسم المستخدم موجود بالفعل');
-  }
-  sheet_('Users').appendRow([Utilities.getUuid(), username, hash_(password), String(name).trim(),
-    String(phone || '').trim(), 'user', 'pending', '{}', new Date()]);
-  return 'تم إرسال طلب التسجيل بنجاح. سيتم تنشيط الحساب بعد موافقة الإدارة.';
-}
-
-function apiSession(token) {
-  var user = auth_(token);
-  return { token: token, user: user };
-}
-
-function apiLogout(token) {
-  try { logActivity_(auth_(token), 'خروج', 'تسجيل الدخول', 'تسجيل خروج'); } catch (e) {}
-  if (token) CacheService.getScriptCache().remove('sess_' + token);
-  return true;
-}
-
-function apiChangePassword(token, oldPass, newPass) {
-  var user = auth_(token);
-  if (String(newPass).length < 4) throw new Error('كلمة المرور يجب ألا تقل عن 4 أحرف');
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === user.id) {
-      if (users[i].passHash !== hash_(oldPass)) throw new Error('كلمة المرور الحالية غير صحيحة');
-      sheet_('Users').getRange(users[i]._row, 3).setValue(hash_(newPass));
-      return 'تم تغيير كلمة المرور بنجاح';
-    }
-  }
-  throw new Error('تعذر العثور على الحساب');
-}
-
-/* ===================== إدارة المستخدمين (للمدير) ===================== */
-
-function apiGetUsers(token) {
-  var user = auth_(token);
-  adminOnly_(user);
-  return getAll_('Users').map(function (u) {
-    return {
-      id: u.id, username: u.username, name: u.name, phone: String(u.phone || ''),
-      role: u.role, status: u.status,
-      permissions: (function () { try { return JSON.parse(u.permissions || '{}'); } catch (e) { return {}; } })()
-    };
-  });
-}
-
-function apiSetUserStatus(token, userId, status) {
-  var user = auth_(token);
-  adminOnly_(user);
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === userId) {
-      sheet_('Users').getRange(users[i]._row, 7).setValue(status);
-      logActivity_(user, 'تعديل حالة مستخدم', 'المستخدمين', 'مستخدم: ' + users[i].username + ' → ' + status);
-      return 'تم التحديث';
-    }
-  }
-  throw new Error('المستخدم غير موجود');
-}
-
-function apiSetPermissions(token, userId, perms, role) {
-  var user = auth_(token);
-  adminOnly_(user);
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === userId) {
-      sheet_('Users').getRange(users[i]._row, 8).setValue(JSON.stringify(perms || {}));
-      if (role) sheet_('Users').getRange(users[i]._row, 6).setValue(role);
-      logActivity_(user, 'تعديل صلاحيات', 'المستخدمين', 'مستخدم: ' + users[i].username);
-      return 'تم حفظ الصلاحيات';
-    }
-  }
-  throw new Error('المستخدم غير موجود');
-}
-
-function apiCreateUser(token, name, username, password, phone, perms, role) {
-  var user = auth_(token);
-  adminOnly_(user);
-  username = String(username || '').trim().toLowerCase();
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (String(users[i].username).toLowerCase() === username)
-      throw new Error('اسم المستخدم موجود بالفعل');
-  }
-  sheet_('Users').appendRow([Utilities.getUuid(), username, hash_(password), String(name).trim(),
-    String(phone || '').trim(), role === 'admin' ? 'admin' : 'user', 'approved',
-    JSON.stringify(perms || {}), new Date()]);
-  logActivity_(user, 'إضافة مستخدم', 'المستخدمين', 'مستخدم: ' + username);
-  return 'تم إنشاء الحساب';
-}
-
-function apiResetUserPassword(token, userId, newPass) {
-  var user = auth_(token);
-  adminOnly_(user);
-  if (String(newPass).length < 4) throw new Error('كلمة المرور يجب ألا تقل عن 4 أحرف');
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === userId) {
-      sheet_('Users').getRange(users[i]._row, 3).setValue(hash_(newPass));
-      logActivity_(user, 'تعيين كلمة مرور', 'المستخدمين', 'مستخدم: ' + users[i].username);
-      return 'تم تعيين كلمة المرور الجديدة';
-    }
-  }
-  throw new Error('المستخدم غير موجود');
-}
-
-function apiDeleteUser(token, userId) {
-  var user = auth_(token);
-  adminOnly_(user);
-  if (userId === user.id) throw new Error('لا يمكن حذف حسابك الحالي');
-  var users = getAll_('Users');
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === userId) {
-      logActivity_(user, 'حذف مستخدم', 'المستخدمين', 'مستخدم: ' + users[i].username);
-      sheet_('Users').deleteRow(users[i]._row);
-      return 'تم حذف الحساب';
-    }
-  }
-  throw new Error('المستخدم غير موجود');
-}
-
-/* ===================== متابعة المستخدمين (سجل النشاط) ===================== */
-
-function logActivity_(user, action, page, details) {
-  try {
-    sheet_('ActivityLog').appendRow([Utilities.getUuid(),
-      String((user && user.username) || ''), String((user && user.name) || ''),
-      String(action || ''), String(page || ''), String(details || ''), new Date()]);
-  } catch (e) {}
-}
-
-function apiLogPage(token, page) {
-  var user = auth_(token);
-  logActivity_(user, 'فتح صفحة', page, '');
-  return true;
-}
-
-function apiGetActivity(token) {
-  var user = auth_(token);
-  adminOnly_(user);
-  var tz = Session.getScriptTimeZone();
-  var now = new Date();
-  var all = getAll_('ActivityLog');
-  var users = {}, log = [];
-  for (var i = all.length - 1; i >= 0 && log.length < 300; i--) {
-    var r = all[i];
-    var dt = r.created ? new Date(r.created) : null;
-    var timeStr = dt ? Utilities.formatDate(dt, tz, 'yyyy-MM-dd HH:mm') : '';
-    var ts = dt ? dt.getTime() : 0;
-    log.push({ time: timeStr, username: String(r.username), name: String(r.name),
-      action: String(r.action), page: String(r.page), details: String(r.details) });
-    var key = String(r.username);
-    if (!users[key]) users[key] = { username: key, name: String(r.name),
-      lastLogin: '', lastSeen: '', online: false, actions: 0, _login: 0, _seen: 0 };
-    var uu = users[key];
-    uu.actions++;
-    if (String(r.action) === 'دخول' && ts > uu._login) { uu._login = ts; uu.lastLogin = timeStr; }
-    if (ts > uu._seen) { uu._seen = ts; uu.lastSeen = timeStr; uu.online = (now.getTime() - ts) < 5 * 60 * 1000; }
-  }
-  var list = Object.keys(users).map(function (k) {
-    return { username: users[k].username, name: users[k].name, lastLogin: users[k].lastLogin,
-      lastSeen: users[k].lastSeen, online: users[k].online, actions: users[k].actions };
-  });
-  list.sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); });
-  return { log: log, users: list };
-}
-
-/* ===================== العاملين ===================== */
-
-function isActive_(w) {
-  return w.active === true || w.active === 'TRUE' || String(w.active) === 'true';
-}
-
-// عدد أيام الحضور المستحقة (لم تُسوَّ بعد)، محسوبة حتى تاريخ محدد فقط (افتراضيًا تاريخ اليوم)
-// وليس بعدد كل أيام الحضور المسجلة بغض النظر عن تاريخها
-function unsettledCount_(worker, att, uptoDate) {
-  var ls = worker.lastSettlement ? String(worker.lastSettlement).slice(0, 10) : '';
-  var upto = String(uptoDate || todayStr_());
-  var c = 0;
-  for (var i = 0; i < att.length; i++) {
-    var r = att[i];
-    if (r.workerId === worker.id && r.status && r.status !== '--' &&
-        (!ls || String(r.date) > ls) && String(r.date) <= upto) c++;
-  }
-  return c;
-}
-
-function workerOut_(w, att, uptoDate) {
-  var ls = w.lastSettlement ? String(w.lastSettlement).slice(0, 10) : '';
-  return {
-    id: w.id, name: w.name, cardNumber: String(w.cardNumber || ''), phone: String(w.phone || ''),
-    dailyWage: Number(w.dailyWage) || 0,
-    cardImg: String(w.cardImg || ''), photo: String(w.photo || ''),
-    lastSettlement: ls, active: isActive_(w),
-    workHours: Number(w.workHours) || 8,
-    unsettled: att ? unsettledCount_(w, att, uptoDate) : 0
-  };
-}
-
-function apiGetWorkers(token) {
-  auth_(token);
-  var att = getAll_('Attendance');
-  return getAll_('Workers').map(function (w) { return workerOut_(w, att); });
-}
-
-function apiSaveWorker(token, w) {
-  var user = auth_(token);
-  needPerm_(user, 'workers');
-  if (!w || !w.name) throw new Error('اسم العامل مطلوب');
-  var sh = sheet_('Workers');
-
-  if (w.id) {
-    var rows = getAll_('Workers');
-    var ex = null;
-    for (var i = 0; i < rows.length; i++) if (rows[i].id === w.id) { ex = rows[i]; break; }
-    if (!ex) throw new Error('العامل غير موجود');
-    var cardImg = ex.cardImg, photo = ex.photo;
-    if (w.cardImgB64) cardImg = uploadImage_(w.cardImgB64, 'card_' + Date.now() + '.jpg');
-    if (w.photoB64) photo = uploadImage_(w.photoB64, 'photo_' + Date.now() + '.jpg');
-    sh.getRange(ex._row, 1, 1, 11).setValues([[
-      ex.id, String(w.name).trim(), String(w.cardNumber || '').trim(), String(w.phone || '').trim(),
-      Number(w.dailyWage) || 0, cardImg, photo,
-      w.lastSettlement || ex.lastSettlement || todayStr_(),
-      (w.active === false) ? false : true, ex.created,
-      Number(w.workHours) || Number(ex.workHours) || 8
-    ]]);
-    logActivity_(user, 'تعديل عامل', 'العاملين', 'عامل: ' + String(w.name).trim());
-    return 'تم حفظ بيانات العامل';
-  }
-
-  var cardImg = w.cardImgB64 ? uploadImage_(w.cardImgB64, 'card_' + Date.now() + '.jpg') : '';
-  var photo = w.photoB64 ? uploadImage_(w.photoB64, 'photo_' + Date.now() + '.jpg') : '';
-  // آخر تاريخ تسوية تلقائي = تاريخ الإضافة
-  sh.appendRow([Utilities.getUuid(), String(w.name).trim(), String(w.cardNumber || '').trim(),
-    String(w.phone || '').trim(), Number(w.dailyWage) || 0, cardImg, photo,
-    todayStr_(), true, new Date(), Number(w.workHours) || 8]);
-  logActivity_(user, 'إضافة عامل', 'العاملين', 'عامل: ' + String(w.name).trim());
-  return 'تمت إضافة العامل';
-}
-
-function apiSettle(token, workerId, date) {
-  var user = auth_(token);
-  needPerm_(user, 'workers');
-  var rows = getAll_('Workers');
-  for (var i = 0; i < rows.length; i++) {
-    if (rows[i].id === workerId) {
-      sheet_('Workers').getRange(rows[i]._row, 8).setValue(date || todayStr_());
-      logActivity_(user, 'تسوية عامل', 'التسوية', 'عامل: ' + rows[i].name + ' حتى ' + (date || todayStr_()));
-      return 'تمت التسوية بنجاح حتى ' + (date || todayStr_());
-    }
-  }
-  throw new Error('العامل غير موجود');
-}
-
-function apiDeleteWorker(token, workerId) {
-  var user = auth_(token);
-  needPerm_(user, 'workers');
-  var rows = getAll_('Workers');
-  for (var i = 0; i < rows.length; i++) {
-    if (rows[i].id === workerId) {
-      logActivity_(user, 'حذف عامل', 'العاملين', 'عامل: ' + rows[i].name);
-      sheet_('Workers').deleteRow(rows[i]._row);
-      return 'تم حذف العامل';
-    }
-  }
-  throw new Error('العامل غير موجود');
-}
-
-function apiDeleteWorkers(token, workerIds) {
-  var user = auth_(token);
-  needPerm_(user, 'workers');
-  if (!workerIds || !workerIds.length) throw new Error('برجاء تحديد عامل واحد على الأقل');
-  var set = {};
-  workerIds.forEach(function (id) { set[id] = true; });
-  var sh = sheet_('Workers');
-  var rows = getAll_('Workers');
-  var del = [], names = [];
-  rows.forEach(function (w) {
-    if (set[w.id]) { del.push(w._row); names.push(w.name); }
-  });
-  del.sort(function (a, b) { return b - a; }).forEach(function (row) { sh.deleteRow(row); });
-  logActivity_(user, 'حذف عاملين', 'العاملين', 'تم حذف ' + del.length + ' عامل: ' + names.join('، '));
-  return 'تم حذف ' + del.length + ' عامل';
-}
-
-/* ===================== أماكن الحضور ===================== */
-
-function apiResetAllData(token) {
-  var user = auth_(token);
-  if (user.role !== 'admin') throw new Error('هذا الإجراء للمدير فقط');
-  ['Workers', 'Attendance', 'Locations'].forEach(function (name) {
-    var sh = sheet_(name);
-    var last = sh.getLastRow();
-    if (last > 1) sh.getRange(2, 1, last - 1, sh.getLastColumn()).clearContent();
-  });
-  logActivity_(user, 'تصفير البرنامج', 'النظام', 'تم حذف كل بيانات العاملين والحضور والأماكن نهائيًا');
-  return 'تم تصفير البرنامج وحذف كل البيانات بنجاح';
-}
-
-function touchLocation_(loc) {
-  if (!loc) return;
-  loc = String(loc).trim();
-  if (!loc) return;
-  var sh = sheet_('Locations');
-  var rows = getAll_('Locations');
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i].name).trim() === loc) {
-      sh.getRange(rows[i]._row, 2).setValue(Number(rows[i].count) + 1);
+function updateUser_(username, fields) {
+  var sheet = sh_('Users'), h = SHEETS.Users, n = sheet.getLastRow();
+  if (n < 2) return;
+  var names = sheet.getRange(2, 1, n - 1, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i][0]) === username) {
+      Object.keys(fields).forEach(function (k) {
+        sheet.getRange(i + 2, h.indexOf(k) + 1).setValue(String(fields[k]));
+      });
       return;
     }
   }
-  sh.appendRow([loc, 1]);
 }
 
-function apiGetLocations(token) {
-  auth_(token);
-  return getAll_('Locations')
-    .sort(function (a, b) { return Number(b.count) - Number(a.count); })
-    .map(function (r) { return String(r.name); });
+function publicUser_(u) {
+  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms) };
 }
 
-
-/* ===================== الحضور ===================== */
-
-function attRow_(r) {
-  return {
-    id: r.id, date: String(r.date), workerId: r.workerId, workerName: r.workerName,
-    status: r.status, location: String(r.location || ''), wage: Number(r.wage) || 0,
-    notes: String(r.notes || ''), extraHours: Number(r.extraHours) || 0
-  };
+function login(username, password) {
+  ensureAdmin_();
+  username = clip_(username, 40).toLowerCase();
+  var cache = CacheService.getScriptCache();
+  var fkey = 'F_' + username;
+  if (Number(cache.get(fkey) || 0) >= 5) throw new Error('تم تجاوز عدد المحاولات، حاول بعد 10 دقائق');
+  var u = readAll_('Users').filter(function (x) { return x.username === username; })[0];
+  if (!u || hash_(u.salt, String(password || '')) !== u.hash) {
+    cache.put(fkey, String(Number(cache.get(fkey) || 0) + 1), 600);
+    throw new Error('بيانات الدخول غير صحيحة');
+  }
+  if (u.status === 'pending') throw new Error('حسابك بانتظار موافقة الإدارة');
+  if (u.status !== 'approved') throw new Error('تم إيقاف هذا الحساب');
+  cache.remove(fkey);
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  cache.put('S_' + token, username, SESSION_TTL);
+  updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()) });
+  log_(u.name, 'دخول', 'النظام', username);
+  return { token: token };
 }
 
-function apiGetDay(token, date) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  var att = getAll_('Attendance');
-  // المستحق هنا يُحسب حتى تاريخ هذا اليوم المحدد، وليس بعدد كل الأيام المسجلة
-  var workers = getAll_('Workers').filter(isActive_).map(function (w) { return workerOut_(w, att, date); });
-  var records = att.filter(function (r) { return String(r.date) === String(date); }).map(attRow_);
-  return { date: String(date), workers: workers, records: records };
+function logout(token) {
+  try {
+    var u = auth_(token);
+    log_(u.name, 'خروج', 'النظام', u.username);
+  } catch (e) { /* تجاهل */ }
+  if (token) CacheService.getScriptCache().remove('S_' + token);
+  return true;
 }
 
-// حفظ تسجيل اليوم بالكامل (يستبدل أي تسجيل سابق لنفس التاريخ)
-function apiSaveDay(token, date, records) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  if (!date) throw new Error('برجاء تحديد التاريخ');
-  var sh = sheet_('Attendance');
-  var all = getAll_('Attendance');
-  var del = [];
-  all.forEach(function (r) { if (String(r.date) === String(date)) del.push(r._row); });
-  del.sort(function (a, b) { return b - a; }).forEach(function (row) { sh.deleteRow(row); });
-  var now = new Date();
-  (records || []).forEach(function (r) {
-    if (!r || !r.status || r.status === '--') return;
-    sh.appendRow([Utilities.getUuid(), String(date), r.workerId, r.workerName || '',
-      r.status, String(r.location || '').trim(), Number(r.wage) || 0, String(r.notes || ''), now,
-      Number(r.extraHours) || 0]);
-    touchLocation_(r.location);
-  });
-  logActivity_(user, 'حفظ حضور', 'الحضور', 'تاريخ ' + date + ' (' + (records || []).length + ' سجل)');
-  return 'تم حفظ تسجيل اليوم بالكامل';
-}
-
-// عرض فترة سابقة (من - إلى)
-function apiGetPeriod(token, from, to) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  var att = getAll_('Attendance');
-  var workers = getAll_('Workers').filter(isActive_).map(function (w) { return workerOut_(w, att); });
-  var rows = att.filter(function (r) {
-    var d = String(r.date);
-    return d >= String(from) && d <= String(to);
-  }).map(attRow_);
-  rows.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-  return { workers: workers, rows: rows, from: from, to: to };
-}
-
-/* ===================== التسوية ===================== */
-
-function apiGetSettlement(token, from, to, location) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  if (!from || !to) throw new Error('برجاء تحديد الفترة من - إلى');
-  location = String(location || '').trim();
-
-  var wmap = workerMap_();
-  var att = getAll_('Attendance').filter(function (r) {
-    if (!r.status || r.status === '--') return false;
-    var d = String(r.date);
-    if (d < String(from) || d > String(to)) return false;
-    if (location && String(r.location || '').trim() !== location) return false;
+function register(name, username, password) {
+  name = clip_(name, 60);
+  username = clip_(username, 30).toLowerCase();
+  password = String(password || '');
+  if (name.length < 2) throw new Error('اكتب الاسم بالكامل');
+  if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new Error('اسم المستخدم: حروف إنجليزية صغيرة وأرقام فقط (3 أحرف على الأقل)');
+  if (password.length < 6) throw new Error('كلمة المرور 6 أحرف على الأقل');
+  return locked_(function () {
+    ensureAdmin_();
+    var users = readAll_('Users');
+    if (users.some(function (u) { return u.username === username; })) throw new Error('اسم المستخدم مستخدم من قبل');
+    if (users.filter(function (u) { return u.status === 'pending'; }).length >= 50) throw new Error('عدد الطلبات المعلقة كبير، تواصل مع الإدارة');
+    var salt = Utilities.getUuid();
+    users.push({ username: username, name: name, salt: salt, hash: hash_(salt, password), status: 'pending', role: 'user', perms: '{}', lastLogin: '', lastActive: '' });
+    writeAll_('Users', users);
+    log_(name, 'طلب تسجيل', 'النظام', username);
     return true;
   });
+}
 
-  var map = {};
-  att.forEach(function (r) {
-    if (!map[r.workerId]) map[r.workerId] = {
-      workerId: r.workerId, workerName: r.workerName, days: 0, wage: 0, extraHours: 0, total: 0, notes: []
-    };
-    var m = map[r.workerId];
-    m.days++;
-    m.wage = Number(r.wage) || m.wage;
-    m.extraHours += Number(r.extraHours) || 0;
-    m.total += recValue_(r, wmap);
-    if (r.notes && m.notes.indexOf(r.notes) === -1) m.notes.push(r.notes);
-  });
+function changePassword(token, oldPass, newPass) {
+  var u = auth_(token);
+  newPass = String(newPass || '');
+  if (newPass.length < 6) throw new Error('كلمة المرور الجديدة 6 أحرف على الأقل');
+  if (hash_(u.salt, String(oldPass || '')) !== u.hash) throw new Error('كلمة المرور الحالية غير صحيحة');
+  var salt = Utilities.getUuid();
+  updateUser_(u.username, { salt: salt, hash: hash_(salt, newPass) });
+  log_(u.name, 'تغيير كلمة المرور', 'النظام', u.username);
+  return true;
+}
 
-  var wmap = {};
-  getAll_('Workers').forEach(function (w) { wmap[w.id] = w; });
+function ping(token) {
+  var u = auth_(token);
+  updateUser_(u.username, { lastActive: String(Date.now()) });
+  return true;
+}
 
-  var rows = Object.keys(map).map(function (k) {
-    var m = map[k];
-    var w = wmap[k];
-    var ls = w && w.lastSettlement ? String(w.lastSettlement).slice(0, 10) : '';
-    m.settled = !!(ls && ls >= String(to));
-    m.notes = m.notes.join(' | ');
-    return m;
-  });
-  rows.sort(function (a, b) { return a.workerName.localeCompare(b.workerName, 'ar'); });
+/* ===================== السجل ===================== */
+function log_(user, action, page, details) {
+  var sheet = sh_('Log');
+  sheet.appendRow([now_(), clip_(user, 60), clip_(action, 60), clip_(page, 60), clip_(details, 200)]);
+  if (sheet.getLastRow() > MAX_LOG_ROWS + 1) sheet.deleteRows(2, 1000);
+}
 
-  var totalDays = 0, totalAmount = 0;
-  rows.forEach(function (r) { totalDays += r.days; totalAmount += r.total; });
-  totalAmount = Math.round(totalAmount * 100) / 100;
+function addLog(token, action, page, details) {
+  var u = auth_(token);
+  log_(u.name, action, page, details);
+  return true;
+}
 
+/* ===================== تحميل البيانات ===================== */
+function workerOut_(w, full) {
   return {
-    rows: rows, from: String(from), to: String(to), location: location,
-    totalDays: totalDays, totalAmount: totalAmount,
-    amountWords: amountToArabic_(totalAmount)
+    id: w.id, name: w.name,
+    card: full ? w.card : '', phone: full ? w.phone : '',
+    wage: num_(w.wage), hours: num_(w.hours, 8) || 8, lastSet: w.lastSet,
+    hasCard: !!w.cardImg, hasPhoto: !!w.photo
   };
 }
 
-function apiSettleBulk(token, workerIds, to) {
-  var user = auth_(token);
-  needPerm_(user, 'attendance');
-  if (!to) throw new Error('برجاء تحديد تاريخ التسوية');
-  if (!workerIds || !workerIds.length) throw new Error('برجاء تحديد عامل واحد على الأقل');
-  var sh = sheet_('Workers');
-  var rows = getAll_('Workers');
-  var set = {};
-  workerIds.forEach(function (id) { set[id] = true; });
-  var count = 0;
-  rows.forEach(function (w) {
-    if (set[w.id]) { sh.getRange(w._row, 8).setValue(String(to)); count++; }
+function bootstrap(token) {
+  var u = auth_(token);
+  updateUser_(u.username, { lastActive: String(Date.now()) });
+  var full = can_(u, 'workers');
+  var workers = readAll_('Workers').map(function (w) { return workerOut_(w, full); });
+  var att = readAll_('Attendance').map(function (r) {
+    return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes };
   });
-  logActivity_(user, 'تسوية عاملين', 'التسوية', 'تمت تسوية ' + count + ' عامل حتى ' + to);
-  return 'تمت تسوية ' + count + ' عامل حتى تاريخ ' + to;
+  var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att) };
+  if (u.role === 'admin') out.users = readAll_('Users').map(publicUser_);
+  return out;
 }
 
-/* ===================== لوحة التحكم ===================== */
-
-
-/* ===================== تحويل الأرقام إلى كلمات عربية (للخطاب) ===================== */
-
-function numberToWords_(n) {
-  n = Math.round(Number(n) || 0);
-  if (n === 0) return 'صفر';
-  var onesM = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
-  var onesF = ['', 'واحدة', 'اثنتان', 'ثلاث', 'أربع', 'خمس', 'ست', 'سبع', 'ثماني', 'تسع'];
-  var teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
-  var tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
-  var hundreds = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
-
-  function threeDigits(num, fem) {
-    var oarr = fem ? onesF : onesM;
-    var h = Math.floor(num / 100), t = Math.floor((num % 100) / 10), o = num % 10;
-    var parts = [];
-    if (h) parts.push(hundreds[h]);
-    if (t === 1) {
-      parts.push(teens[o]);
-    } else {
-      var sub = [];
-      if (o) sub.push(oarr[o]);
-      if (t) sub.push(tens[t]);
-      if (sub.length) parts.push(sub.join(' و'));
-    }
-    return parts.join(' و');
-  }
-
-  var scales = [
-    { val: 1000000000, s: 'مليار', d: 'ملياران', p: 'مليارات' },
-    { val: 1000000, s: 'مليون', d: 'مليونان', p: 'ملايين' },
-    { val: 1000, s: 'ألف', d: 'ألفان', p: 'آلاف' }
-  ];
-
-  var parts = [], rem = n;
-  scales.forEach(function (sc) {
-    var count = Math.floor(rem / sc.val);
-    rem = rem % sc.val;
-    if (count === 0) return;
-    if (count === 1) parts.push(sc.s);
-    else if (count === 2) parts.push(sc.d);
-    else if (count >= 3 && count <= 10) parts.push(threeDigits(count, true) + ' ' + sc.p);
-    else parts.push(threeDigits(count, false) + ' ' + sc.s);
-  });
-  if (rem > 0) parts.push(threeDigits(rem, false));
-  return parts.join(' و');
+function allLocs_(att) {
+  var seen = {}, list = [];
+  readAll_('Locations').map(function (x) { return x.name; })
+    .concat((att || []).map(function (r) { return r.loc; }))
+    .forEach(function (l) { l = String(l || '').trim(); if (l && !seen[l]) { seen[l] = 1; list.push(l); } });
+  return list;
 }
 
-function amountToArabic_(amount) {
-  amount = Number(amount) || 0;
-  var whole = Math.floor(amount);
-  var frac = Math.round((amount - whole) * 100);
-  var txt = (whole === 0 ? 'صفر' : numberToWords_(whole)) + ' جنيه مصري';
-  if (frac > 0) txt += ' و' + numberToWords_(frac) + ' قرش';
-  txt += ' لا غير';
-  return txt;
-}
-
-/* ===================== التقارير ===================== */
-
-function inRange_(r, from, to) {
-  var d = String(r.date);
-  return r.status && r.status !== '--' && d >= String(from) && d <= String(to);
-}
-
-function workerMap_() {
-  var m = {};
-  getAll_('Workers').forEach(function (w) { m[w.id] = w; });
-  return m;
-}
-
-// قيمة اليوم = أجر اليوم + (ساعات إضافية × أجر الساعة)
-function recValue_(r, wmap) {
-  var w = wmap[r.workerId];
-  var hours = (w && Number(w.workHours)) || 8;
-  var dailyWage = (w && Number(w.dailyWage)) || Number(r.wage) || 0;
-  var hourly = hours ? dailyWage / hours : 0;
-  return (Number(r.wage) || 0) + (Number(r.extraHours) || 0) * hourly;
-}
-
-// تقرير حسب اسم العامل
-function apiReportByWorker(token, workerId, from, to) {
-  var user = auth_(token);
-  needPerm_(user, 'reports');
-  var wmap = workerMap_();
-  var rows = getAll_('Attendance').filter(function (r) {
-    return r.workerId === workerId && inRange_(r, from, to);
-  }).map(attRow_);
-  rows.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-  var days = rows.length, total = 0, wage = 0, extraHours = 0;
-  rows.forEach(function (r) { total += recValue_(r, wmap); wage = r.wage; extraHours += r.extraHours; });
-  return { rows: rows, days: days, total: Math.round(total * 100) / 100, wage: wage, extraHours: extraHours };
-}
-
-// تقرير حسب مكان الحضور
-function apiReportByLocation(token, location, from, to) {
-  var user = auth_(token);
-  needPerm_(user, 'reports');
-  var wmap = workerMap_();
-  var map = {};
-  getAll_('Attendance').filter(function (r) {
-    return inRange_(r, from, to) && String(r.location || '').trim() === String(location || '').trim();
-  }).forEach(function (r) {
-    if (!map[r.workerId]) map[r.workerId] = {
-      workerId: r.workerId, workerName: r.workerName, days: 0, wage: Number(r.wage) || 0,
-      extraHours: 0, total: 0, notes: []
-    };
-    var m = map[r.workerId];
-    m.days++;
-    m.extraHours += Number(r.extraHours) || 0;
-    m.total += recValue_(r, wmap);
-    if (r.notes && m.notes.indexOf(r.notes) === -1) m.notes.push(r.notes);
-  });
-  var list = Object.keys(map).map(function (k) { return map[k]; });
-  list.sort(function (a, b) { return b.days - a.days; });
-  return { workers: list, location: location, from: from, to: to };
-}
-
-// تقرير مجمع لجميع العاملين خلال الفترة
-function apiReportSummary(token, from, to) {
-  var user = auth_(token);
-  needPerm_(user, 'reports');
-  var wmap = workerMap_();
-  var map = {};
-  getAll_('Attendance').filter(function (r) { return inRange_(r, from, to); }).forEach(function (r) {
-    if (!map[r.workerId]) map[r.workerId] = {
-      workerId: r.workerId, workerName: r.workerName, days: 0, wage: Number(r.wage) || 0,
-      extraHours: 0, total: 0
-    };
-    var m = map[r.workerId];
-    m.days++;
-    m.extraHours += Number(r.extraHours) || 0;
-    m.total += recValue_(r, wmap);
-    m.wage = Number(r.wage) || 0;
-  });
-  var list = Object.keys(map).map(function (k) { return map[k]; });
-  // إضافة العاملين بدون أيام حضور خلال الفترة
-  getAll_('Workers').forEach(function (w) {
-    if (!map[w.id] && isActive_(w)) list.push({
-      workerId: w.id, workerName: w.name, days: 0, wage: Number(w.dailyWage) || 0, total: 0
+/* ===================== الحضور والتسوية ===================== */
+function saveDay(token, date, recs) {
+  var u = auth_(token, 'attendance');
+  if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
+  if (!Array.isArray(recs)) throw new Error('بيانات غير صحيحة');
+  return locked_(function () {
+    var workers = {};
+    readAll_('Workers').forEach(function (w) { workers[w.id] = w; });
+    var fresh = [], seen = {};
+    recs.forEach(function (r) {
+      var w = workers[String(r.wid)];
+      if (!w || seen[w.id]) return;
+      if (STATUSES.indexOf(r.status) === -1) return;
+      seen[w.id] = 1;
+      var extra = EXTRA_STATUSES.indexOf(r.status) !== -1;
+      fresh.push({
+        date: date, wid: w.id, name: w.name, status: r.status, loc: clip_(r.loc, 80),
+        wage: num_(w.wage), xh: extra ? Math.max(0, num_(r.xh)) : 0, notes: clip_(r.notes, 300)
+      });
     });
+    var all = readAll_('Attendance').filter(function (r) { return r.date !== date; }).concat(fresh);
+    writeAll_('Attendance', all);
+    var known = readAll_('Locations').map(function (x) { return x.name; });
+    var add = [];
+    fresh.forEach(function (r) { if (r.loc && known.indexOf(r.loc) === -1 && add.indexOf(r.loc) === -1) add.push(r.loc); });
+    if (add.length) writeAll_('Locations', known.concat(add).map(function (n) { return { name: n }; }));
+    log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' (' + fresh.length + ')');
+    var att = fresh.map(function (r) { return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: r.wage, xh: r.xh, notes: r.notes }; });
+    return { att: att, locs: allLocs_(readAll_('Attendance')) };
   });
-  list.sort(function (a, b) { return a.workerName.localeCompare(b.workerName, 'ar'); });
-  return { workers: list, from: from, to: to };
 }
 
-/* ===================== أوامر مساعدة (اختياري) ===================== */
+function settleWorkers(token, ids, date) {
+  var u = auth_(token, ['workers', 'attendance']);
+  if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
+  if (!Array.isArray(ids) || !ids.length) throw new Error('حدد عاملًا واحدًا على الأقل');
+  return locked_(function () {
+    var workers = readAll_('Workers'), n = 0;
+    workers.forEach(function (w) { if (ids.indexOf(w.id) !== -1) { w.lastSet = date; n++; } });
+    writeAll_('Workers', workers);
+    log_(u.name, 'تسوية', 'التسوية', n + ' عامل حتى ' + date);
+    return { count: n, date: date };
+  });
+}
 
-// شغّل هذه الدالة مرة واحدة من المحرر لإنشاء قاعدة البيانات مسبقًا
-function setup() {
-  getDB_();
-  return 'تم إنشاء قاعدة البيانات';
+/* ===================== العاملون والصور ===================== */
+function imgFolder_() {
+  var it = DriveApp.getFoldersByName('إدارة الأمن - صور العاملين');
+  return it.hasNext() ? it.next() : DriveApp.createFolder('إدارة الأمن - صور العاملين');
+}
+
+function saveImg_(dataUrl, label) {
+  var m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+\/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('صيغة الصورة غير مدعومة');
+  if (m[2].length > 3000000) throw new Error('حجم الصورة كبير');
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], label + '-' + Date.now());
+  return imgFolder_().createFile(blob).getId();
+}
+
+function trashImg_(id) {
+  if (!id) return;
+  try { DriveApp.getFileById(id).setTrashed(true); } catch (e) { /* ملف محذوف */ }
+}
+
+function saveWorker(token, w) {
+  var u = auth_(token, 'workers');
+  var name = clip_(w && w.name, 80);
+  if (!name) throw new Error('اكتب اسم العامل');
+  return locked_(function () {
+    var workers = readAll_('Workers');
+    var cur = null;
+    if (w.id) {
+      cur = workers.filter(function (x) { return x.id === String(w.id); })[0];
+      if (!cur) throw new Error('العامل غير موجود');
+    } else {
+      cur = { id: 'w' + Date.now() + Math.floor(Math.random() * 1000), lastSet: '', cardImg: '', photo: '' };
+      workers.push(cur);
+    }
+    cur.name = name;
+    cur.card = clip_(w.card, 30);
+    cur.phone = clip_(w.phone, 20);
+    cur.wage = Math.max(0, num_(w.wage));
+    cur.hours = Math.max(1, num_(w.hours, 8)) || 8;
+    if (w.cardImgData) { trashImg_(cur.cardImg); cur.cardImg = saveImg_(w.cardImgData, 'card'); }
+    if (w.photoData) { trashImg_(cur.photo); cur.photo = saveImg_(w.photoData, 'photo'); }
+    writeAll_('Workers', workers);
+    log_(u.name, w.id ? 'تعديل عامل' : 'إضافة عامل', 'العاملين', name);
+    return workerOut_(cur, true);
+  });
+}
+
+function deleteWorkers(token, ids) {
+  var u = auth_(token, 'workers');
+  if (!Array.isArray(ids) || !ids.length) throw new Error('حدد عاملًا واحدًا على الأقل');
+  return locked_(function () {
+    var keep = [], n = 0;
+    readAll_('Workers').forEach(function (w) {
+      if (ids.indexOf(w.id) !== -1) { trashImg_(w.cardImg); trashImg_(w.photo); n++; } else keep.push(w);
+    });
+    writeAll_('Workers', keep);
+    log_(u.name, 'حذف عاملين', 'العاملين', n + ' عامل');
+    return { count: n };
+  });
+}
+
+function getImage(token, id, kind) {
+  auth_(token, ['workers', 'attendance']);
+  var w = readAll_('Workers').filter(function (x) { return x.id === String(id); })[0];
+  if (!w) return null;
+  var fid = kind === 'card' ? w.cardImg : w.photo;
+  if (!fid) return null;
+  try {
+    var blob = DriveApp.getFileById(fid).getBlob();
+    return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+  } catch (e) { return null; }
+}
+
+/* ===================== إدارة المستخدمين والمتابعة ===================== */
+function setUser(token, username, patch) {
+  var me = auth_(token, 'admin');
+  username = clip_(username, 40).toLowerCase();
+  return locked_(function () {
+    var users = readAll_('Users');
+    var u = users.filter(function (x) { return x.username === username; })[0];
+    if (!u) throw new Error('المستخدم غير موجود');
+    if (u.role === 'admin') throw new Error('لا يمكن تعديل حساب المدير');
+    if (patch && patch.status) {
+      if (['approved', 'pending', 'suspended'].indexOf(patch.status) === -1) throw new Error('حالة غير صحيحة');
+      u.status = patch.status;
+      log_(me.name, 'تغيير حالة مستخدم', 'المستخدمين', u.name + ' → ' + patch.status);
+    }
+    if (patch && patch.perms) {
+      var p = {};
+      PERMS.forEach(function (k) { if (patch.perms[k]) p[k] = 1; });
+      u.perms = JSON.stringify(p);
+      log_(me.name, 'تعديل صلاحيات', 'المستخدمين', u.name);
+    }
+    writeAll_('Users', users);
+    return users.map(publicUser_);
+  });
+}
+
+function deleteUser(token, username) {
+  var me = auth_(token, 'admin');
+  username = clip_(username, 40).toLowerCase();
+  return locked_(function () {
+    var users = readAll_('Users');
+    var u = users.filter(function (x) { return x.username === username; })[0];
+    if (!u) throw new Error('المستخدم غير موجود');
+    if (u.role === 'admin') throw new Error('لا يمكن حذف حساب المدير');
+    writeAll_('Users', users.filter(function (x) { return x.username !== username; }));
+    log_(me.name, 'حذف مستخدم', 'المستخدمين', u.name);
+    return readAll_('Users').map(publicUser_);
+  });
+}
+
+function getMonitor(token) {
+  auth_(token, 'admin');
+  var log = readAll_('Log');
+  var nowMs = Date.now();
+  var users = readAll_('Users').map(function (u) {
+    var mine = log.filter(function (l) { return l.user === u.name; });
+    var last = mine.length ? mine[mine.length - 1].action : '';
+    var act = Number(u.lastActive) || 0;
+    return { name: u.name, username: u.username, lastLogin: u.lastLogin, online: act && (nowMs - act) < ONLINE_MS, count: mine.length, lastAction: last };
+  });
+  return { users: users, log: log.slice(-300).reverse() };
+}
+
+function resetAll(token) {
+  var u = auth_(token, 'admin');
+  return locked_(function () {
+    readAll_('Workers').forEach(function (w) { trashImg_(w.cardImg); trashImg_(w.photo); });
+    writeAll_('Workers', []);
+    writeAll_('Attendance', []);
+    writeAll_('Locations', []);
+    log_(u.name, 'تصفير البرنامج', 'النظام', '');
+    return true;
+  });
 }
