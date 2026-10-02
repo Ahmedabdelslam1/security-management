@@ -299,9 +299,11 @@ function buildNav() {
   if (isAllowed('reports')) tabs.push(['reports', 'التقارير']);
   if (USER.role === 'admin') tabs.push(['users', 'المستخدمين']);
   if (USER.role === 'admin') tabs.push(['monitor', 'المتابعة']);
+  var ICONS = { attendance: '\uD83D\uDCCB', settlement: '\uD83D\uDCB0', workers: '\uD83D\uDC65', reports: '\uD83D\uDCCA', users: '\uD83D\uDC64', monitor: '\uD83D\uDDA5' };
   var nav = document.getElementById('mainNav');
   nav.innerHTML = tabs.map(function (t) {
-    return '<button class="ntab" id="nav-' + t[0] + '" onclick="switchTab(\'' + t[0] + '\')">' + t[1] + '</button>';
+    return '<button class="ntab" id="nav-' + t[0] + '" onclick="switchTab(\'' + t[0] + '\')">' +
+      '<span class="nic">' + (ICONS[t[0]] || '') + '</span><span>' + t[1] + '</span></button>';
   }).join('');
   NAV_TABS = tabs;
 }
