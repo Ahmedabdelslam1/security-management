@@ -4,6 +4,7 @@
   <base target="_top">
   <meta charset="utf-8">
   <title>إدارة الأمن</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <?!= include('Styles'); ?>
 </head>
 <body>
@@ -55,6 +56,8 @@
     <div class="brand">إدارة الأمن</div>
     <div class="hdr-user">
       <span id="hdrName" class="hdr-name"></span>
+      <button class="btn small" onclick="openCalculator()" title="الآلة الحاسبة">&#128425;</button>
+      <button class="btn small" onclick="captureScreen()" title="تصوير الشاشة">&#128247;</button>
       <button class="btn small" onclick="openChangePass()" title="تغيير كلمة المرور">&#128273;</button>
       <button class="btn small danger" onclick="doLogout()">خروج</button>
     </div>

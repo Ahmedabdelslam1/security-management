@@ -6,7 +6,7 @@
   --card: #ffffff;
   --card2: #f3f1fb;
   --line: #e7e3f3;
-  --txt: #1e1b2e;
+  --txt: #000000;
   --mut: #8b85a3;
   --acc: #7c5cfc;
   --acc2: #a78bfa;
@@ -37,7 +37,7 @@ body {
   cursor: pointer;
   transition: all .15s;
 }
-.btn:hover { border-color: var(--acc); color: var(--acc); }
+.btn:hover { border-color: var(--acc); color: var(--txt); }
 .btn.primary {
   background: linear-gradient(135deg, var(--acc), var(--acc2));
   color: #fff;
@@ -71,7 +71,7 @@ body {
   flex: 1; padding: 9px; border-radius: 10px; border: 1px solid var(--line);
   background: transparent; color: var(--mut); font-family: inherit; cursor: pointer; font-size: 14px;
 }
-.tab.active { background: rgba(124,92,252,.1); color: var(--acc); border-color: var(--acc); }
+.tab.active { background: rgba(124,92,252,.1); color: var(--txt); border-color: var(--acc); }
 .inp {
   width: 100%; padding: 11px 12px; margin-bottom: 10px;
   background: #fff; border: 1px solid var(--line); border-radius: 10px;
@@ -106,7 +106,7 @@ body {
   margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--acc);
   box-shadow: 0 0 6px rgba(124,92,252,.5);
 }
-.clock-digital { font-size: 19px; font-weight: 800; color: var(--acc); letter-spacing: 1px; }
+.clock-digital { font-size: 19px; font-weight: 800; color: var(--txt); letter-spacing: 1px; }
 .clock-date { color: var(--mut); font-size: 14px; margin-top: 2px; }
 .clock-date b { color: var(--txt); }
 
@@ -116,7 +116,7 @@ body {
   padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line);
   color: var(--txt); font-weight: 600; font-size: 14px;
 }
-.clockbar .cd { color: var(--acc); font-weight: 800; }
+.clockbar .cd { color: var(--txt); font-weight: 800; }
 
 /* ===== مؤشر الاتصال ===== */
 .dot-on { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); margin-left: 4px; }
@@ -129,9 +129,9 @@ header {
   background: rgba(255,255,255,.97); position: sticky; top: 0; z-index: 20;
   backdrop-filter: blur(6px);
 }
-.brand { font-weight: 800; font-size: 18px; color: var(--acc); }
+.brand { font-weight: 800; font-size: 18px; color: var(--txt); }
 .hdr-user { display: flex; align-items: center; gap: 8px; }
-.hdr-name { color: var(--acc); font-weight: 600; }
+.hdr-name { color: var(--txt); font-weight: 600; }
 
 .app-body { display: flex; align-items: flex-start; min-height: calc(100vh - 53px); }
 
@@ -148,7 +148,7 @@ nav .ntab {
   white-space: nowrap; font-size: 14px; font-weight: 600; text-align: right; width: 100%;
 }
 nav .ntab .nic { font-size: 16px; line-height: 1; }
-nav .ntab:hover { background: var(--card2); color: var(--acc); }
+nav .ntab:hover { background: var(--card2); color: var(--txt); }
 nav .ntab.active { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(124,92,252,.3); }
 
 .content-area { flex: 1; min-width: 0; }
@@ -185,7 +185,7 @@ main { padding: 16px; max-width: 1200px; margin: 0 auto; }
   padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
   background: transparent; color: var(--mut); font-family: inherit; cursor: pointer; font-size: 13px;
 }
-.stab.active { color: var(--acc); border-color: var(--acc); background: rgba(124,92,252,.08); }
+.stab.active { color: var(--txt); border-color: var(--acc); background: rgba(124,92,252,.08); }
 
 /* ===== الجداول (على الشاشة) ===== */
 .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); }
@@ -201,7 +201,7 @@ td input, td select {
 }
 td input:focus, td select:focus { outline: none; border-color: var(--acc); }
 .unset { color: var(--warn); font-weight: 700; text-align: center; }
-td .name-link { color: var(--acc); cursor: pointer; font-weight: 600; }
+td .name-link { color: var(--txt); cursor: pointer; font-weight: 600; }
 td .name-link:hover { text-decoration: underline; }
 img.thumb {
   height: 46px; width: 46px; object-fit: cover; border-radius: 8px; cursor: pointer;
@@ -215,7 +215,7 @@ img.thumb {
   background: var(--card2); border: 1px solid var(--line); border-radius: 10px;
   padding: 8px 14px; font-size: 13px; color: var(--mut);
 }
-.totals .tbox b { color: var(--acc); font-size: 16px; display: block; }
+.totals .tbox b { color: var(--txt); font-size: 16px; display: block; }
 
 /* ===== المودال ===== */
 .modal-wrap {
