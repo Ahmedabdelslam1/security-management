@@ -1,0 +1,9 @@
+{
+  "name": "base44-apps-script-host",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local development host for the Google Apps Script project (no runtime dependencies).",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

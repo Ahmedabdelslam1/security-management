@@ -1,0 +1,35 @@
+# Development-only run environment for this Google Apps Script project.
+#
+# The repository is a Google Apps Script web app (Code.gs + Index.html with
+# Google Sheets / Drive as backend). Apps Script cannot run outside Google, so
+# the app is served by the local host in harness/ (same UI, same Code.gs, with
+# SpreadsheetApp/DriveApp/etc. stand-ins backed by a data volume).
+#
+# Run:  docker compose -f docker-compose.base44.yml up -d
+services:
+  app:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "harness/server.js"]
+    restart: on-failure
+    environment:
+      - TZ=Africa/Cairo
+      - PORT=3000
+      - APP_DIR=/app
+      - DATA_DIR=/data
+    volumes:
+      # whole repo bind-mounted: edits to Index.html / Code.gs are picked up live
+      - ./:/app
+      # emulated spreadsheet + Drive contents (never inside the repo)
+      - gas-data:/data
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  gas-data:
