@@ -1,0 +1,33 @@
+# Base44 development environment for this Google Apps Script project.
+#
+# This repo is an Apps Script web app: Code.gs normally runs on Google's
+# servers against SpreadsheetApp / DriveApp. Inside Base44 it runs locally in
+# `dev-server`, which emulates those Google globals with JSON-file storage and
+# exposes the app on port 3000. The repo is bind-mounted, Code.gs is recompiled
+# on every request, and the page live-reloads when source files change, so
+# edits need no rebuild. Zero npm dependencies -> nothing to install.
+services:
+  web:
+    image: node:22
+    working_dir: /app
+    command: ["node", "dev-server/server.js"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - gasdata:/data
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DATA_DIR=/data
+      - NODE_ENV=development
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  gasdata:
