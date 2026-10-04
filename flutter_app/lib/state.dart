@@ -42,5 +42,13 @@ class App extends ChangeNotifier {
     notifyListeners();
   }
 
+  // تحديث قائمة المستخدمين بعد أي تعديل إداري (السيرفر يرجع القائمة الجديدة)
+  void updateUsers(List<AppUser> us) {
+    if (data != null) {
+      data = BootData(user: data!.user, workers: data!.workers, att: data!.att, locs: data!.locs, users: us);
+      notifyListeners();
+    }
+  }
+
   void toast() => notifyListeners(); // لإعادة رسم بعد تعديلات محلية
 }

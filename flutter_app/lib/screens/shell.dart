@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import '../state.dart';
 import 'attendance.dart';
 import 'workers.dart';
+import 'settlement.dart';
+import 'reports.dart';
+import 'gate.dart';
+import 'users.dart';
+import 'monitor.dart';
 import 'settings.dart';
 
 const _arDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -135,27 +140,21 @@ class _ShellState extends State<Shell> {
         return const AttendanceScreen();
       case 'workers':
         return const WorkersScreen();
+      case 'settlement':
+        return const SettlementScreen();
+      case 'reports':
+        return const ReportsScreen();
+      case 'gate':
+        return const GateScreen();
+      case 'users':
+        return const UsersScreen();
+      case 'monitor':
+        return const MonitorScreen();
       case 'settings':
         return const SettingsScreen();
       default:
-        return _comingSoon(tab);
+        return Center(child: Text(appTitle(tab)));
     }
-  }
-
-  Widget _comingSoon(String tab) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.construction, size: 54, color: Color(0xFF8B85A3)),
-          const SizedBox(height: 10),
-          Text(appTitle(tab), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          const Text('هذه الشاشة قيد النقل إلى التطبيق — أكمّل عملك من نسخة الويب مؤقتًا',
-              textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-        ],
-      ),
-    );
   }
 
   static String appTitle(String tab) {
