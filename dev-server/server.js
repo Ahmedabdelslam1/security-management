@@ -102,6 +102,17 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  /* بوابة JSON لتطبيق الأندرويد: POST /exec  (مثل رابط النشر الحقيقي) */
+  if (p === '/exec' && req.method === 'POST') {
+    try {
+      const r = runtime.callPost(await readBody(req));
+      res.writeHead(200, { 'Content-Type': r.mime + '; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(r.body);
+    } catch (e) {
+      return sendJson(res, 200, { ok: false, error: runtime.errorMessage(e) });
+    }
+  }
+
   if (p === '/' || p === '/index.html' || p === '/exec') {
     try {
       const html = runtime.renderPage();

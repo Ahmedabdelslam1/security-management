@@ -77,14 +77,19 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: Image.asset('assets/logo.png', width: 92, height: 92, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(Icons.shield_outlined, size: 64, color: cs.primary)),
+                const SizedBox(height: 4),
+                Center(
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: Image.asset('assets/logo.png', fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(Icons.shield_outlined, size: 36, color: cs.primary)),
+                  ),
                 ),
                 const SizedBox(height: 6),
-                Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: cs.onSurface)),
+                Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: cs.onSurface)),
                 const SizedBox(height: 18),
                 Card(
                   elevation: 3,

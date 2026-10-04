@@ -71,22 +71,32 @@ class Api {
     var u = _url ?? await getUrl();
     if (u == null || u.trim().isEmpty) u = defaultUrl;
     http.Response res;
+    final client = http.Client();
     try {
-      res = await http
-          .post(
-            Uri.parse(u!),
-            headers: {'Content-Type': 'text/plain; charset=utf-8'},
-            body: jsonEncode({'action': action, 'args': args}),
-          )
-          .timeout(const Duration(seconds: 60));
+      // Apps Script يردّ على POST بتحويل 302 إلى رابط الرد — لا يتبعه Dart تلقائيًا مع POST،
+      // فنوقف التتبع التلقائي ونطلب رابط الرد بـ GET يدويًا.
+      final req = http.Request('POST', Uri.parse(u))
+        ..headers['Content-Type'] = 'text/plain; charset=utf-8'
+        ..body = jsonEncode({'action': action, 'args': args})
+        ..followRedirects = false;
+      res = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 60)));
+      var hops = 0;
+      while ((res.statusCode == 301 || res.statusCode == 302 || res.statusCode == 303) && hops < 5) {
+        final loc = res.headers['location'];
+        if (loc == null || loc.isEmpty) break;
+        res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 60));
+        hops++;
+      }
     } catch (e) {
       throw ApiException('تعذر الوصول للسيرفر — تأكد من الرابط والإنترنت');
+    } finally {
+      client.close();
     }
     Map out;
     try {
       out = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
     } catch (_) {
-      throw ApiException('رد غير صالح من السيرفر — تأكد أن الرابط ينتهي بـ /exec');
+      throw ApiException('رد غير صالح من السيرفر (${res.statusCode}) — تأكد أن الرابط ينتهي بـ /exec وأنك نشرت نسخة جديدة من Code.gs');
     }
     if (out['ok'] != true) {
       final msg = (out['error'] ?? 'خطأ غير معروف').toString();

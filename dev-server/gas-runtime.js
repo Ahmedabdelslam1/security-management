@@ -401,6 +401,16 @@ function compile(state) {
     PropertiesService: makePropertiesService(state),
     LockService,
     HtmlService: makeHtmlService(),
+    ContentService: {
+      MimeType: { JSON: 'application/json', TEXT: 'text/plain' },
+      createTextOutput: (text) => {
+        const o = { _t: String(text == null ? '' : text), _m: 'text/plain' };
+        o.setMimeType = (m) => { o._m = m; return o; };
+        o.getContent = () => o._t;
+        o.getMimeType = () => o._m;
+        return o;
+      }
+    },
     Logger: { log: () => { } }
   };
   vm.createContext(sandbox);
@@ -417,6 +427,16 @@ function callFunction(name, args) {
   const result = sandbox[name].apply(null, args || []);
   saveState(state);
   return result;
+}
+
+/** Run doPost (JSON gateway used by the Flutter app). Returns { body, mime }. */
+function callPost(body) {
+  const state = loadState();
+  const sandbox = compile(state);
+  if (typeof sandbox.doPost !== 'function') throw new Error('doPost is not defined in Code.gs');
+  const out = sandbox.doPost({ postData: { contents: body, type: 'text/plain' } });
+  saveState(state);
+  return { body: out.getContent(), mime: out.getMimeType() };
 }
 
 /** Render the web app entry point (doGet), falling back to the raw HTML file. */
@@ -437,4 +457,4 @@ function errorMessage(e) {
   return String((e && e.message) || e).replace(/^Error:\s*/, '');
 }
 
-module.exports = { callFunction, renderPage, readHtmlSource, injectShim, errorMessage, REPO };
+module.exports = { callFunction, callPost, renderPage, readHtmlSource, injectShim, errorMessage, REPO };

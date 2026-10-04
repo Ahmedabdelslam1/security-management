@@ -38,6 +38,36 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/* ===================== بوابة JSON لتطبيق الأندرويد (Flutter) =====================
+ * الطلب:  POST {"action":"اسم_الدالة","args":[...]}   →   الرد: {"ok":true,"data":...} أو {"ok":false,"error":"..."}
+ * فقط الدوال المسموح بها أدناه يمكن استدعاؤها (لا الدوال الداخلية ولا setup ولا resetAll).
+ * ملاحظة: بعد أي تعديل لا بد من نشر نسخة جديدة (Deploy > Manage deployments > Edit > New version). */
+function apiMap_() {
+  return {
+    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, addLog: addLog,
+    bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
+    updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
+    setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
+    getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage
+  };
+}
+
+function doPost(e) {
+  var out;
+  try {
+    var raw = (e && e.postData && e.postData.contents) || '{}';
+    var req = JSON.parse(raw);
+    var name = String(req.action || ''), map = apiMap_();
+    if (!Object.prototype.hasOwnProperty.call(map, name)) throw new Error('إجراء غير معروف: ' + name);
+    var args = Array.isArray(req.args) ? req.args : [];
+    var data = map[name].apply(null, args);
+    out = { ok: true, data: data === undefined ? null : data };
+  } catch (err) {
+    out = { ok: false, error: String((err && err.message) || err).replace(/^Error:\s*/, '') };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function setup() {
   Object.keys(SHEETS).forEach(function (n) { sh_(n); });
   ensureAdmin_();
