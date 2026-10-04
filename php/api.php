@@ -17,9 +17,30 @@ require_once __DIR__ . '/lib/auth.php';
 bootStorage();
 
 $input = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
-$fn = $input['fn'] ?? '';
-$args = $input['args'] ?? [];
+
+/*
+ * بروتوكول موحّد مع Google Apps Script (doPost) وتطبيق Flutter:
+ *   {"action":"اسم_الدالة","args":[...]}
+ *   في النداءات الموثّقة يكون الـ token أول عنصر في args (كما في Flutter Api.auth).
+ *
+ * بروتوكول الواجهة PHP (index.html):
+ *   {"fn":"اسم_الدالة","args":[...],"token":"..."}
+ */
+$fn = (string)($input['action'] ?? $input['fn'] ?? '');
+$args = is_array($input['args'] ?? null) ? $input['args'] : [];
 $token = $input['token'] ?? null;
+
+// استخراج الـ token من أول وسيطة للدوال التي تتوقع token أولًا (متوافق مع Flutter)
+$needsTokenFirst = [
+    'logout','changePassword','ping','addLog','bootstrap','saveDay','settleWorkers',
+    'listPayroll','updatePayrollAdj','saveWorker','deleteWorkers','getImage',
+    'setUser','addUser','resetUserPassword','deleteUser','getMonitor',
+    'listGate','saveGate','deleteGate','getGateImage','resetAll',
+];
+if ($token === null && in_array($fn, $needsTokenFirst, true) && count($args) > 0) {
+    $token = is_string($args[0]) ? $args[0] : (string)$args[0];
+    $args = array_slice($args, 1);
+}
 
 try {
     $result = withLock(function () use ($fn, $args, $token) {

@@ -1,4 +1,4 @@
-// بوابة الاتصال بسيرفر Apps Script — نفس دوال النسخة الويب بالضبط
+// بوابة الاتصال بالسيرفر — متوافقة مع Google Apps Script (doPost) و PHP (api.php)
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,11 +18,10 @@ class SessionExpired implements Exception {
 class Api {
   static String? _url;
   static String? _token;
-  static const _kUrl = 'gas_url_v2'; // مفتاح جديد: يتجاهل الرابط القديم المحفوظ على الأجهزة
+  static const _kUrl = 'gas_url_v2';
   static const _kTok = 'gas_token';
 
-  // رابط السيرفر الافتراضي — مضبوط مسبقًا، التطبيق يعمل تلقائيًا بدون أي إدخال يدوي.
-  // يمكن تغييره من شاشة الدخول لو تم نشر إصدار سيرفر جديد.
+  // رابط السيرفر الافتراضي (Google Apps Script)
   static const String defaultUrl =
       'https://script.google.com/macros/s/AKfycbz5ISJT-vROTmczOi8HdFBvwSXiUZ3mMGzHJBfv732cumsONfMsu-yK_5-NuOzByHQu/exec';
 
@@ -39,8 +38,10 @@ class Api {
 
   static Future<void> saveUrl(String u) async {
     u = u.trim();
-    // الرابط مخفي من الواجهة: الفاضي يعني استخدام الرابط المدمج الافتراضي
-    if (u.isEmpty) { _url = defaultUrl; return; }
+    if (u.isEmpty) {
+      _url = defaultUrl;
+      return;
+    }
     if (!u.startsWith('http')) throw ApiException('الرابط لازم يبدأ بـ https://');
     _url = u;
     final p = await SharedPreferences.getInstance();
@@ -66,37 +67,77 @@ class Api {
     await p.remove(_kTok);
   }
 
-  // نداء عام: action = اسم الدالة في Code.gs، args = وسائطها بالترتيب (token أولًا حيث يلزم)
+  /// هل الرابط يشير لسيرفر PHP؟
+  static bool _isPhpBackend(String u) {
+    final lower = u.toLowerCase();
+    return lower.contains('api.php') ||
+        lower.endsWith('/php') ||
+        lower.contains('/php/') ||
+        (!lower.contains('script.google.com') && !lower.contains('googleusercontent.com'));
+  }
+
+  // نداء عام: action = اسم الدالة، args = وسائطها (token أولًا حيث يلزم)
   static Future<dynamic> call(String action, [List args = const []]) async {
     var u = _url ?? await getUrl();
     if (u == null || u.trim().isEmpty) u = defaultUrl;
+    u = u.trim();
+
+    // لو كان رابط مجلد PHP بدون api.php أضفه تلقائيًا
+    if (!u.contains('script.google.com') &&
+        !u.endsWith('/exec') &&
+        !u.endsWith('api.php') &&
+        !u.contains('api.php?')) {
+      if (u.endsWith('/')) {
+        u = '${u}api.php';
+      } else if (!u.contains('.php')) {
+        u = '$u/api.php';
+      }
+    }
+
+    final body = jsonEncode({'action': action, 'args': args});
     http.Response res;
     final client = http.Client();
     try {
-      // Apps Script يردّ على POST بتحويل 302 إلى رابط الرد — لا يتبعه Dart تلقائيًا مع POST،
-      // فنوقف التتبع التلقائي ونطلب رابط الرد بـ GET يدويًا.
-      final req = http.Request('POST', Uri.parse(u))
-        ..headers['Content-Type'] = 'text/plain; charset=utf-8'
-        ..body = jsonEncode({'action': action, 'args': args})
-        ..followRedirects = false;
-      res = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 60)));
-      var hops = 0;
-      while ((res.statusCode == 301 || res.statusCode == 302 || res.statusCode == 303) && hops < 5) {
-        final loc = res.headers['location'];
-        if (loc == null || loc.isEmpty) break;
-        res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 60));
-        hops++;
+      if (_isPhpBackend(u) || !u.contains('script.google.com')) {
+        // سيرفر PHP أو أي API مباشر — POST JSON عادي
+        res = await client
+            .post(
+              Uri.parse(u),
+              headers: {'Content-Type': 'application/json; charset=utf-8'},
+              body: body,
+            )
+            .timeout(const Duration(seconds: 60));
+      } else {
+        // Google Apps Script: POST ثم اتبع تحويل 302 يدويًا
+        final req = http.Request('POST', Uri.parse(u))
+          ..headers['Content-Type'] = 'text/plain; charset=utf-8'
+          ..body = body
+          ..followRedirects = false;
+        res = await http.Response.fromStream(
+            await client.send(req).timeout(const Duration(seconds: 60)));
+        var hops = 0;
+        while ((res.statusCode == 301 ||
+                res.statusCode == 302 ||
+                res.statusCode == 303) &&
+            hops < 5) {
+          final loc = res.headers['location'];
+          if (loc == null || loc.isEmpty) break;
+          res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 60));
+          hops++;
+        }
       }
     } catch (e) {
       throw ApiException('تعذر الوصول للسيرفر — تأكد من الرابط والإنترنت');
     } finally {
       client.close();
     }
+
     Map out;
     try {
       out = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
     } catch (_) {
-      throw ApiException('رد غير صالح من السيرفر (${res.statusCode}) — تأكد أن الرابط ينتهي بـ /exec وأنك نشرت نسخة جديدة من Code.gs');
+      throw ApiException(
+          'رد غير صالح من السيرفر (${res.statusCode}) — تأكد من الرابط والنشر');
     }
     if (out['ok'] != true) {
       final msg = (out['error'] ?? 'خطأ غير معروف').toString();
