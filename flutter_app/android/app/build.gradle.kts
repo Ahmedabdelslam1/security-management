@@ -66,33 +66,28 @@ val buildReleaseAndSwap = tasks.register("buildReleaseAndSwap") {
         val projectRoot = rootProject.projectDir.parentFile
         val debugApk = File(rootProject.projectDir, "build/app/outputs/flutter-apk/app-debug.apk")
         if (!debugApk.exists()) {
-            println("SLIM: app-debug.apk غير موجود — تخطي الاستبدال")
+            println("SLIM: app-debug.apk غير موجود — تخطّي الاستبدال")
             return@doLast
         }
         val tmp = File(projectRoot.parentFile, "slim_release_build").canonicalFile
         tmp.deleteRecursively()
         val dest = File(tmp, "flutter_app")
         dest.mkdirs()
-        projectRoot.copyRecursively(dest, overwrite = true) { f ->
-            f.name != "build" && f.name != ".gradle"
+        projectRoot.copyRecursively(dest, overwrite = true, filter = { f -> f.name != "build" && f.name != ".gradle" })
+        println("SLIM: تم نسخ المشروع إلى " + dest)
+        fun runCmd(dir: File, vararg cmd: String): Int {
+            val proc = ProcessBuilder(*cmd).directory(dir).redirectErrorStream(true).start()
+            proc.inputStream.bufferedReader().forEachLine { println("SLIM: " + it) }
+            return proc.waitFor()
         }
-        println("SLIM: نسخ المشروع إلى " + dest)
-        project.exec {
-            workingDir = dest
-            commandLine("flutter", "pub", "get")
-            isIgnoreExitValue = true
-        }
-        val relResult = project.exec {
-            workingDir = dest
-            commandLine("flutter", "build", "apk", "--release")
-            isIgnoreExitValue = true
-        }
+        runCmd(dest, "flutter", "pub", "get")
+        val code = runCmd(dest, "flutter", "build", "apk", "--release")
         val relApk = File(dest, "build/app/outputs/flutter-apk/app-release.apk")
-        if (relResult.exitValue == 0 && relApk.exists()) {
+        if (code == 0 && relApk.exists()) {
             relApk.copyTo(debugApk, overwrite = true)
-            println("SLIM: تم استبدال الـ APK بنسخة Release خفيفة حجمها " + relApk.length() / 1048576 + " ميجا")
+            println("SLIM: تم استبدال الـ APK بنسخة Release خفيفة حجمها " + (relApk.length() / 1048576) + " ميجا")
         } else {
-            println("SLIM: فشل بناء Release — سيُرفع الـ APK الـ debug كما هو")
+            println("SLIM: فشل بناء Release (exit=" + code + ") — سيُرفع الـ APK الـ debug كما هو")
         }
     }
 }
