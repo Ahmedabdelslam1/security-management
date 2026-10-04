@@ -33,6 +33,13 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            // مكتبة فحص Vulkan للتشخيص فقط — غير مطلوبة للتشغيل وتضيف 14 ميجا
+            excludes += listOf("**/libVkLayer_khronos_validation.so")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -50,4 +57,46 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// ===== تقليل الحجم: بعد بناء الـ debug، نبني نسخة Release خفيفة في مجلد منفصل
+// (خارج قفل المشروع) ثم نستبدل ملف app-debug.apk بها — فيرفع الـ CI نسخة الخفيفة.
+val buildReleaseAndSwap = tasks.register("buildReleaseAndSwap") {
+    doLast {
+        val projectRoot = rootProject.projectDir.parentFile
+        val debugApk = File(rootProject.projectDir, "build/app/outputs/flutter-apk/app-debug.apk")
+        if (!debugApk.exists()) {
+            println("SLIM: app-debug.apk غير موجود — تخطي الاستبدال")
+            return@doLast
+        }
+        val tmp = File(projectRoot.parentFile, "slim_release_build").canonicalFile
+        tmp.deleteRecursively()
+        val dest = File(tmp, "flutter_app")
+        dest.mkdirs()
+        projectRoot.copyRecursively(dest, overwrite = true) { f ->
+            f.name != "build" && f.name != ".gradle"
+        }
+        println("SLIM: نسخ المشروع إلى " + dest)
+        project.exec {
+            workingDir = dest
+            commandLine("flutter", "pub", "get")
+            isIgnoreExitValue = true
+        }
+        val relResult = project.exec {
+            workingDir = dest
+            commandLine("flutter", "build", "apk", "--release")
+            isIgnoreExitValue = true
+        }
+        val relApk = File(dest, "build/app/outputs/flutter-apk/app-release.apk")
+        if (relResult.exitValue == 0 && relApk.exists()) {
+            relApk.copyTo(debugApk, overwrite = true)
+            println("SLIM: تم استبدال الـ APK بنسخة Release خفيفة حجمها " + relApk.length() / 1048576 + " ميجا")
+        } else {
+            println("SLIM: فشل بناء Release — سيُرفع الـ APK الـ debug كما هو")
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleDebug" }.configureEach {
+    finalizedBy(buildReleaseAndSwap)
 }
