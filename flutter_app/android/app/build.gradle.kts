@@ -73,7 +73,12 @@ val buildReleaseAndSwap = tasks.register("buildReleaseAndSwap") {
         tmp.deleteRecursively()
         val dest = File(tmp, "flutter_app")
         dest.mkdirs()
-        projectRoot.copyRecursively(dest, overwrite = true, filter = { f -> f.name != "build" && f.name != ".gradle" })
+        projectRoot.walkTopDown()
+            .onEnter { dir -> dir.name != "build" && dir.name != ".gradle" }
+            .forEach { src ->
+                val dst = File(dest, src.toRelativeString(projectRoot))
+                if (src.isDirectory) dst.mkdirs() else src.copyTo(dst, overwrite = true)
+            }
         println("SLIM: تم نسخ المشروع إلى " + dest)
         fun runCmd(dir: File, vararg cmd: String): Int {
             val proc = ProcessBuilder(*cmd).directory(dir).redirectErrorStream(true).start()
