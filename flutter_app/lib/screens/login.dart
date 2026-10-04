@@ -1,4 +1,4 @@
-// شاشة الدخول + رابط السيرفر + تسجيل مستخدم جديد
+// شاشة الدخول + تسجيل مستخدم جديد
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../state.dart';
@@ -13,7 +13,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _u = TextEditingController();
   final _p = TextEditingController();
-  final _url = TextEditingController();
   final _rgName = TextEditingController();
   final _rgUser = TextEditingController();
   final _rgPass = TextEditingController();
@@ -25,9 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    Api.getUrl().then((u) {
-      if (u != null && u.isNotEmpty && mounted) setState(() => _url.text = u);
-    });
+    Api.getUrl();
   }
 
   void _say(String m, [bool e = false]) => setState(() { _msg = m; _err = e; });
@@ -35,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     setState(() => _busy = true);
     try {
-      await Api.saveUrl(_url.text);
+      await Api.getUrl();
       final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text]);
       await Api.saveToken((r as Map)['token'] as String);
       await App.I.bootstrap();
@@ -55,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _register() async {
     setState(() => _busy = true);
     try {
-      await Api.saveUrl(_url.text);
+      await Api.getUrl();
       await Api.call('register', [_rgName.text.trim(), _rgUser.text.trim().toLowerCase(), _rgPass.text]);
       _say('تم إرسال الطلب — بانتظار موافقة الإدارة');
       setState(() => _reg = false);
@@ -97,17 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextField(
-                          controller: _url,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'رابط التطبيق (ينتهي بـ /exec)',
-                            hintText: 'https://script.google.com/macros/s/.../exec',
-                            prefixIcon: Icon(Icons.link),
-                            isDense: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
                         if (!_reg) ...[
                           TextField(
                             controller: _u,

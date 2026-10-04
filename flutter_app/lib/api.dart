@@ -39,7 +39,8 @@ class Api {
 
   static Future<void> saveUrl(String u) async {
     u = u.trim();
-    if (u.isEmpty) throw ApiException('اكتب رابط التطبيق');
+    // الرابط مخفي من الواجهة: الفاضي يعني استخدام الرابط المدمج الافتراضي
+    if (u.isEmpty) { _url = defaultUrl; return; }
     if (!u.startsWith('http')) throw ApiException('الرابط لازم يبدأ بـ https://');
     _url = u;
     final p = await SharedPreferences.getInstance();

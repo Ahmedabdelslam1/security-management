@@ -1,4 +1,4 @@
-// الإعدادات: رابط السيرفر + تغيير كلمة المرور
+// الإعدادات: تغيير كلمة المرور
 import 'package:flutter/material.dart';
 import '../api.dart';
 
@@ -9,7 +9,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _url = TextEditingController();
   final _old = TextEditingController();
   final _new = TextEditingController();
   String _msg = '';
@@ -19,16 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    Api.getUrl().then((u) { if (mounted && u != null) setState(() => _url.text = u); });
-  }
-
-  Future<void> _saveUrl() async {
-    try {
-      await Api.saveUrl(_url.text);
-      setState(() { _msg = 'تم حفظ الرابط'; _err = false; });
-    } on ApiException catch (e) {
-      setState(() { _msg = e.message; _err = true; });
-    }
   }
 
   Future<void> _changePass() async {
@@ -54,27 +43,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        Card(
-          elevation: 1.5,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('رابط السيرفر (Apps Script)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 4),
-                const Text('نفس رابط نسخة الويب الذي ينتهي بـ /exec',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                const SizedBox(height: 10),
-                TextField(controller: _url, keyboardType: TextInputType.url, maxLines: 1,
-                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder())),
-                const SizedBox(height: 10),
-                FilledButton.icon(onPressed: _saveUrl, icon: const Icon(Icons.save, size: 18), label: const Text('حفظ الرابط')),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
         Card(
           elevation: 1.5,
           child: Padding(
