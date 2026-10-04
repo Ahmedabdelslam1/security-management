@@ -64,7 +64,7 @@ flutter {
 val buildReleaseAndSwap = tasks.register("buildReleaseAndSwap") {
     doLast {
         val projectRoot = rootProject.projectDir.parentFile
-        val debugApk = File(rootProject.projectDir, "build/app/outputs/flutter-apk/app-debug.apk")
+        val debugApk = File(projectRoot, "build/app/outputs/flutter-apk/app-debug.apk")
         if (!debugApk.exists()) {
             println("SLIM: app-debug.apk غير موجود — تخطّي الاستبدال")
             return@doLast
