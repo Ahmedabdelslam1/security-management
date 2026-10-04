@@ -256,7 +256,7 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
           </tr></thead><tbody id="setBody"></tbody></table></div>
         </div>
         <div class="card" style="margin-top:14px">
-          <div class="card-head"><h2>سجل المرتبات المصروفة</h2>
+          <div class="card-head"><h2>سجل المرتبات</h2>
             <div class="head-actions"><button class="btn" onclick="printPayroll()">🖨 طباعة</button></div>
           </div>
           <div class="filters">
@@ -981,7 +981,7 @@ document.getElementById('prHead').innerHTML=prHead(v.mode);
 document.getElementById('prBody').innerHTML=v.rows.map(function(r){return '<tr>'+prCells(r,v.mode)+'</tr>';}).join('')||'<tr><td colspan="8" class="mut" style="text-align:center">لا توجد تسويات في هذه الفترة</td></tr>';
 document.getElementById('prFoot').innerHTML=v.rows.length?prFoot(T,v.mode):'';}
 function printPayroll(){if(!PR_VIEW||!PR_VIEW.rows.length)return toast('لا توجد بيانات للطباعة');var v=PR_VIEW,T=prSum(v.rows),f=document.getElementById('prFrom').value,t=document.getElementById('prTo').value;
-paper('سجل المرتبات','<h2>سجل المرتبات المصروفة</h2><div class="meta">تسويات من '+fmtD(f)+' إلى '+fmtD(t)+(v.mode==='d'?' — تفصيلي':'')+'</div><table><thead>'+prHead(v.mode)+'</thead><tbody>'+
+paper('سجل المرتبات','<h2>سجل المرتبات</h2><div class="meta">تسويات من '+fmtD(f)+' إلى '+fmtD(t)+(v.mode==='d'?' — تفصيلي':'')+'</div><table><thead>'+prHead(v.mode)+'</thead><tbody>'+
 v.rows.map(function(r){return '<tr>'+prCells(r,v.mode).replace(/<b>|<\/b>/g,'')+'</tr>';}).join('')+'</tbody><tfoot>'+prFoot(T,v.mode)+'</tfoot></table>',{land:v.mode==='d'});}
 /* ============ دفتر دخول البوابة ============ */
 var GATE=[],GM={id:null,rm:{}},GIMG={};
