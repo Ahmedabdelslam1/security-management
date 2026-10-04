@@ -14,8 +14,8 @@ var TZ = 'Africa/Cairo';
 var STATUSES = ['حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
 var PERMS = ['workers', 'attendance', 'reports', 'gate'];
-var SESSION_TTL = 21600;            // كاش الجلسة (أقصى مدة يسمح بها الكاش = 6 ساعات)
-var SESSION_MAX_IDLE = 180 * 24 * 3600 * 1000;  // الجلسة تبقى محفوظة حتى تسجيل الخروج (تنتهي فقط بعد 180 يومًا بلا استخدام)
+var SESSION_TTL = 1800;             // الجلسة تنتهي بعد نصف ساعة بلا أي نشاط (تتجدد مع كل طلب)
+var SESSION_MAX_IDLE = 30 * 60 * 1000;
 var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
 var MAX_LOG_ROWS = 5000;
 
@@ -192,6 +192,10 @@ function auth_(token, perm) {
   var un = cache.get('S_' + token);
   if (!un) un = sessionRestore_(token);
   if (!un) throw new Error('SESSION');
+  if (!cache.get('T_' + token)) {
+    PropertiesService.getScriptProperties().setProperty('SS_' + token, un + '|' + Date.now());
+    cache.put('T_' + token, '1', 120);
+  }
   var u = readAll_('Users').filter(function (x) { return x.username === un; })[0];
   if (!u || u.status !== 'approved') throw new Error('SESSION');
   u.perms = parsePerms_(u.perms);
@@ -211,7 +215,7 @@ function sessionRestore_(token) {
   if (!v) return '';
   var p = String(v).split('|'), un = p[0], seen = Number(p[1]) || 0;
   if (Date.now() - seen > SESSION_MAX_IDLE) { props.deleteProperty('SS_' + token); return ''; }
-  if (Date.now() - seen > 24 * 3600 * 1000) props.setProperty('SS_' + token, un + '|' + Date.now());
+  props.setProperty('SS_' + token, un + '|' + Date.now());
   return un;
 }
 function sessionPrune_() {
@@ -270,6 +274,7 @@ function logout(token) {
   } catch (e) { /* تجاهل */ }
   if (token) {
     CacheService.getScriptCache().remove('S_' + token);
+    CacheService.getScriptCache().remove('T_' + token);
     PropertiesService.getScriptProperties().deleteProperty('SS_' + token);
   }
   return true;
