@@ -138,6 +138,48 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 .letter table{width:88%}
 .letter table th,.letter table td,.paper.paper-letter table th,.paper.paper-letter table td{font-family:'Times New Roman',Times,serif;font-weight:bold;font-size:13px;padding:3px 6px}
 .letter .pfoot{margin-top:18px;padding-top:0}
+/* ===== تجاوب الموبايل ===== */
+@media (max-width:800px){
+  main{padding:10px}
+  header{padding:10px 12px}
+  .card{padding:11px}
+}
+@media (max-width:640px){
+  body{font-size:14px}
+  .frame{margin:0;border-radius:0;border:none;box-shadow:none}
+  .auth-wrap{padding:18px 10px}
+  .clockbar{flex-wrap:wrap;gap:4px;font-size:12px;padding:6px 4px}
+  nav{padding:10px 8px;gap:4px}
+  nav button{padding:8px 10px;font-size:12.5px}
+  .card-head h2{font-size:15.5px}
+  .head-actions{width:100%}
+  .head-actions .btn,.head-actions input[type=date],.head-actions select{flex:1 1 auto;min-width:0}
+  .filters{gap:6px}
+  .filters label{font-size:12px}
+  .filters .inp,.filters input,.filters select{flex:1 1 120px;min-width:0;max-width:100%}
+  table{font-size:12.5px}
+  th{padding:7px 6px}
+  td{padding:6px 5px}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tbox{min-width:86px;padding:6px 10px}
+  .tbox b{font-size:15.5px}
+  .btn{padding:7px 12px;font-size:12.5px}
+  .btn.small{padding:5px 9px;font-size:11.5px}
+  #modalWrap{padding:10px}
+  .modal{padding:14px;max-width:100%;margin:10px auto;border-radius:11px}
+  .gridf{grid-template-columns:1fr}
+  .gth img{width:64px;height:48px}
+  .paper{padding:10px;font-size:11.5px}
+  .paper h2{font-size:14px}
+  .paper .pfoot{font-size:11.5px;margin-top:18px}
+  .letter{aspect-ratio:auto;min-height:420px;font-size:13.5px;padding:12px}
+  .letter p,.letter .pfoot{font-size:13.5px}
+  .letter table th,.letter table td,.paper.paper-letter table th,.paper.paper-letter table td{font-size:11px;padding:2px 4px}
+  .letter .addressee{font-size:14px}
+  .letter .greet{font-size:13.5px}
+  .letter .title{font-size:14px;margin:8px 0}
+  .letter .closing{font-size:13.5px;margin-top:10px}
+}
 @media print{body{background:#fff !important}.frame,#toast{display:none !important}#modalWrap{display:block !important;position:static !important;background:none !important;padding:0 !important;overflow:visible !important}.modal{width:100% !important;max-width:none !important;box-shadow:none !important;margin:0 !important;padding:0 !important;border-radius:0 !important}.paper{max-width:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 @media print{@page{size:A4;margin:6mm}.paper.paper-letter{max-width:none;padding:0}.letter{width:100%;aspect-ratio:auto;min-height:284mm;page-break-inside:avoid}}
 .letter-head{display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:10px}
