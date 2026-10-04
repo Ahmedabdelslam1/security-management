@@ -14,7 +14,8 @@ var TZ = 'Africa/Cairo';
 var STATUSES = ['حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
 var PERMS = ['workers', 'attendance', 'reports', 'gate'];
-var SESSION_TTL = 21600;            // 6 ساعات
+var SESSION_TTL = 21600;            // كاش الجلسة (أقصى مدة يسمح بها الكاش = 6 ساعات)
+var SESSION_MAX_IDLE = 180 * 24 * 3600 * 1000;  // الجلسة تبقى محفوظة حتى تسجيل الخروج (تنتهي فقط بعد 180 يومًا بلا استخدام)
 var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
 var MAX_LOG_ROWS = 5000;
 
@@ -159,6 +160,7 @@ function auth_(token, perm) {
   if (!token) throw new Error('SESSION');
   var cache = CacheService.getScriptCache();
   var un = cache.get('S_' + token);
+  if (!un) un = sessionRestore_(token);
   if (!un) throw new Error('SESSION');
   var u = readAll_('Users').filter(function (x) { return x.username === un; })[0];
   if (!u || u.status !== 'approved') throw new Error('SESSION');
@@ -166,6 +168,29 @@ function auth_(token, perm) {
   cache.put('S_' + token, un, SESSION_TTL);
   if (perm && !can_(u, perm)) throw new Error('غير مصرح لك بهذا الإجراء');
   return u;
+}
+
+/* الجلسات تُحفظ في خصائص السكريبت (دائمة) بجانب الكاش، فلا تنتهي بانتهاء الكاش ولا بإغلاق المتصفح */
+function sessionSave_(token, username) {
+  CacheService.getScriptCache().put('S_' + token, username, SESSION_TTL);
+  PropertiesService.getScriptProperties().setProperty('SS_' + token, username + '|' + Date.now());
+}
+function sessionRestore_(token) {
+  var props = PropertiesService.getScriptProperties();
+  var v = props.getProperty('SS_' + token);
+  if (!v) return '';
+  var p = String(v).split('|'), un = p[0], seen = Number(p[1]) || 0;
+  if (Date.now() - seen > SESSION_MAX_IDLE) { props.deleteProperty('SS_' + token); return ''; }
+  if (Date.now() - seen > 24 * 3600 * 1000) props.setProperty('SS_' + token, un + '|' + Date.now());
+  return un;
+}
+function sessionPrune_() {
+  var props = PropertiesService.getScriptProperties(), all = props.getProperties();
+  Object.keys(all).forEach(function (k) {
+    if (k.indexOf('SS_') !== 0) return;
+    var seen = Number(String(all[k]).split('|')[1]) || 0;
+    if (Date.now() - seen > SESSION_MAX_IDLE) props.deleteProperty(k);
+  });
 }
 
 function updateUser_(username, fields) {
@@ -201,7 +226,8 @@ function login(username, password) {
   if (u.status !== 'approved') throw new Error('تم إيقاف هذا الحساب');
   cache.remove(fkey);
   var token = Utilities.getUuid() + Utilities.getUuid();
-  cache.put('S_' + token, username, SESSION_TTL);
+  sessionSave_(token, username);
+  sessionPrune_();
   updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()) });
   log_(u.name, 'دخول', 'النظام', username);
   return { token: token };
@@ -212,7 +238,10 @@ function logout(token) {
     var u = auth_(token);
     log_(u.name, 'خروج', 'النظام', u.username);
   } catch (e) { /* تجاهل */ }
-  if (token) CacheService.getScriptCache().remove('S_' + token);
+  if (token) {
+    CacheService.getScriptCache().remove('S_' + token);
+    PropertiesService.getScriptProperties().deleteProperty('SS_' + token);
+  }
   return true;
 }
 
@@ -337,30 +366,38 @@ function saveDay(token, date, recs) {
   return locked_(function () {
     var workers = {};
     readAll_('Workers').forEach(function (w) { workers[w.id] = w; });
-    var paid = {};
-    readAll_('Attendance').forEach(function (r) { if (r.date === date && r.settleId) paid[r.wid] = { sid: r.settleId, amt: r.paidAmt }; });
-    var fresh = [], seen = {};
+    /* الأيام المسوّاة مغلقة: لا تُعدَّل ولا تُحذف، وتبقى كما سُجّلت وقت التسوية */
+    var existing = readAll_('Attendance'), closed = {};
+    existing.forEach(function (r) { if (r.date === date && r.settleId) closed[r.wid] = r; });
+    var fresh = [], seen = {}, blocked = [];
     recs.forEach(function (r) {
       var w = workers[String(r.wid)];
       if (!w || seen[w.id]) return;
       if (STATUSES.indexOf(r.status) === -1) return;
       seen[w.id] = 1;
       var extra = EXTRA_STATUSES.indexOf(r.status) !== -1;
+      var c = closed[w.id];
+      if (c) {
+        var same = c.status === r.status && String(c.loc) === clip_(r.loc, 80) &&
+          num_(c.xh) === (extra ? Math.max(0, num_(r.xh)) : 0) && String(c.notes) === clip_(r.notes, 300);
+        if (!same) blocked.push(w.name);
+        return;
+      }
       fresh.push({
         date: date, wid: w.id, name: w.name, status: r.status, loc: clip_(r.loc, 80),
         wage: num_(w.wage), xh: extra ? Math.max(0, num_(r.xh)) : 0, notes: clip_(r.notes, 300),
-        settleId: paid[w.id] ? paid[w.id].sid : '', paidAmt: paid[w.id] ? paid[w.id].amt : ''
+        settleId: '', paidAmt: ''
       });
     });
-    var all = readAll_('Attendance').filter(function (r) { return r.date !== date; }).concat(fresh);
+    var all = existing.filter(function (r) { return r.date !== date || r.settleId; }).concat(fresh);
     writeAll_('Attendance', all);
     var known = readAll_('Locations').map(function (x) { return x.name; });
     var add = [];
     fresh.forEach(function (r) { if (r.loc && known.indexOf(r.loc) === -1 && add.indexOf(r.loc) === -1) add.push(r.loc); });
     if (add.length) writeAll_('Locations', known.concat(add).map(function (n) { return { name: n }; }));
-    log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' (' + fresh.length + ')');
-    var att = fresh.map(function (r) { return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: r.wage, xh: r.xh, notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) }; });
-    return { att: att, locs: allLocs_(readAll_('Attendance')) };
+    log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' (' + fresh.length + ')' + (blocked.length ? ' — محاولة تعديل أيام مغلقة: ' + blocked.join('، ') : ''));
+    var att = all.filter(function (r) { return r.date === date; }).map(function (r) { return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) }; });
+    return { att: att, locs: allLocs_(readAll_('Attendance')), locked: blocked };
   });
 }
 
@@ -368,10 +405,12 @@ function saveDay(token, date, recs) {
  * - يوم جديد (له مكان حضور) ⇒ يُصرف كامل قيمته.
  * - يوم سبق صرفه ثم عُدِّل (ساعات إضافية، موقف، مكان...) ⇒ يُصرف الفرق فقط (قد يكون سالبًا = استرداد).
  * - يوم يُسجَّل لاحقًا داخل فترة سبقت تسويتها يبقى مستحقًا لأنه لم يُصرف فعلًا. */
-function settleWorkers(token, ids, from, to, adj, loc) {
+function settleWorkers(token, ids, from, to, adj, loc, setDate) {
   var u = auth_(token, ['workers', 'attendance']);
   if (!validDate_(to)) throw new Error('تاريخ غير صحيح');
   if (from && !validDate_(from)) throw new Error('تاريخ غير صحيح');
+  if (setDate && !validDate_(setDate)) throw new Error('يوم التسوية غير صحيح');
+  if (setDate && String(setDate) > today_()) throw new Error('يوم التسوية لا يمكن أن يكون في المستقبل');
   from = from || '0000-00-00';
   adj = (adj && typeof adj === 'object') ? adj : {};
   if (!Array.isArray(ids) || !ids.length) throw new Error('حدد عاملًا واحدًا على الأقل');
@@ -404,7 +443,7 @@ function settleWorkers(token, ids, from, to, adj, loc) {
     var wids = Object.keys(per);
     if (!wids.length) throw new Error('لا توجد مبالغ مستحقة للصرف ضمن التحديد');
     writeAll_('Attendance', att);
-    var sheet = sh_('Settlements'), total = 0, bTot = 0, dTot = 0, tTot = 0, t = now_(), d = today_();
+    var sheet = sh_('Settlements'), total = 0, bTot = 0, dTot = 0, tTot = 0, t = now_(), d = setDate || today_();
     wids.forEach(function (id) {
       var p = per[id], a = Math.round(p.amt * 100) / 100, x = adj[id] || {};
       var b = Math.max(0, num_(x.b)), ded = Math.max(0, num_(x.d)), tx = Math.max(0, num_(x.t));
@@ -414,7 +453,7 @@ function settleWorkers(token, ids, from, to, adj, loc) {
     });
     total = Math.round(total * 100) / 100;
     log_(u.name, 'تسوية', 'التسوية', wids.length + ' عامل — ' + total + ' ج' + (bTot || dTot || tTot ? ' (مكافآت ' + bTot + ' / خصومات ' + dTot + ' / ضرائب ' + tTot + ')' : '') + ' حتى ' + to);
-    return { sid: sid, count: wids.length, amount: total, to: to, wids: wids, keys: keys };
+    return { sid: sid, count: wids.length, amount: total, to: to, date: d, wids: wids, keys: keys };
   });
 }
 
@@ -428,7 +467,7 @@ function listPayroll(token, from, to) {
   }).map(function (r) {
     var a = num_(r.amount), b = num_(r.bonus), d = num_(r.ded), t = num_(r.tax);
     return {
-      id: r.id, date: r.date, from: r.from, to: r.to, wid: r.wid, name: r.name,
+      id: r.id, date: r.date, weekday: validDate_(r.date) ? weekday_(r.date) : '', from: r.from, to: r.to, wid: r.wid, name: r.name,
       days: num_(r.days), amount: a, ot: num_(r.ot), bonus: b, ded: d, tax: t,
       net: String(r.net) === '' ? Math.round((a + b - d - t) * 100) / 100 : num_(r.net), user: r.user
     };

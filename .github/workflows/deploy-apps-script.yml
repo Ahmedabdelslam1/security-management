@@ -1,0 +1,66 @@
+# تحديث Google Apps Script تلقائيًا عند كل رفع (push) على الفرع الرئيسي.
+# الإعداد لمرة واحدة موجود في ملف DEPLOY.md
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'Code.gs'
+      - 'Index.html'
+      - 'appsscript.json'
+      - '.github/workflows/deploy-apps-script.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-apps-script
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Check secrets
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "::error::السر CLASPRC_JSON غير موجود (راجع DEPLOY.md)"; exit 1; }
+          test -n "$SCRIPT_ID"    || { echo "::error::السر SCRIPT_ID غير موجود (راجع DEPLOY.md)"; exit 1; }
+
+      - name: Login to clasp
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: Stage files (Index.html -> index.html, as doGet expects)
+        env:
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          mkdir -p build
+          cp Code.gs build/Code.gs
+          cp Index.html build/index.html
+          cp appsscript.json build/appsscript.json
+          printf '{"scriptId":"%s","rootDir":"build"}' "$SCRIPT_ID" > .clasp.json
+
+      - name: Push to Apps Script
+        run: clasp push --force
+
+      - name: Update the live web app deployment (same URL)
+        env:
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "auto ${GITHUB_SHA::7}"
+          else
+            echo "::warning::DEPLOYMENT_ID غير موجود: تم رفع الكود فقط دون تحديث رابط النشر"
+          fi
