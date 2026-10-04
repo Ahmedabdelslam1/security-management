@@ -270,7 +270,7 @@ class _UsersScreenState extends State<UsersScreen> {
                                 ),
                                 ActionChip(
                                   avatar: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                                  label: const Text('حذف', style: TextStyle(color: Colors.red.shade700)),
+                                  label: Text('حذف', style: TextStyle(color: Colors.red.shade700)),
                                   onPressed: () => _delete(u),
                                 ),
                               ],
