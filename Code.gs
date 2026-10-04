@@ -37,6 +37,34 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/* ===================== بوابة JSON لتطبيق الأندرويد (Flutter) ===================== */
+var API_FNS_ = {
+  login: login, logout: logout, ping: ping, register: register,
+  changePassword: changePassword, bootstrap: bootstrap, addLog: addLog,
+  saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
+  saveWorker: saveWorker, deleteWorkers: deleteWorkers, setUser: setUser,
+  addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
+  getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate,
+  getImage: getImage, getGateImage: getGateImage, resetAll: resetAll
+};
+function doPost(e) {
+  var out;
+  try {
+    var body = {};
+    try { body = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (perr) {}
+    var action = String(body.action || '');
+    var fn = API_FNS_[action];
+    if (!fn) throw new Error('إجراء غير معروف: ' + action);
+    var args = Array.isArray(body.args) ? body.args : [];
+    out = { ok: true, data: fn.apply(null, args) };
+  } catch (err) {
+    out = { ok: false, error: String(err && err.message || err) };
+  }
+  var res = ContentService.createTextOutput(JSON.stringify(out));
+  res.setMimeType(ContentService.MimeType.JSON);
+  return res;
+}
+
 function setup() {
   Object.keys(SHEETS).forEach(function (n) { sh_(n); });
   ensureAdmin_();
