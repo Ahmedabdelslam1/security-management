@@ -146,6 +146,7 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 .letter .greet{margin:6px 0;text-align:center;font-weight:800}
 .letter .title{text-align:center;text-decoration:underline;font-weight:800;margin:12px 0}
 .letter .amount-words{font-weight:700}
+.letter .pfoot{position:relative}.letter .pfoot .pl{position:absolute;left:50%;transform:translateX(-50%)}
 .letter .approve{text-align:left;font-weight:800;margin-top:26px}
 .letter .closing{margin-top:18px;text-align:center;font-weight:800}
 .letter-foot{margin-top:14px;font-size:13px}
@@ -444,6 +445,10 @@ function promptBox(msg,onSave,ph){openModal('<h3 style="margin-bottom:10px">'+es
 '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary block" id="pbOk">حفظ</button><button class="btn block" onclick="closeModal()">إلغاء</button></div>');
 document.getElementById('pbVal').focus();
 document.getElementById('pbOk').onclick=function(){var v=document.getElementById('pbVal').value;closeModal();onSave(v);};}
+function amtWords(a){a=Math.round(Number(a||0)*100)/100;var w=Math.floor(a),f=Math.round((a-w)*100);
+var t=(w>0||!f)?((w===0?'صفر':numWords(w))+' جنيها'):'';
+if(f)t+=(t?' و':'')+numWords(f)+' قرشا';
+if(!t)t='صفر جنيها';return t+' لا غير';}
 function numWords(n){var ones=['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'],tens=['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'],hunds=['','مائة','مائتان','ثلاثمائة','أربعمائة','خمسمائة','ستمائة','سبعمائة','ثمانمائة','تسعمائة'];
 function three(x){var p=[],h=Math.floor(x/100),r=x%100;if(h)p.push(hunds[h]);if(r){if(r<20)p.push(ones[r]);else{var t=Math.floor(r/10),o=r%10;p.push(o?ones[o]+' و'+tens[t]:tens[t]);}}return p.join(' و');}
 n=Math.round(n);if(n===0)return'صفر';var mil=Math.floor(n/1e6),th=Math.floor(n/1000)%1000,rest=n%1000,p=[];
@@ -706,7 +711,7 @@ var tot=Math.round(rs.reduce(function(s,r){return s+r.total;},0)*100)/100;
 var rows=rs.map(function(r){return '<tr><td>'+esc(r.w.name)+'</td><td>'+r.days+'</td><td>'+r.wage+'</td><td>'+otText(r.xh)+'</td><td>'+r.total+'</td><td></td></tr>';}).join('');
 paperLetter('خطاب اعتماد','<div class="letter"><div class="letter-head"><img class="logo" src="'+LETTER_LOGO+'"></div><div class="addressee">السيد / مدير '+esc(loc)+'</div>'+
 '<p class="greet">تحية طيبة وبعد ،،،</p>'+
-'<p>برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( <b>'+tot+'</b> ) فقط وقدرة : ( <span class="amount-words">'+numWords(tot)+'</span> )</p>'+
+'<p>برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( <b>'+tot+'</b> ) فقط وقدرة : ( <span class="amount-words">'+amtWords(tot)+'</span> )</p>'+
 '<p>وذلك قيمة أجور أيام حضور العمال اليوميه الاتى أسماؤهم خلال الفترة من <b>'+fmtD(lf)+'</b> حتى <b>'+fmtD(lt)+'</b></p>'+
 '<h3 class="title">تسويه</h3>'+
 '<table><thead><tr><th>اسم العامل</th><th>عدد أيام الحضور</th><th>أجر اليوم</th><th>إضافي</th><th>إجمالى</th><th>ملاحظات</th></tr></thead><tbody>'+rows+
