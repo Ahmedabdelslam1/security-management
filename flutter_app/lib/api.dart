@@ -79,7 +79,7 @@ class Api {
       throw ApiException('رد غير صالح من السيرفر — تأكد أن الرابط ينتهي بـ /exec');
     }
     if (out['ok'] != true) {
-      final msg = String(out['error'] ?? 'خطأ غير معروف');
+      final msg = (out['error'] ?? 'خطأ غير معروف').toString();
       if (msg.contains('SESSION')) throw SessionExpired();
       throw ApiException(msg);
     }

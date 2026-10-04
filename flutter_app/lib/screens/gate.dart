@@ -222,7 +222,7 @@ class _GateFormState extends State<_GateForm> {
     super.initState();
     final g = widget.existing;
     if (g != null) {
-      final p = String(g['date'] ?? '').split('-');
+      final p = (g['date'] ?? '').toString().split('-');
       _date = p.length == 3 ? DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2])) : DateTime.now();
       _time.text = g['time'] ?? '';
       _plate.text = g['plate'] ?? '';

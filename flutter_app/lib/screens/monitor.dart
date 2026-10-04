@@ -40,9 +40,9 @@ class _MonitorScreenState extends State<MonitorScreen> {
     final filtered = _filter.isEmpty
         ? log
         : log.where((l) =>
-            String(l['user'] ?? '').contains(_filter) ||
-            String(l['action'] ?? '').contains(_filter) ||
-            String(l['details'] ?? '').contains(_filter)).toList();
+            (l['user'] ?? '').toString().contains(_filter) ||
+            (l['action'] ?? '').toString().contains(_filter) ||
+            (l['details'] ?? '').toString().contains(_filter)).toList();
 
     return Column(
       children: [
@@ -110,7 +110,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                       ),
                                     ),
                                     trailing: Text(
-                                      String(l['time'] ?? '').substring(5),
+                                      (l['time'] ?? '').toString().substring(5),
                                       style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                                     ),
                                   ),
