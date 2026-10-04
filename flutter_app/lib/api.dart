@@ -18,13 +18,13 @@ class SessionExpired implements Exception {
 class Api {
   static String? _url;
   static String? _token;
-  static const _kUrl = 'gas_url';
+  static const _kUrl = 'gas_url_v2'; // مفتاح جديد: يتجاهل الرابط القديم المحفوظ على الأجهزة
   static const _kTok = 'gas_token';
 
   // رابط السيرفر الافتراضي — مضبوط مسبقًا، التطبيق يعمل تلقائيًا بدون أي إدخال يدوي.
   // يمكن تغييره من شاشة الدخول لو تم نشر إصدار سيرفر جديد.
   static const String defaultUrl =
-      'https://script.google.com/macros/s/AKfycbw5A0HozhmBgjpC7BP4YFhOWmH52FJc8I8Nz5SOCuzUt2y0PhA47_xO8gqma98w5APT/exec';
+      'https://script.google.com/macros/s/AKfycbz5ISJT-vROTmczOi8HdFBvwSXiUZ3mMGzHJBfv732cumsONfMsu-yK_5-NuOzByHQu/exec';
 
   static Future<String?> getUrl() async {
     if (_url != null) return _url;
