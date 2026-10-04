@@ -21,10 +21,19 @@ class Api {
   static const _kUrl = 'gas_url';
   static const _kTok = 'gas_token';
 
+  // رابط السيرفر الافتراضي — مضبوط مسبقًا، التطبيق يعمل تلقائيًا بدون أي إدخال يدوي.
+  // يمكن تغييره من شاشة الدخول لو تم نشر إصدار سيرفر جديد.
+  static const String defaultUrl =
+      'https://script.google.com/macros/s/AKfycbw5A0HozhmBgjpC7BP4YFhOWmH52FJc8I8Nz5SOCuzUt2y0PhA47_xO8gqma98w5APT/exec';
+
   static Future<String?> getUrl() async {
     if (_url != null) return _url;
     final p = await SharedPreferences.getInstance();
     _url = p.getString(_kUrl);
+    if (_url == null || _url!.trim().isEmpty) {
+      _url = defaultUrl;
+      await p.setString(_kUrl, defaultUrl);
+    }
     return _url;
   }
 
@@ -58,8 +67,8 @@ class Api {
 
   // نداء عام: action = اسم الدالة في Code.gs، args = وسائطها بالترتيب (token أولًا حيث يلزم)
   static Future<dynamic> call(String action, [List args = const []]) async {
-    final u = _url ?? await getUrl();
-    if (u == null || u.trim().isEmpty) throw ApiException('اضبط رابط السيرفر من شاشة الدخول أولًا');
+    var u = _url ?? await getUrl();
+    if (u == null || u.trim().isEmpty) u = defaultUrl;
     http.Response res;
     try {
       res = await http

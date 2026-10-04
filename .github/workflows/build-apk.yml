@@ -28,8 +28,13 @@ jobs:
           cp -r lib /tmp/lib_backup
           flutter create --platforms android --org eg.security --project-name security_management .
           rm -rf lib && mv /tmp/lib_backup lib
+          sed -i 's/android:label="[^"]*"/android:label="إدارة الأمن"/' android/app/src/main/AndroidManifest.xml
 
       - run: flutter pub get
+
+      - name: توليد أيقونة التطبيق من اللوجو
+        run: flutter pub run flutter_launcher_icons
+
       - run: flutter build apk --debug
 
       - name: رفع ملف الـ APK كملف قابل للتحميل

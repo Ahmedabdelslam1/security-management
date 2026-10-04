@@ -81,7 +81,11 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 10),
-                Icon(Icons.shield_outlined, size: 64, color: cs.primary),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(100),
+                  child: Image.asset('assets/logo.png', width: 92, height: 92, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(Icons.shield_outlined, size: 64, color: cs.primary)),
+                ),
                 const SizedBox(height: 6),
                 Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: cs.onSurface)),
                 const SizedBox(height: 18),
