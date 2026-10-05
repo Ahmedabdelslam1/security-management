@@ -1,4 +1,4 @@
-// تصدير أي شاشة كـ PDF — للطباعة والإرسال (نفس هوية الويب: جدول أزرق + خط Cairo + اللوجو)
+// تصدير أي شاشة كـ PDF — للطباعة والإرسال (نفس هوية الويب: جدول أزرق + خط Times New Roman + اللوجو)
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart' as pw;
@@ -20,8 +20,8 @@ Future<void> exportTablePdf({
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للطباعة'), backgroundColor: Colors.black54));
     return;
   }
-  final base = pw.Font.ttf(await rootBundle.load('assets/fonts/Cairo-Regular.ttf'));
-  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Cairo-Bold.ttf'));
+  final base = pw.Font.ttf(await rootBundle.load('assets/fonts/TimesNewRoman.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/TimesNewRoman-Bold.ttf'));
   Uint8List? logo;
   try {
     logo = (await rootBundle.load('assets/logo.png')).buffer.asUint8List();

@@ -30,7 +30,7 @@ class SecurityApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: cs,
         useMaterial3: true,
-        fontFamily: 'Cairo',
+        fontFamily: 'TimesNewRoman',
         scaffoldBackgroundColor: const Color(0xFFF6F5FB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF7C5CFC),
@@ -49,12 +49,12 @@ class SecurityApp extends StatelessWidget {
             backgroundColor: const Color(0xFF7C5CFC),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo'),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'TimesNewRoman'),
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'Cairo'),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'TimesNewRoman'),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -77,7 +77,7 @@ class SecurityApp extends StatelessWidget {
         segmentedButtonTheme: SegmentedButtonThemeData(
           style: ButtonStyle(
             textStyle: WidgetStateProperty.all(
-                const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Cairo')),
+                const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'TimesNewRoman')),
           ),
         ),
       ),

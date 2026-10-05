@@ -8,8 +8,8 @@ import 'models.dart';
 class LetterRow {
   final String name;
   final int days;
-  final double wage, xh, total;
-  const LetterRow(this.name, this.days, this.wage, this.xh, this.total);
+  final double wage, xh, total, b, d, tax, net;
+  const LetterRow(this.name, this.days, this.wage, this.xh, this.total, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0});
 }
 
 /// يبني PDF خطاب الاعتماد كاملًا: ترويسة اللوجو + المعنون + التفقيط + جدول التسوية + الإجمالي
@@ -20,8 +20,8 @@ Future<Uint8List> buildLetterPdf({
   required String to,
   required String amountWords,
 }) async {
-  final fontData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
-  final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
+  final fontData = await rootBundle.load('assets/fonts/TimesNewRoman.ttf');
+  final boldData = await rootBundle.load('assets/fonts/TimesNewRoman-Bold.ttf');
   final ttf = pw.Font.ttf(fontData);
   final bold = pw.Font.ttf(boldData);
   Uint8List? logo;
@@ -34,9 +34,13 @@ Future<Uint8List> buildLetterPdf({
   final light = const pw.PdfColor.fromInt(0xFFEAF1FE);
   final gray = const pw.PdfColor.fromInt(0xFF64748B);
 
-  final tot = _r2(rows.fold<double>(0, (s, r) => s + r.total));
+  final tot = _r2(rows.fold<double>(0, (s, r) => s + r.net)); // الصافي = الإجمالي + المكافآت - الخصومات - الضرائب
+  final gTot = _r2(rows.fold<double>(0, (s, r) => s + r.total));
   final days = rows.fold<int>(0, (s, r) => s + r.days);
   final txh = _r2(rows.fold<double>(0, (s, r) => s + r.xh));
+  final tb = _r2(rows.fold<double>(0, (s, r) => s + r.b));
+  final td = _r2(rows.fold<double>(0, (s, r) => s + r.d));
+  final tt = _r2(rows.fold<double>(0, (s, r) => s + r.tax));
 
   doc.addPage(
     pw.MultiPage(
@@ -95,7 +99,7 @@ Future<Uint8List> buildLetterPdf({
                 ),
               ),
               pw.SizedBox(height: 8),
-              _table(rows, blue, light, bold, days, txh, tot),
+              _table(rows, blue, light, bold, days, txh, tb, td, tt, gTot, tot),
               pw.SizedBox(height: 18),
               pw.Center(child: pw.Text('ولسيادتكم فائق الاحترام والتقدير', style: pw.TextStyle(font: bold, fontSize: 12.5))),
               pw.SizedBox(height: 26),
@@ -115,9 +119,9 @@ Future<Uint8List> buildLetterPdf({
   return doc.save();
 }
 
-pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, int days, double txh, double tot) {
-  const headers = ['اسم العامل', 'عدد أيام الحضور', 'أجر اليوم', 'إضافي', 'إجمالى', 'ملاحظات'];
-  final widths = [85.0, 62.0, 50.0, 55.0, 55.0, 70.0];
+pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, int days, double txh, double tb, double td, double tt, double gTot, double tot) {
+  const headers = ['اسم العامل', 'عدد أيام الحضور', 'أجر اليوم', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'إجمالى', 'ملاحظات'];
+  final widths = [72.0, 52.0, 44.0, 44.0, 44.0, 44.0, 44.0, 48.0, 48.0];
   pw.Widget cell(String t, {bool head = false, bool isBold = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
@@ -152,6 +156,9 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
             cell('${r.days}'),
             cell(_trimNum(r.wage)),
             cell(r.xh > 0 ? _trimNum(r.xh) : '—'),
+            cell(r.b > 0 ? _trimNum(r.b) : '—'),
+            cell(r.d > 0 ? _trimNum(r.d) : '—'),
+            cell(r.tax > 0 ? _trimNum(r.tax) : '—'),
             cell(_trimNum(r.total), isBold: true, fg: blue),
             cell(''),
           ],
@@ -163,8 +170,11 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
           cell('$days', head: true),
           cell('', head: true),
           cell(txh > 0 ? _trimNum(txh) : '—', head: true),
-          cell(_trimNum(tot), head: true, fg: blue),
-          cell('', head: true),
+          cell(tb > 0 ? _trimNum(tb) : '—', head: true),
+          cell(td > 0 ? _trimNum(td) : '—', head: true),
+          cell(tt > 0 ? _trimNum(tt) : '—', head: true),
+          cell(_trimNum(gTot), head: true, fg: blue),
+          cell('الصافي: ${_trimNum(tot)}', head: true, fg: blue),
         ],
       ),
     ],

@@ -70,6 +70,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _to = DateTime.now();
 
+  // مكافآت وخصومات وضرائب كل عامل من التسويات المتداخلة مع فترة التقرير
+  Map<String, List<double>> _adj = {};
+  List<double> _adjOf(String wid) => _adj[wid] ?? const [0, 0, 0];
+  double _bOf(String wid) => _adjOf(wid)[0];
+  double _dOf(String wid) => _adjOf(wid)[1];
+  double _tOf(String wid) => _adjOf(wid)[2];
+
+  Future<void> _loadAdj() async {
+    try {
+      final list = await Api.auth('listPayroll', ['', '']) as List;
+      final f = _d(_from), to = _d(_to);
+      final m = <String, List<double>>{};
+      for (final x in list) {
+        final r = x as Map;
+        var rf = '${r['from'] ?? ''}';
+        if (rf.isEmpty) rf = '0000-00-00';
+        var rt = '${r['to'] ?? ''}';
+        if (rt.isEmpty) rt = '9999-99-99';
+        if (rf.compareTo(to) > 0 || rt.compareTo(f) < 0) continue;
+        final o = m.putIfAbsent('${r['wid'] ?? ''}', () => [0, 0, 0]);
+        o[0] += ((r['bonus'] ?? 0) as num).toDouble();
+        o[1] += ((r['ded'] ?? 0) as num).toDouble();
+        o[2] += ((r['tax'] ?? 0) as num).toDouble();
+      }
+      _adj = {for (final e in m.entries) e.key: [r2(e.value[0]), r2(e.value[1]), r2(e.value[2])]};
+    } catch (_) {
+      _adj = {};
+    }
+    if (mounted) setState(() {});
+  }
+
   String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   double _hourly(Worker w) => w.hours <= 0 ? w.wage / 8 : w.wage / w.hours;
   bool _inPeriod(AttRec r) => r.date.compareTo(_d(_from)) >= 0 && r.date.compareTo(_d(_to)) <= 0;
@@ -143,6 +174,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return out;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAdj();
+  }
+
   Future<void> _pick(bool isFrom) async {
     final d = await showDatePicker(
       context: context,
@@ -151,7 +188,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       lastDate: DateTime.now().add(const Duration(days: 1)),
       locale: const Locale('ar'),
     );
-    if (d != null) setState(() { if (isFrom) { _from = d; } else { _to = d; } });
+    if (d != null) {
+      setState(() { if (isFrom) { _from = d; } else { _to = d; } });
+      _loadAdj();
+    }
   }
 
   // ===== مشاركات نصية =====
@@ -217,10 +257,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا عمال لهم حضور في هذه الفترة'), backgroundColor: Colors.black54));
       return;
     }
+    await _loadAdj();
     final addressee = _locFilter.isNotEmpty ? _locFilter : (_loc ?? 'الموقع');
-    final tot = r2(rows.fold<double>(0, (s, m) => s + m.total));
+    var tot = 0.0;
+    final lrows = [for (final m in rows) LetterRow(m.w.name, m.days, m.w.wage, m.xh, m.total, b: _bOf(m.w.id), d: _dOf(m.w.id), tax: _tOf(m.w.id), net: r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)))];
+    for (final m in lrows) {
+      tot += m.net;
+    }
+    tot = r2(tot);
     final bytes = await buildLetterPdf(
-      rows: [for (final m in rows) LetterRow(m.w.name, m.days, m.w.wage, m.xh, m.total)],
+      rows: lrows,
       addressee: addressee,
       from: fmtDate(_d(_from)),
       to: fmtDate(_d(_to)),
@@ -342,17 +388,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        _totalsBar('$days يوم حضور', total, _shareWorker, onPdf: () {
-          final ww = App.I.worker(_wid ?? '');
-          exportTablePdf(
-            context: context,
-            title: 'تقرير عامل: ${ww.name}',
-            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
-            headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
-            widths: [55, 55, 60, 40, 45, 70],
-            rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, r.xh > 0 ? otText(r.xh) : '—', r.counts ? r2(r.wage + r.xh * _hourly(ww)).toStringAsFixed(2) : '—', r.notes]],
-            totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2), ''],
-          );
+        Builder(builder: (_) {
+          final b = _bOf(_wid ?? ''), dd = _dOf(_wid ?? ''), tx = _tOf(_wid ?? '');
+          final net = r2(total + b - dd - tx);
+          return _totalsBar('$days يوم حضور • مكافآت $b / خصومات $dd / ضرائب $tx', net, _shareWorker, onPdf: () async {
+            await _loadAdj();
+            final ww = App.I.worker(_wid ?? '');
+            final b2 = _bOf(_wid ?? ''), d2 = _dOf(_wid ?? ''), t2 = _tOf(_wid ?? '');
+            final net2 = r2(total + b2 - d2 - t2);
+            exportTablePdf(
+              context: context,
+              title: 'تقرير عامل: ${ww.name}',
+              subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}\nمكافآت: $b2 ج | خصومات: $d2 ج | ضرائب: $t2 ج — الصافي المستحق: $net2 ج',
+              headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
+              widths: [55, 55, 60, 40, 45, 70],
+              rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, r.xh > 0 ? otText(r.xh) : '—', r.counts ? r2(r.wage + r.xh * _hourly(ww)).toStringAsFixed(2) : '—', r.notes]],
+              totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2), ''],
+            );
+          });
         }),
         Expanded(
           child: recs.isEmpty
@@ -419,16 +472,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        _totalsBar('$days يوم حضور', total, () => _shareRows('تقرير مكان: ${_loc ?? ''}', rows), onPdf: () {
-          exportTablePdf(
-            context: context,
-            title: 'تقرير مكان الحضور: ${_loc ?? ''}',
-            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
-            headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي'],
-            widths: [95, 55, 55, 50, 55],
-            rows: [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total.toStringAsFixed(2)]],
-            totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2)],
-          );
+        Builder(builder: (_) {
+          var tb = 0.0, td = 0.0, tt = 0.0, tnet = 0.0;
+          for (final m in rows) {
+            final b = _bOf(m.w.id), d = _dOf(m.w.id), x = _tOf(m.w.id);
+            tb += b; td += d; tt += x; tnet += m.total + b - d - x;
+          }
+          tnet = r2(tnet);
+          return _totalsBar('$days يوم حضور • الصافي ${tnet.toStringAsFixed(2)} ج', total, () => _shareRows('تقرير مكان: ${_loc ?? ''}', rows), onPdf: () async {
+            await _loadAdj();
+            var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
+            final rws = [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
+            for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
+            exportTablePdf(
+              context: context,
+              title: 'تقرير مكان الحضور: ${_loc ?? ''}',
+              subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+              headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
+              widths: [80, 45, 42, 40, 42, 40, 40, 40, 42],
+              rows: rws,
+              totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
+            );
+          });
         }),
         Expanded(
           child: rows.isEmpty
@@ -445,7 +510,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         dense: true,
                         leading: const Icon(Icons.person, size: 19, color: Color(0xFF1D4ED8)),
                         title: Text(rows[i].w.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
-                        subtitle: Text('${rows[i].days} يوم • ${rows[i].w.wage} ج/يوم • إضافي ${otText(rows[i].xh)}', style: const TextStyle(fontSize: 12)),
+                        subtitle: Text('${rows[i].days} يوم • ${rows[i].w.wage} ج/يوم • إضافي ${otText(rows[i].xh)}${_bOf(rows[i].w.id) + _dOf(rows[i].w.id) + _tOf(rows[i].w.id) > 0 ? ' • صافي ${r2(rows[i].total + _bOf(rows[i].w.id) - _dOf(rows[i].w.id) - _tOf(rows[i].w.id))} ج' : ''}', style: const TextStyle(fontSize: 12)),
                         trailing: Text('${rows[i].total} ج', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFBE185D))),
                       ),
                     ),
@@ -465,16 +530,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       children: [
         Material(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 10), child: _dateRow())),
-        _totalsBar('$days يوم — إضافي ${otText(xh)}', total, () => _shareRows('تقرير مجمع للعاملين', rows), onPdf: () {
-          exportTablePdf(
-            context: context,
-            title: 'تقرير مجمع للعاملين',
-            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
-            headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي'],
-            widths: [95, 55, 55, 50, 55],
-            rows: [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total > 0 ? m.total.toStringAsFixed(2) : '—']],
-            totalsRow: ['الإجمالي', '$days يوم', '', otText(xh), total.toStringAsFixed(2)],
-          );
+        Builder(builder: (_) {
+          var tb = 0.0, td = 0.0, tt = 0.0, tnet = 0.0;
+          for (final m in rows) {
+            final b = _bOf(m.w.id), d = _dOf(m.w.id), x = _tOf(m.w.id);
+            tb += b; td += d; tt += x; tnet += m.total + b - d - x;
+          }
+          tnet = r2(tnet);
+          return _totalsBar('$days يوم — إضافي ${otText(xh)} • الصافي ${tnet.toStringAsFixed(2)} ج', total, () => _shareRows('تقرير مجمع للعاملين', rows), onPdf: () async {
+            await _loadAdj();
+            var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
+            final rws = [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total > 0 ? m.total.toStringAsFixed(2) : '—', _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
+            for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
+            exportTablePdf(
+              context: context,
+              title: 'تقرير مجمع للعاملين',
+              subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+              headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
+              widths: [80, 45, 42, 40, 42, 40, 40, 40, 42],
+              rows: rws,
+              totalsRow: ['الإجمالي', '$days يوم', '', otText(xh), total.toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
+            );
+          });
         }),
         Expanded(
           child: ListView.builder(
@@ -491,7 +568,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     dense: true,
                     leading: CircleAvatar(radius: 10, backgroundColor: m.days > 0 ? Colors.green.shade400 : const Color(0xFFCBD5E1), child: Text('${m.days}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Colors.white))),
                     title: Text(m.w.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
-                    subtitle: Text('${m.w.wage} ج/يوم • إضافي ${otText(m.xh)}', style: const TextStyle(fontSize: 12)),
+                    subtitle: Text('${m.w.wage} ج/يوم • إضافي ${otText(m.xh)}${_bOf(m.w.id) + _dOf(m.w.id) + _tOf(m.w.id) > 0 ? ' • صافي ${r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id))} ج' : ''}', style: const TextStyle(fontSize: 12)),
                     trailing: Text(m.total > 0 ? '${m.total} ج' : '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFBE185D))),
                     onTap: () => _detail(m.w),
                   ),

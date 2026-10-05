@@ -1,7 +1,7 @@
 name: security_management
 description: تطبيق إدارة الأمن — نسخة أندرويد (Flutter)
 publish_to: 'none'
-version: 1.7.0+8
+version: 1.8.0+9
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -34,14 +34,12 @@ flutter:
     - assets/logo.png
     - assets/icon_tile.png
   fonts:
-    - family: Cairo
+    - family: TimesNewRoman
       fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/TimesNewRoman.ttf
           weight: 400
-        - asset: assets/fonts/Cairo-Bold.ttf
+        - asset: assets/fonts/TimesNewRoman-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Cairo-ExtraBold.ttf
-          weight: 800
 
 flutter_launcher_icons:
   android: true
