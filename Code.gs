@@ -31,11 +31,41 @@ var SHEETS = {
 var SCHEMA_CHECKED_ = {};
 
 /* ===================== الصفحة ===================== */
+// ===== تحديث تلقائي: الصفحة تُسحب مباشرة من GitHub (آخر نسخة) كل 5 دقائق =====
+var REPO_RAW_INDEX = 'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Index.html';
+
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
+  return HtmlService.createHtmlOutput(_liveIndex())
     .setTitle('إدارة الأمن')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// يسحب آخر نسخة من الواجهة من GitHub مع تخزين مؤقت 5 دقائق — ولو GitHub وقع يرجع للنسخة المحلية
+function _liveIndex() {
+  var cache = CacheService.getScriptCache();
+  try {
+    // نسخة مخزنة؟
+    var n = Number(cache.get('WEB_IDX_N') || 0);
+    if (n > 0) {
+      var html = '';
+      for (var i = 0; i < n; i++) html += cache.get('WEB_IDX_' + i) || '';
+      if (html && /<html/i.test(html)) return html;
+    }
+    // اسحب آخر نسخة من GitHub
+    var r = UrlFetchApp.fetch(REPO_RAW_INDEX, { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      var html2 = r.getContentText();
+      if (/<html/i.test(html2) && html2.length > 10000) {
+        var CH = 90000; // حد الذاكرة المؤقتة 100KB للمفتاح
+        var parts = Math.ceil(html2.length / CH);
+        for (var j = 0; j < parts; j++) cache.put('WEB_IDX_' + j, html2.slice(j * CH, (j + 1) * CH), 300);
+        cache.put('WEB_IDX_N', String(parts), 300);
+        return html2;
+      }
+    }
+  } catch (err) { /* نسقط للنسخة المحلية */ }
+  return HtmlService.createHtmlOutputFromFile('index').getContent();
 }
 
 /* ===================== بوابة JSON لتطبيق الأندرويد (Flutter) =====================
