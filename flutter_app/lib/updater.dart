@@ -1,5 +1,5 @@
 // التحديث التلقائي: يفحص app-version.json في المستودع، ولو فيه إصدار أحدث
-// يحمّل الـ APK تلقائيًا ثم يفتح مثبّت أندرويد
+// يحمّل الـ APK ويفتح المثبّت تلقائيًا — بالكامل في الخلفية بدون أي نافذة أو إشعار
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-const String appVersion = '1.2.0';
+const String appVersion = '1.3.0';
 const String _versionUrl =
     'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json';
 const String _apkUrl =
@@ -38,81 +38,32 @@ Future<String?> fetchNewerVersion() async {
   }
 }
 
-/// فحص وتحديث تلقائي: إشعار ثم تحميل بشريط تقدم ثم فتح المثبّت
+/// تحديث تلقائي كامل وصامت: بدون أي نافذة تأكيد أو شريط تقدم أو إشعار خطأ.
+/// يفحص الإصدار، يحمّل الملف في الخلفية، ثم يفتح المثبّت مباشرة.
+/// لا يستخدم BuildContext نهائيًا — يعمل حتى لو المستخدم غيّر الشاشة.
 Future<void> autoUpdate(BuildContext context) async {
-  final newer = await fetchNewerVersion();
-  if (newer == null || !context.mounted) return;
-
-  final ok = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => AlertDialog(
-      title: const Text('تحديث جديد متاح', textAlign: TextAlign.center),
-      content: Text('إصدار $newer متاح. سيتم تحميل ملفات التحديث الآن.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('لاحقًا')),
-        FilledButton(onPressed: () => Navigator.pop(_, true), child: const Text('تحديث الآن')),
-      ],
-    ),
-  );
-  if (ok != true || !context.mounted) return;
-
-  final progress = ValueNotifier<double>(0.0);
-  if (!context.mounted) return;
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => PopScope(
-      canPop: false,
-      child: ValueListenableBuilder<double>(
-        valueListenable: progress,
-        builder: (c, v, _) => AlertDialog(
-          title: const Text('جاري التحميل...', textAlign: TextAlign.center),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LinearProgressIndicator(value: v <= 0 ? 0.02 : v),
-              const SizedBox(height: 10),
-              const Text('يتم سحب ملفات التحديث — لا تغلق التطبيق',
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5)),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
   try {
+    final newer = await fetchNewerVersion();
+    if (newer == null) return;
+
     final client = http.Client();
     final res = await client.send(http.Request('GET', Uri.parse(_apkUrl))).timeout(const Duration(minutes: 5));
-    final total = res.contentLength ?? 0;
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/security-management-update.apk');
     final sink = file.openWrite();
-    var got = 0;
     await for (final chunk in res.stream) {
       sink.add(chunk);
-      got += chunk.length;
-      if (total > 0) progress.value = got / total;
     }
     await sink.close();
     client.close();
-    if (!context.mounted) return;
-    Navigator.of(context).pop(); // إغلاق شريط التقدم
+
     try {
       await _channel.invokeMethod('install', file.path);
     } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('تم التحميل — اسمح بالتثبيت من المصادر غير المعروفة من الإعدادات'),
-            backgroundColor: Color(0xFFB91C1C)));
-      }
+      // صمت تام: لو فشل فتح المثبت (مثلاً صلاحية غير ممنوحة)، نحاول مرة واحدة أخرى
+      // في المرة القادمة لفتح التطبيق دون إظهار أي رسالة للمستخدم الآن.
     }
   } catch (_) {
-    if (context.mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('تعذر التحميل — جرّب لاحقًا'), backgroundColor: Color(0xFFB91C1C)));
-    }
+    // صمت تام أيضًا على فشل الفحص أو التحميل — بدون إشعارات نهائيًا
   }
 }

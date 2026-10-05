@@ -110,7 +110,8 @@ class _GateScreenState extends State<GateScreen> {
                         final g = rows[i];
                         return SlideIn(
                           index: i,
-                        child: Card(
+                        child: GlowCard(
+                          glow: const Color(0xFF6D28D9),
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1.5,
                           child: Padding(

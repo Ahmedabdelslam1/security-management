@@ -217,7 +217,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   final permLabels = _permDefs.where((p) => u.can(p.$1)).map((p) => p.$2).join(' • ');
                   return SlideIn(
                     index: i,
-                    child: Card(
+                    child: GlowCard(
+                    glow: const Color(0xFF0F766E),
                     margin: const EdgeInsets.only(bottom: 8),
                     elevation: 1.5,
                     child: Padding(

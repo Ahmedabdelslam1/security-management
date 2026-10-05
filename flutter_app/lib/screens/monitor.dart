@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class MonitorScreen extends StatefulWidget {
   const MonitorScreen({super.key});
@@ -95,7 +96,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
                               itemCount: filtered.length,
                               itemBuilder: (_, i) {
                                 final l = filtered[i];
-                                return Card(
+                                return GlowCard(
+                                  glow: const Color(0xFFB91C1C),
                                   margin: const EdgeInsets.only(bottom: 6),
                                   elevation: 1,
                                   child: ListTile(
@@ -129,7 +131,8 @@ class _MonitorScreenState extends State<MonitorScreen> {
                               itemBuilder: (_, i) {
                                 final u = users[i];
                                 final online = u['online'] == true;
-                                return Card(
+                                return GlowCard(
+                                  glow: const Color(0xFFB91C1C),
                                   margin: const EdgeInsets.only(bottom: 6),
                                   elevation: 1,
                                   child: ListTile(

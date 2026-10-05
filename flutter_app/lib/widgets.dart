@@ -120,3 +120,75 @@ const tabColors = <String, List<int>>{
   'monitor': [0xFFFECACA, 0xFFB91C1C], // متابعة — أحمر
   'settings': [0xFFBAE6FD, 0xFF0369A1], // إعدادات — سماوي
 };
+
+// ===== كارت متوهج بألوان مميزة لكل شاشة + نبض أنيميشن مستمر =====
+class GlowCard extends StatefulWidget {
+  final Widget child;
+  final Color glow;
+  final Color? color;
+  final EdgeInsetsGeometry? margin;
+  final double elevation;
+  final ShapeBorder? shape;
+  const GlowCard({
+    super.key,
+    required this.child,
+    required this.glow,
+    this.color,
+    this.margin,
+    this.elevation = 2,
+    this.shape,
+  });
+
+  @override
+  State<GlowCard> createState() => _GlowCardState();
+}
+
+class _GlowCardState extends State<GlowCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1900))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = widget.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(13));
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_c.value);
+        final opacity = 0.22 + t * 0.33;
+        final blur = 9.0 + t * 11.0;
+        return Container(
+          margin: widget.margin,
+          decoration: ShapeDecoration(
+            shape: shape,
+            shadows: [
+              BoxShadow(
+                color: widget.glow.withOpacity(opacity),
+                blurRadius: blur,
+                spreadRadius: 0.5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Material(
+            color: widget.color ?? Colors.white,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: widget.child,
+          ),
+        );
+      },
+    );
+  }
+}

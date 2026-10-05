@@ -192,7 +192,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final active = c.status != '--';
     final isSettled = App.I.att.any((r) => r.date == _dstr && r.wid == w.id && r.settleId.isNotEmpty);
 
-    return Card(
+    return GlowCard(
+      glow: const Color(0xFF1D4ED8),
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 1.5,
       shape: RoundedRectangleBorder(

@@ -168,7 +168,8 @@ class _WorkersScreenState extends State<WorkersScreen> {
                         final w = ws[i];
                         return SlideIn(
                           index: i,
-                        child: Card(
+                        child: GlowCard(
+                          glow: const Color(0xFFB45309),
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1.5,
                           child: ListTile(

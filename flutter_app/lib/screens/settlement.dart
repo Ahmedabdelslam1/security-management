@@ -228,7 +228,8 @@ class _SettlePaneState extends State<_SettlePane> {
                     final sel = _sel.contains(w.id);
                     return SlideIn(
                       index: i,
-                      child: Card(
+                      child: GlowCard(
+                      glow: const Color(0xFF15803D),
                       margin: const EdgeInsets.only(bottom: 8),
                       elevation: 1.5,
                       color: sel ? cs.primary.withOpacity(.08) : null,
@@ -381,7 +382,8 @@ class _PayrollPaneState extends State<_PayrollPane> {
                           final r = rows[i];
                           return SlideIn(
                             index: i,
-                            child: Card(
+                            child: GlowCard(
+                            glow: const Color(0xFF0369A1),
                             margin: const EdgeInsets.only(bottom: 8),
                             elevation: 1.5,
                             child: Padding(

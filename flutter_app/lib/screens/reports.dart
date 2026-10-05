@@ -162,7 +162,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     final val = r.counts ? r2(r.wage + r.xh * _hourly(w)) : 0.0;
                     return SlideIn(
                       index: i,
-                      child: Card(
+                      child: GlowCard(
+                      glow: const Color(0xFFBE185D),
                       margin: const EdgeInsets.only(bottom: 8),
                       elevation: 1.5,
                       child: ListTile(
