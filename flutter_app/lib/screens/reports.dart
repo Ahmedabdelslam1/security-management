@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../letter_pdf.dart';
+import '../pdf_export.dart';
 import '../models.dart';
 import '../state.dart';
 import '../widgets.dart';

@@ -79,7 +79,7 @@ Future<void> exportTablePdf({
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  if (logo != null) pw.Image(pw.MemoryImage(logo), width: 64, height: 40) else const pw.Text(''),
+                  if (logo != null) pw.Image(pw.MemoryImage(logo), width: 64, height: 40) else pw.Text(''),
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
