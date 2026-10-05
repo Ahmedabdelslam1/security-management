@@ -89,8 +89,23 @@ val buildReleaseAndSwap = tasks.register("buildReleaseAndSwap") {
         val code = runCmd(dest, "flutter", "build", "apk", "--release")
         val relApk = File(dest, "build/app/outputs/flutter-apk/app-release.apk")
         if (code == 0 && relApk.exists()) {
+            // نستبدل النسخة النهائية + النسخ المصدر التي ينسخ منها أداة Flutter بعد الخروج من Gradle
             relApk.copyTo(debugApk, overwrite = true)
+            val raws = listOf(
+                File(projectRoot, "build/app/outputs/apk/debug/app-debug.apk"),
+                File(projectRoot.parentFile, "slim_release_build/flutter_app/build/app/outputs/flutter-apk/app-debug.apk")
+            )
+            raws.forEach { raw ->
+                if (raw.exists()) {
+                    relApk.copyTo(raw, overwrite = true)
+                    println("SLIM: استُبدل أيضًا " + raw.path)
+                }
+            }
             println("SLIM: تم استبدال الـ APK بنسخة Release خفيفة حجمها " + (relApk.length() / 1048576) + " ميجا")
+            // تحقق نهائي: طباعة أحجام المسارات المحتملة
+            listOf(debugApk, raws[0]).forEach { f ->
+                if (f.exists()) println("SLIM: حجم " + f.path + " الآن = " + f.length() + " بايت")
+            }
         } else {
             println("SLIM: فشل بناء Release (exit=" + code + ") — سيُرفع الـ APK الـ debug كما هو")
         }
