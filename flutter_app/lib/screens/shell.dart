@@ -89,6 +89,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         title: Text(appTitle(_tab)),
         centerTitle: true,
         actions: [
+          // زر الرجوع للصفحة الرئيسية — ظاهر في كل الشاشات ما عدا الرئيسية نفسها
+          if (_tab != 'home')
+            IconButton(
+              tooltip: 'الصفحة الرئيسية',
+              onPressed: () => setState(() => _tab = 'home'),
+              icon: const Icon(Icons.home_outlined, size: 21),
+            ),
           // الساعة الحية: اليوم + التاريخ + الوقت — في كل الشاشات
           Padding(
             padding: const EdgeInsets.only(left: 10),
