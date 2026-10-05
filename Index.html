@@ -21,10 +21,10 @@ input,select,button,textarea{font-family:'Times New Roman',Times,serif}
 .btn.danger{background:#fee2e2;color:#b91c1c}
 .btn.small{padding:5px 10px;font-size:12px}
 /* login */
-.auth-wrap{display:flex;align-items:center;justify-content:center;padding:40px 14px;background:linear-gradient(135deg,#f6f5fb,#ece7fb)}
+.auth-wrap{display:flex;align-items:center;justify-content:center;padding:40px 14px;min-height:100vh;background:#1e3a5f}
 .auth-card{background:#fff;border:1px solid #e7e3f3;border-radius:16px;padding:16px;width:305px;max-width:94%;text-align:center;box-shadow:0 10px 30px rgba(124,92,252,.14)}
-.auth-card h1{font-size:26px;font-weight:800;color:#0f172a}
-.auth-card .sub{color:#64748b;font-size:13px;margin-bottom:14px}
+.auth-card h1{font-size:26px;font-weight:800;color:#0f172a;margin-bottom:4px}
+.auth-card .sub{color:#64748b;font-size:13px;margin-bottom:18px}
 .auth-card input{width:100%;margin-bottom:10px;text-align:right}
 .auth-card .btn{width:100%;padding:11px;font-size:15px}
 .auth-msg{margin-top:10px;font-size:13px;color:#16a34a;min-height:18px}
@@ -169,17 +169,12 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
   <div id="loginView" class="auth-wrap">
     <div class="auth-card">
       <h1>إدارة الأمن</h1>
-      <div class="clock">
-        <div class="clock-face">
-          <span class="tick t12"></span><span class="tick t3"></span><span class="tick t6"></span><span class="tick t9"></span>
-          <div class="hand hour" id="chH"></div><div class="hand min" id="chM"></div><div class="hand sec" id="chS"></div><div class="cpin"></div>
-        </div>
-        <div class="clock-digital" id="loginDigital">--:--:--</div>
-        <div class="clock-date"><b id="loginWeekday"></b> <span id="loginDate"></span></div>
-      </div>
+      <div class="sub">V2 — العاملون والحضور والتسويات والمالية</div>
+      <label style="display:block;text-align:right;font-size:13px;color:#64748b;margin-bottom:4px">اسم المستخدم</label>
       <input type="text" id="liUser" placeholder="اسم المستخدم" autocomplete="off" autocapitalize="off">
+      <label style="display:block;text-align:right;font-size:13px;color:#64748b;margin-bottom:4px">كلمة المرور</label>
       <input type="password" id="liPass" placeholder="كلمة المرور" autocomplete="new-password">
-      <button class="btn primary" onclick="doLogin()">دخول</button>
+      <button class="btn primary" onclick="doLogin()">دخول النظام</button>
       <p class="auth-msg" id="authMsg"></p>
       <button class="btn" style="width:100%;margin-top:6px;background:#fff;border:1px solid #cbd5e1" onclick="showReg()">&#128100; مستخدم جديد</button>
       <div id="regBox" style="display:none">
