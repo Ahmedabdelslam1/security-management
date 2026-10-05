@@ -72,7 +72,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             child: const Text('نسخ'),
           ),
           FilledButton(
-            onPressed: () => Share.share(v).then((_) => Navigator.pop(_)),
+            onPressed: () { Share.share(v); Navigator.pop(_); },
             child: const Text('مشاركة'),
           ),
         ],
@@ -174,7 +174,7 @@ class _DocsTabState extends State<DocsTab> {
     }
     final us = App.I.data?.users ?? [];
     for (final u in us) {
-      out.add(('user_${u.id}', 'مستخدم: ${u.name}'));
+      out.add(('user_${u.username}', 'مستخدم: ${u.name}'));
     }
     out.add(('general', 'مستندات عامة'));
     return out;
