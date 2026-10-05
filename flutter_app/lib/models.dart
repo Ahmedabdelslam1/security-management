@@ -92,7 +92,7 @@ String fmtDate(String s) {
   if (s.isEmpty || s == '--') return '--';
   final p = s.split('-');
   if (p.length != 3) return s;
-  return '${p[2]}/${p[1]}/${p[0]}';
+  return '${p[0]}/${p[1]}/${p[2]}';
 }
 
 double r2(double x) => (x * 100).round() / 100;

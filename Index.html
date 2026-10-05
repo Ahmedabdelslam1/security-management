@@ -433,7 +433,7 @@ function errMsg(e){return String((e&&e.message)||e||'خطأ غير معروف').
 function fail(e){var m=errMsg(e);if(m.indexOf('SESSION')!==-1){toast('انتهت الجلسة، سجّل الدخول من جديد');doLogout(true);return;}toast(m);}
 /* ============ أدوات ============ */
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function fmtD(s){if(!s)return '--';var p=String(s).split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function fmtD(s){if(!s)return '--';var p=String(s).split('-');return p[0]+'/'+p[1]+'/'+p[2];}
 function hourly(w){return (w.wage||0)/((w.hours||8)||8);}
 function W(id){return WORKERS.filter(function(w){return w.id===id;})[0]||{};}
 function counts(r){return !!r.status&&r.status!=='--'&&String(r.loc||'').trim()!=='';}
