@@ -111,6 +111,7 @@ class IconTile extends StatelessWidget {
 
 // ألوان تبويبات الصفحات — مطابقة لنسخة الويب
 const tabColors = <String, List<int>>{
+  'home': [0xFFEDE9FE, 0xFF5B21B6], // الرئيسية — بنفسجي غامق
   'attendance': [0xFFDBEAFE, 0xFF1D4ED8], // حضور — أزرق
   'settlement': [0xFFBBF7D0, 0xFF15803D], // تسوية — أخضر
   'workers': [0xFFFDE68A, 0xFFB45309], // عاملين — أصفر

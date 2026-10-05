@@ -10,6 +10,7 @@ import 'workers.dart';
 import 'settlement.dart';
 import 'reports.dart';
 import 'gate.dart';
+import 'home.dart';
 import 'users.dart';
 import 'monitor.dart';
 import 'settings.dart';
@@ -24,7 +25,7 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
-  String _tab = 'attendance';
+  String _tab = 'home';
   Timer? _clock;
   Timer? _sync;
   Timer? _updateCheck;
@@ -72,6 +73,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (u == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     final tabs = <_Tab>[
+      const _Tab('home', 'الرئيسية', Icons.home),
       if (u.can('attendance')) const _Tab('attendance', 'الحضور', Icons.checklist),
       if (u.can('attendance')) const _Tab('settlement', 'التسوية', Icons.payments_outlined),
       if (u.can('workers')) const _Tab('workers', 'العاملين', Icons.groups_outlined),
@@ -252,6 +254,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Widget _body(String tab) {
     switch (tab) {
+      case 'home':
+        return HomeScreen(onOpen: (id) => setState(() => _tab = id));
       case 'attendance':
         return const AttendanceScreen();
       case 'workers':
@@ -275,6 +279,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   static String appTitle(String tab) {
     const m = {
+      'home': 'إدارة الأمن',
       'attendance': 'الحضور',
       'settlement': 'التسوية',
       'workers': 'العاملين',
