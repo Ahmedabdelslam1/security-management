@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -11,6 +12,7 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
+  String _q = '';
   DateTime _date = DateTime.now();
   late Map<String, _RowCtl> _ctl; // wid -> عناصر التحكم
   bool _saving = false;
@@ -106,7 +108,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final app = App.I;
     final cs = Theme.of(context).colorScheme;
-    final workers = app.workers;
+    final all = app.workers;
+    final workers = _q.isEmpty ? all : all.where((w) => txtMatch(_q, [w.name, w.card])).toList();
     final locs = app.locs;
 
     return Scaffold(
@@ -162,6 +165,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Text(_err!, style: TextStyle(color: cs.onErrorContainer, fontSize: 12.5)),
             ),
+          SearchBox(hint: 'بحث عن عامل بالاسم أو البطاقة...', value: _q, onChanged: (v) => setState(() => _q = v)),
           // قائمة العمال
           Expanded(
             child: workers.isEmpty
@@ -172,7 +176,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
                       itemCount: workers.length,
-                      itemBuilder: (_, i) => _workerCard(context, workers[i], locs),
+                      itemBuilder: (_, i) => SlideIn(index: i, child: _workerCard(context, workers[i], locs)),
                     ),
                   ),
           ),

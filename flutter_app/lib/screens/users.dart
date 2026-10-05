@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -12,6 +13,7 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   bool _busy = false;
+  String _q = '';
 
   void _done(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green.shade700));
@@ -183,7 +185,8 @@ class _UsersScreenState extends State<UsersScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final users = App.I.data?.users ?? [];
+    final all = App.I.data?.users ?? [];
+    final users = _q.isEmpty ? all : all.where((u) => txtMatch(_q, [u.name, u.username])).toList();
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5FB),
       floatingActionButton: FloatingActionButton.extended(
@@ -191,13 +194,17 @@ class _UsersScreenState extends State<UsersScreen> {
         icon: const Icon(Icons.person_add_alt),
         label: const Text('إضافة مستخدم'),
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          SearchBox(hint: 'بحث بالمستخدم أو الاسم...', value: _q, onChanged: (v) => setState(() => _q = v)),
+          Expanded(
+          child: RefreshIndicator(
         onRefresh: () => App.I.bootstrap(silent: true),
         child: users.isEmpty
-            ? ListView(children: const [Padding(padding: EdgeInsets.all(30), child: Center(child: Text('لا مستخدمين')))])
+            ? ListView(children: [Padding(padding: const EdgeInsets.all(30), child: Center(child: Text(_q.isEmpty ? 'لا مستخدمين' : 'لا نتائج للبحث')))])
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 90),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 90),
                 itemCount: users.length,
                 itemBuilder: (_, i) {
                   final u = users[i];
@@ -208,7 +215,9 @@ class _UsersScreenState extends State<UsersScreen> {
                       ? 'نشط'
                       : u.status == 'pending' ? 'بانتظار الموافقة' : 'موقوف';
                   final permLabels = _permDefs.where((p) => u.can(p.$1)).map((p) => p.$2).join(' • ');
-                  return Card(
+                  return SlideIn(
+                    index: i,
+                    child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     elevation: 1.5,
                     child: Padding(
@@ -279,10 +288,14 @@ class _UsersScreenState extends State<UsersScreen> {
                         ],
                       ),
                     ),
+                  ),
                   );
                 },
               ),
-      ),
+          ),
+        ),
+      ],
+    ),
     );
   }
 }

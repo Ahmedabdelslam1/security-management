@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -11,6 +12,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  String _q = '';
   String? _wid;
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _to = DateTime.now();
@@ -60,8 +62,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final workers = App.I.workers;
-    if (_wid == null && workers.isNotEmpty) _wid = workers.first.id;
+    final all = App.I.workers;
+    final workers = _q.isEmpty ? all : all.where((x) => txtMatch(_q, [x.name, x.card])).toList();
+    if (_wid == null && all.isNotEmpty) _wid = all.first.id;
     final w = App.I.worker(_wid ?? '');
     final recs = _recs;
     int days = 0;
@@ -83,6 +86,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: Column(
               children: [
+                SearchBox(hint: 'بحث عن عامل للعرض...', value: _q, onChanged: (v) => setState(() { _q = v; if (_wid != null && !workers.any((x) => x.id == _wid)) _wid = workers.isNotEmpty ? workers.first.id : null; })),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _wid,
                   decoration: const InputDecoration(
@@ -155,7 +160,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   itemBuilder: (_, i) {
                     final r = recs[i];
                     final val = r.counts ? r2(r.wage + r.xh * _hourly(w)) : 0.0;
-                    return Card(
+                    return SlideIn(
+                      index: i,
+                      child: Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       elevation: 1.5,
                       child: ListTile(
@@ -182,6 +189,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           r.counts ? '$val ج' : '—',
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                         ),
+                      ),
                       ),
                     );
                   },

@@ -1,7 +1,10 @@
-// الهيكل الرئيسي: قائمة جانبية + شريط ساعة + تنقل بين الشاشات
+// الهيكل الرئيسي: تنقل بأيقونات ملونة (هوية الويب) + ساعة حية + مزامنة تلقائية + تحديث تلقائي
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models.dart';
 import '../state.dart';
+import '../updater.dart';
+import '../widgets.dart';
 import 'attendance.dart';
 import 'workers.dart';
 import 'settlement.dart';
@@ -12,6 +15,7 @@ import 'monitor.dart';
 import 'settings.dart';
 
 const _arDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const _arMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -19,23 +23,45 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String _tab = 'attendance';
-  Timer? _timer;
+  Timer? _clock;
+  Timer? _sync;
+  Timer? _updateCheck;
   DateTime _now = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     App.I.bootstrap(silent: true).catchError((_) {});
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
+    });
+    // مزامنة فورية مع الويب: سحب أي إضافة/تعديل كل 15 ثانية
+    _sync = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!App.I.loading) App.I.bootstrap(silent: true).catchError((_) {});
+    });
+    // فحص التحديث عند البدء ثم كل 6 ساعات
+    Future.delayed(const Duration(seconds: 4), () { if (mounted) autoUpdate(context); });
+    _updateCheck = Timer.periodic(const Duration(hours: 6), (_) {
+      if (mounted) autoUpdate(context);
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) {
+      App.I.bootstrap(silent: true).catchError((_) {});
+    }
+  }
+
+  @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _clock?.cancel();
+    _sync?.cancel();
+    _updateCheck?.cancel();
     super.dispose();
   }
 
@@ -44,7 +70,6 @@ class _ShellState extends State<Shell> {
     final app = App.I;
     final u = app.user;
     if (u == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    final cs = Theme.of(context).colorScheme;
 
     final tabs = <_Tab>[
       if (u.can('attendance')) const _Tab('attendance', 'الحضور', Icons.checklist),
@@ -59,60 +84,113 @@ class _ShellState extends State<Shell> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: cs.primary,
-        foregroundColor: Colors.white,
         title: Text(appTitle(_tab)),
         centerTitle: true,
         actions: [
+          // الساعة الحية: اليوم + التاريخ + الوقت — في كل الشاشات
           Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Center(
-              child: Text(
-                clockText(_now),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            padding: const EdgeInsets.only(left: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.18),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${_arDays[_now.weekday % 7]} ${_now.day} ${_arMonths[_now.month - 1]}',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+                  ),
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey(_now.second % 2),
+                    tween: Tween(begin: 0.6, end: 1),
+                    duration: const Duration(milliseconds: 500),
+                    builder: (c, t, ch) => Opacity(opacity: .6 + t * .4, child: ch),
+                    child: Text(
+                      clockText(_now),
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, height: 1.25),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+          // زر تحديث يدوي (مزامنة فورية)
+          IconButton(
+            tooltip: 'مزامنة الآن',
+            onPressed: () {
+              App.I.bootstrap().catchError((_) {});
+            },
+            icon: const Icon(Icons.sync, size: 20),
+          ),
         ],
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: cs.primary),
-              accountName: Text(u.name),
-              accountEmail: Text(u.isAdmin ? 'مدير النظام' : 'مستخدم'),
-              currentAccountPicture: CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.person, color: cs.primary)),
+      drawer: _drawer(context, u, tabs),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(anim),
+            child: child,
+          ),
+        ),
+        // الاستماع لـ App يجعل كل شاشة تُعاد رسمها فور وصول بيانات جديدة من الويب
+        child: ListenableBuilder(
+          listenable: App.I,
+          key: ValueKey(_tab),
+          builder: (c, _) => _body(_tab),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawer(BuildContext context, AppUser u, List<_Tab> tabs) {
+    final items = <(String, String, IconData)>[
+      ...tabs.map((t) => (t.id, t.label, t.icon)),
+      ('settings', 'الإعدادات', Icons.settings_outlined),
+    ];
+    return Drawer(
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)])),
+            accountName: Text(u.name),
+            accountEmail: Text(u.isAdmin ? 'مدير النظام' : 'مستخدم'),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Image.asset('assets/icon_tile.png', fit: BoxFit.cover),
             ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  ...tabs.map((t) => ListTile(
-                        selected: _tab == t.id,
-                        selectedColor: cs.primary,
-                        leading: Icon(t.icon),
-                        title: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        onTap: () { Navigator.pop(context); setState(() => _tab = t.id); },
-                      )),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.settings_outlined),
-                    title: const Text('الإعدادات', style: TextStyle(fontWeight: FontWeight.w700)),
-                    onTap: () { Navigator.pop(context); setState(() => _tab = 'settings'); },
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  SlideIn(
+                    index: i,
+                    child: _drawerTile(items[i].$1, items[i].$2, items[i].$3),
                   ),
-                  ListTile(
+                const Divider(height: 20),
+                SlideIn(
+                  index: items.length,
+                  child: ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text('خروج', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.red)),
+                    title: const Text('خروج', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.red)),
                     onTap: () async {
+                      Navigator.pop(context);
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
                           title: const Text('تأكيد'),
                           content: const Text('هل تريد تسجيل الخروج؟'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-                            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('خروج')),
+                            TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('إلغاء')),
+                            FilledButton(onPressed: () => Navigator.pop(_, true), child: const Text('خروج')),
                           ],
                         ),
                       );
@@ -124,13 +202,51 @@ class _ShellState extends State<Shell> {
                       }
                     },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _drawerTile(String id, String label, IconData icon) {
+    final cs = Theme.of(context).colorScheme;
+    final sel = _tab == id;
+    final colors = tabColors[id] ?? const [0xFFBAE6FD, 0xFF0369A1];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: sel
+              ? const LinearGradient(colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)])
+              : null,
+        ),
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          selected: sel,
+          selectedColor: Colors.white,
+          leading: IconTile(
+            icon: icon,
+            bg: Color(colors[0]),
+            fg: Color(colors[1]),
+            size: sel ? 36 : 32,
+          ),
+          title: Text(label,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: sel ? Colors.white : Colors.black87,
+              )),
+          onTap: () {
+            Navigator.pop(context);
+            if (_tab != id) setState(() => _tab = id);
+          },
         ),
       ),
-      body: _body(_tab),
     );
   }
 
@@ -175,7 +291,7 @@ class _ShellState extends State<Shell> {
     int h = d.hour % 12; if (h == 0) h = 12;
     final ap = d.hour < 12 ? 'ص' : 'م';
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${_arDays[d.weekday % 7]} ${two(d.day)}/${two(d.month)} — ${two(h)}:${two(d.minute)}:${two(d.second)} $ap';
+    return '${two(h)}:${two(d.minute)}:${two(d.second)} $ap';
   }
 }
 

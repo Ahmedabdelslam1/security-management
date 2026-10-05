@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class GateScreen extends StatefulWidget {
   const GateScreen({super.key});
@@ -15,6 +16,7 @@ class GateScreen extends StatefulWidget {
 class _GateScreenState extends State<GateScreen> {
   List<Map>? _rows;
   bool _busy = false;
+  String _q = '';
 
   Future<void> _load() async {
     setState(() => _busy = true);
@@ -72,7 +74,15 @@ class _GateScreenState extends State<GateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = _rows;
+    final all = _rows;
+    final rows = all == null
+        ? null
+        : _q.isEmpty
+            ? all
+            : all.where((g) => txtMatch(_q, [
+                  '${g['plate']}', '${g['driver']}', '${g['statement']}',
+                  '${g['notes']}', '${g['host']}', '${g['seq']}'
+                ])).toList();
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5FB),
       floatingActionButton: FloatingActionButton.extended(
@@ -80,21 +90,27 @@ class _GateScreenState extends State<GateScreen> {
         icon: const Icon(Icons.add),
         label: const Text('سجل جديد'),
       ),
-      body: _busy && rows == null
+      body: _busy && all == null
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : Column(
+              children: [
+                SearchBox(hint: 'بحث برقم السيارة أو السائق أو البيان...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                Expanded(
+                child: RefreshIndicator(
               onRefresh: _load,
               child: (rows == null || rows.isEmpty)
-                  ? ListView(children: const [
-                      Padding(padding: EdgeInsets.all(30), child: Center(child: Text('لا سجلات بعد — اضغط "سجل جديد"'))),
+                  ? ListView(children: [
+                      Padding(padding: const EdgeInsets.all(30), child: Center(child: Text(_q.isEmpty ? 'لا سجلات بعد — اضغط "سجل جديد"' : 'لا نتائج للبحث'))),
                     ])
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 90),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 90),
                       itemCount: rows.length,
                       itemBuilder: (_, i) {
                         final g = rows[i];
-                        return Card(
+                        return SlideIn(
+                          index: i,
+                        child: Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1.5,
                           child: Padding(
@@ -156,10 +172,14 @@ class _GateScreenState extends State<GateScreen> {
                               ],
                             ),
                           ),
-                        );
+                        ),
+                      );
                       },
                     ),
             ),
+        ),
+      ],
+    ),
     );
   }
 

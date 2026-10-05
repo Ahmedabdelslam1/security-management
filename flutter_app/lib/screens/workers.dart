@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class WorkersScreen extends StatefulWidget {
   const WorkersScreen({super.key});
@@ -12,6 +13,7 @@ class WorkersScreen extends StatefulWidget {
 
 class _WorkersScreenState extends State<WorkersScreen> {
   bool _busy = false;
+  String _q = '';
 
   Future<void> _refresh() async {
     setState(() => _busy = true);
@@ -129,8 +131,11 @@ class _WorkersScreenState extends State<WorkersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ws = App.I.workers;
     final isAdmin = App.I.user?.can('workers') ?? false;
+    final all = App.I.workers;
+    final ws = _q.isEmpty
+        ? all
+        : all.where((w) => txtMatch(_q, [w.name, w.card, w.phone])).toList();
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5FB),
       floatingActionButton: isAdmin
@@ -140,24 +145,30 @@ class _WorkersScreenState extends State<WorkersScreen> {
               label: const Text('إضافة عامل'),
             )
           : null,
-      body: _busy && ws.isEmpty
+      body: _busy && all.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : Column(
+              children: [
+                SearchBox(hint: 'بحث بالاسم أو رقم البطاقة أو الهاتف...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                Expanded(
+                child: RefreshIndicator(
               onRefresh: _refresh,
               child: ws.isEmpty
-                  ? ListView(children: const [
+                  ? ListView(children: [
                       Padding(
-                        padding: EdgeInsets.all(30),
-                        child: Center(child: Text('لا يوجد عاملون بعد — اضغط "إضافة عامل"')),
+                        padding: const EdgeInsets.all(30),
+                        child: Center(child: Text(_q.isEmpty ? 'لا يوجد عاملون بعد — اضغط "إضافة عامل"' : 'لا نتائج للبحث')),
                       )
                     ])
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 80),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 80),
                       itemCount: ws.length,
                       itemBuilder: (_, i) {
                         final w = ws[i];
-                        return Card(
+                        return SlideIn(
+                          index: i,
+                        child: Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1.5,
                           child: ListTile(
@@ -182,9 +193,13 @@ class _WorkersScreenState extends State<WorkersScreen> {
                                   )
                                 : null,
                           ),
+                        ),
                         );
                       },
                     ),
+                ),
+                ),
+              ],
             ),
     );
   }

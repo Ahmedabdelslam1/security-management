@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
+import '../widgets.dart';
 
 class SettlementScreen extends StatefulWidget {
   const SettlementScreen({super.key});
@@ -47,6 +48,7 @@ class _SettlePane extends StatefulWidget {
 }
 
 class _SettlePaneState extends State<_SettlePane> {
+  String _q = '';
   DateTime _to = DateTime.now();
   DateTime? _from;
   String? _loc; // null = كل الأماكن
@@ -140,8 +142,9 @@ class _SettlePaneState extends State<_SettlePane> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final locs = App.I.locs;
-    final workers = App.I.workers;
-    final dues = {for (final w in workers) w.id: _dueOf(w)};
+    final all = App.I.workers;
+    final workers = _q.isEmpty ? all : all.where((w) => txtMatch(_q, [w.name, w.card])).toList();
+    final dues = {for (final w in all) w.id: _dueOf(w)};
 
     return Column(
       children: [
@@ -189,6 +192,8 @@ class _SettlePaneState extends State<_SettlePane> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                SearchBox(hint: 'بحث عن عامل...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _loc,
                   decoration: const InputDecoration(
@@ -221,7 +226,9 @@ class _SettlePaneState extends State<_SettlePane> {
                     final w = workers[i];
                     final d = dues[w.id]!;
                     final sel = _sel.contains(w.id);
-                    return Card(
+                    return SlideIn(
+                      index: i,
+                      child: Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       elevation: 1.5,
                       color: sel ? cs.primary.withOpacity(.08) : null,
@@ -247,6 +254,7 @@ class _SettlePaneState extends State<_SettlePane> {
                             ? const Icon(Icons.check_circle_outline, color: Color(0xFF94A3B8))
                             : Text('${d.amount}\nج', textAlign: TextAlign.center,
                                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                        ),
                       ),
                     );
                   },
@@ -265,6 +273,7 @@ class _PayrollPane extends StatefulWidget {
 }
 
 class _PayrollPaneState extends State<_PayrollPane> {
+  String _q = '';
   DateTime? _from;
   DateTime? _to;
   List<Map>? _rows;
@@ -304,7 +313,8 @@ class _PayrollPaneState extends State<_PayrollPane> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = _rows ?? [];
+    final all = _rows ?? [];
+    final rows = _q.isEmpty ? all : all.where((r) => txtMatch(_q, [r['name'], r['user']])).toList();
     final total = rows.fold<double>(0, (s, r) => s + (r['amount'] ?? 0).toDouble());
     return Column(
       children: [
@@ -348,6 +358,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
             ),
           ),
         ),
+        SearchBox(hint: 'بحث باسم العامل أو من صرف...', value: _q, onChanged: (v) => setState(() => _q = v)),
         Container(
           width: double.infinity,
           color: Colors.white,
@@ -368,7 +379,9 @@ class _PayrollPaneState extends State<_PayrollPane> {
                         itemCount: rows.length,
                         itemBuilder: (_, i) {
                           final r = rows[i];
-                          return Card(
+                          return SlideIn(
+                            index: i,
+                            child: Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             elevation: 1.5,
                             child: Padding(
@@ -394,6 +407,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
                                 ],
                               ),
                             ),
+                          ),
                           );
                         },
                       ),

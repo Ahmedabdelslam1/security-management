@@ -1,0 +1,108 @@
+// مكونات مشتركة: بحث، أنيميشن دخول، بلاط أيقونات ملونة — بنفس هوية نسخة الويب
+import 'package:flutter/material.dart';
+
+// ===== صندوق البحث (يظهر في كل الشاشات) =====
+class SearchBox extends StatelessWidget {
+  final String hint;
+  final String value;
+  final ValueChanged<String> onChanged;
+  const SearchBox({super.key, required this.hint, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 2),
+      child: TextField(
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: hint,
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: value.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => onChanged(''),
+                ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: cs.outlineVariant.withOpacity(.6)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: cs.primary, width: 1.6),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// فلترة نصية موحدة: تطابق جزئي غير حساس لحالة الأحرف
+bool txtMatch(String query, Iterable<String?> fields) {
+  final q = query.trim();
+  if (q.isEmpty) return true;
+  for (final f in fields) {
+    if (f != null && f.toLowerCase().contains(q.toLowerCase())) return true;
+  }
+  return false;
+}
+
+// ===== أنيميشن دخول العناصر (ظهور تدريجي + انزلاق خفيف) =====
+class SlideIn extends StatelessWidget {
+  final Widget child;
+  final int index; // للتتابع
+  final Duration duration;
+  const SlideIn({super.key, required this.child, this.index = 0, this.duration = const Duration(milliseconds: 350)});
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = Duration(milliseconds: (index < 8 ? index * 40 : 320));
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: duration + delay,
+      curve: Curves.easeOutCubic,
+      builder: (c, t, ch) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * 14), child: ch),
+      ),
+      child: child,
+    );
+  }
+}
+
+// ===== بلاط أيقونة ملون زي شريط التنقل في الويب =====
+class IconTile extends StatelessWidget {
+  final IconData icon;
+  final Color bg;
+  final Color fg;
+  final double size;
+  const IconTile({super.key, required this.icon, required this.bg, required this.fg, this.size = 34});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(size * 0.3)),
+      child: Icon(icon, color: fg, size: size * 0.55),
+    );
+  }
+}
+
+// ألوان تبويبات الصفحات — مطابقة لنسخة الويب
+const tabColors = <String, List<int>>{
+  'attendance': [0xFFDBEAFE, 0xFF1D4ED8], // حضور — أزرق
+  'settlement': [0xFFBBF7D0, 0xFF15803D], // تسوية — أخضر
+  'workers': [0xFFFDE68A, 0xFFB45309], // عاملين — أصفر
+  'reports': [0xFFFBCFE8, 0xFFBE185D], // تقارير — وردي
+  'gate': [0xFFDDD6FE, 0xFF6D28D9], // بوابة — بنفسجي
+  'users': [0xFF99F6E4, 0xFF0F766E], // مستخدمين — تركواز
+  'monitor': [0xFFFECACA, 0xFFB91C1C], // متابعة — أحمر
+  'settings': [0xFFBAE6FD, 0xFF0369A1], // إعدادات — سماوي
+};
