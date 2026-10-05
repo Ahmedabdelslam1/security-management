@@ -1,6 +1,8 @@
 // شاشة التقارير — كل البنود مثل الويب: حسب العامل / حسب مكان الحضور / تقرير مجمع / خطاب الاعتماد
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import '../letter_pdf.dart';
 import '../models.dart';
 import '../state.dart';
 import '../widgets.dart';
@@ -206,6 +208,69 @@ class _ReportsScreenState extends State<ReportsScreen> {
     buf.writeln('إجمالي الأيام: $days — الإجمالي: $tot ج');
     buf.writeln('ولسيادتكم فائق الاحترام والتقدير');
     Share.share(buf.toString(), subject: 'خطاب اعتماد');
+  }
+
+  Future<void> _letterPdf() async {
+    final rows = _letterRows;
+    if (rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا عمال لهم حضور في هذه الفترة'), backgroundColor: Colors.black54));
+      return;
+    }
+    final addressee = _locFilter.isNotEmpty ? _locFilter : (_loc ?? 'الموقع');
+    final tot = r2(rows.fold<double>(0, (s, m) => s + m.total));
+    final bytes = await buildLetterPdf(
+      rows: [for (final m in rows) LetterRow(m.w.name, m.days, m.w.wage, m.xh, m.total)],
+      addressee: addressee,
+      from: fmtDate(_d(_from)),
+      to: fmtDate(_d(_to)),
+      amountWords: amtWords(tot),
+    );
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('خطاب الاعتماد — PDF جاهز', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              const SizedBox(height: 4),
+              const Text('اختر الطباعة أو الإرسال عبر واتساب أو البريد', style: TextStyle(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.print, size: 19),
+                  label: const Text('معاينة وطباعة'),
+                  onPressed: () { Navigator.pop(context); Printing.layoutPdf(name: 'خطاب اعتماد', pdf: bytes); },
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF15803D)),
+                  icon: const Icon(Icons.send, size: 19),
+                  label: const Text('إرسال PDF (واتساب / بريد / إلخ)'),
+                  onPressed: () { Navigator.pop(context); Printing.sharePdf(bytes: bytes, filename: 'خطاب-اعتماد.pdf'); },
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.text_snippet, size: 19),
+                  label: const Text('مشاركة كنص'),
+                  onPressed: () { Navigator.pop(context); _shareLetter(); },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -455,7 +520,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        _totalsBar('$days يوم — ${rows.length} عامل', total, _shareLetter),
+        _totalsBar('$days يوم — ${rows.length} عامل', total, _letterPdf),
+        // زر PDF للطباعة والإرسال
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6D28D9)),
+              icon: const Icon(Icons.picture_as_pdf, size: 19),
+              label: const Text('PDF — للطباعة والإرسال'),
+              onPressed: _letterPdf,
+            ),
+          ),
+        ),
         // صندوق التفقيط مثل الويب
         Container(
           width: double.infinity,
