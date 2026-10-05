@@ -244,7 +244,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: FilledButton.icon(
                   icon: const Icon(Icons.print, size: 19),
                   label: const Text('معاينة وطباعة'),
-                  onPressed: () { Navigator.pop(context); Printing.layoutPdf(name: 'خطاب اعتماد', pdf: bytes); },
+                  onPressed: () { Navigator.pop(context); Printing.layoutPdf(name: 'خطاب اعتماد', onLayout: (_) async => bytes); },
                 ),
               ),
               const SizedBox(height: 8),

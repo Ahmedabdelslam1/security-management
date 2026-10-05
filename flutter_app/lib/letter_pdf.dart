@@ -40,7 +40,8 @@ Future<Uint8List> buildLetterPdf({
 
   doc.addPage(
     pw.MultiPage(
-      pageFormat: const pw.PdfPageFormat(21 * 72 * 2.83 / 2.54, 29.7 * 72 * 2.83 / 2.54, marginTop: 40, marginHorizontal: 42),
+      pageFormat: pw.PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(42, 40, 42, 40),
       maxPages: 12,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
@@ -89,7 +90,7 @@ Future<Uint8List> buildLetterPdf({
               pw.Center(
                 child: pw.Container(
                   padding: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-                  decoration: pw.BoxDecoration(border: pw.Border.all(color: blue, width: 1.2), borderRadius: 8),
+                  decoration: pw.BoxDecoration(border: pw.Border.all(color: blue, width: 1.2), borderRadius: pw.BorderRadius.circular(8)),
                   child: pw.Text('تسويه', style: pw.TextStyle(font: bold, fontSize: 14, color: blue)),
                 ),
               ),
