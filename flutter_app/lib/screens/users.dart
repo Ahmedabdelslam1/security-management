@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -12,6 +13,19 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
+  void _pdf() {
+    final all = App.I.data?.users ?? [];
+    final us = _q.isEmpty ? all : all.where((u) => txtMatch(_q, [u.name, u.username])).toList();
+    final rows = [for (final u in us) [u.name, u.username, u.isAdmin ? 'مدير' : 'مستخدم', u.status == 'approved' ? 'معتمد' : (u.status == 'pending' ? 'بانتظار الموافقة' : 'موقوف')]];
+    exportTablePdf(
+      context: context,
+      title: 'قائمة المستخدمين',
+      subtitle: 'عدد المستخدمين: ${us.length}',
+      headers: ['الاسم', 'اسم المستخدم', 'الدور', 'الحالة'],
+      widths: [110, 85, 60, 75],
+      rows: rows,
+    );
+  }
   bool _busy = false;
   String _q = '';
 
@@ -197,6 +211,13 @@ class _UsersScreenState extends State<UsersScreen> {
       body: Column(
         children: [
           SearchBox(hint: 'بحث بالمستخدم أو الاسم...', value: _q, onChanged: (v) => setState(() => _q = v)),
+          const SizedBox(width: 6),
+          IconButton.filledTonal(
+            tooltip: 'PDF للطباعة والإرسال',
+            style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+            onPressed: _pdf,
+            icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+          ),
           Expanded(
           child: RefreshIndicator(
         onRefresh: () => App.I.bootstrap(silent: true),

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -12,6 +13,19 @@ class WorkersScreen extends StatefulWidget {
 }
 
 class _WorkersScreenState extends State<WorkersScreen> {
+  void _pdf() {
+    final ws = _q.isEmpty ? App.I.workers : App.I.workers.where((x) => txtMatch(_q, [x.name, x.card, x.phone])).toList();
+    final rows = [for (final w in ws) [w.name, w.card.isEmpty ? '—' : w.card, w.phone.isEmpty ? '—' : w.phone, w.wage.toStringAsFixed(w.wage == w.wage.truncateToDouble() ? 0 : 2), w.hours.toStringAsFixed(w.hours == w.hours.truncateToDouble() ? 0 : 1), w.lastSet.isEmpty ? '—' : fmtDate(w.lastSet)]];
+    exportTablePdf(
+      context: context,
+      title: 'قائمة العاملين',
+      subtitle: 'عدد العاملين: ${ws.length}',
+      headers: ['الاسم', 'رقم البطاقة', 'التليفون', 'أجر اليوم', 'ساعات العمل', 'آخر تسوية'],
+      widths: [95, 70, 65, 50, 45, 60],
+      rows: rows,
+    );
+  }
+
   bool _busy = false;
   String _q = '';
 
@@ -150,6 +164,13 @@ class _WorkersScreenState extends State<WorkersScreen> {
           : Column(
               children: [
                 SearchBox(hint: 'بحث بالاسم أو رقم البطاقة أو الهاتف...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                const SizedBox(width: 6),
+                IconButton.filledTonal(
+                  tooltip: 'PDF للطباعة والإرسال',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                  onPressed: _pdf,
+                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                ),
                 Expanded(
                 child: RefreshIndicator(
               onRefresh: _refresh,

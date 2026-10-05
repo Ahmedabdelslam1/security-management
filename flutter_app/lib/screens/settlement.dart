@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -81,6 +82,27 @@ class _SettlePaneState extends State<_SettlePane> {
     }
     d.amount = r2(d.amount);
     return d;
+  }
+
+  void _pdf() {
+    final ws = _q.isEmpty ? App.I.workers : App.I.workers.where((x) => txtMatch(_q, [x.name, x.card])).toList();
+    final rows = <List<String>>[];
+    var total = 0.0;
+    for (final w in ws) {
+      final d = _dueOf(w);
+      if (d.amount.abs() < 0.005) continue;
+      total += d.amount;
+      rows.add([w.name, d.days.toString(), d.amount > 0 ? 'مستحق' : 'سابق صرفه', d.amount.toStringAsFixed(2)]);
+    }
+    exportTablePdf(
+      context: context,
+      title: 'تسوية العاملين — المستحقات',
+      subtitle: '${_from == null ? 'الكل' : fmtDate(_d(_from!))} ← ${fmtDate(_d(_to))}',
+      headers: ['اسم العامل', 'أيام جديدة', 'البيان', 'المبلغ (ج)'],
+      widths: [110, 55, 65, 60],
+      rows: rows,
+      totalsRow: ['الإجمالي', '', '', r2(total).toStringAsFixed(2)],
+    );
   }
 
   Future<void> _pick(bool isFrom) async {
@@ -192,7 +214,14 @@ class _SettlePaneState extends State<_SettlePane> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                SearchBox(hint: 'بحث عن عامل...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                Expanded(child: SearchBox(hint: 'بحث عن عامل...', value: _q, onChanged: (v) => setState(() => _q = v))),
+                const SizedBox(width: 6),
+                IconButton.filledTonal(
+                  tooltip: 'PDF للطباعة والإرسال',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                  onPressed: _pdf,
+                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _loc,
@@ -274,6 +303,24 @@ class _PayrollPane extends StatefulWidget {
 }
 
 class _PayrollPaneState extends State<_PayrollPane> {
+  void _pdf() {
+    final all = _rows ?? [];
+    final rows = <List<String>>[];
+    var total = 0.0;
+    for (final r in all) {
+      if (!_q.isEmpty && !txtMatch(_q, ['${r['name'] ?? ''}', '${r['user'] ?? ''}'])) continue;
+      total += (r['amount'] ?? 0).toDouble();
+      rows.add(['${r['name'] ?? ''}', '${r['amount'] ?? 0}', '${r['days'] ?? ''}', fmtDate('${r['date'] ?? ''}'), '${r['user'] ?? ''}']);
+    }
+    exportTablePdf(
+      context: context,
+      title: 'مسير صرف الأجور',
+      headers: ['اسم العامل', 'المبلغ (ج)', 'الأيام', 'تاريخ الصرف', 'صُرف بواسطة'],
+      widths: [95, 55, 45, 65, 65],
+      rows: rows,
+      totalsRow: ['الإجمالي', r2(total).toStringAsFixed(2), '', '', ''],
+    );
+  }
   String _q = '';
   DateTime? _from;
   DateTime? _to;
@@ -359,7 +406,21 @@ class _PayrollPaneState extends State<_PayrollPane> {
             ),
           ),
         ),
-        SearchBox(hint: 'بحث باسم العامل أو من صرف...', value: _q, onChanged: (v) => setState(() => _q = v)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              Expanded(child: SearchBox(hint: 'بحث باسم العامل أو من صرف...', value: _q, onChanged: (v) => setState(() => _q = v))),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
+                tooltip: 'PDF للطباعة والإرسال',
+                style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                onPressed: _pdf,
+                icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+              ),
+            ],
+          ),
+        ),
         Container(
           width: double.infinity,
           color: Colors.white,

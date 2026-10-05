@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -33,6 +34,24 @@ class _GateScreenState extends State<GateScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _pdf() {
+    final all = _rows ?? [];
+    final rows = <List<String>>[];
+    for (final g in all) {
+      if (!_q.isEmpty && !txtMatch(_q, ['${g['plate']}', '${g['driver']}', '${g['statement']}', '${g['notes']}', '${g['host']}', '${g['seq']}'])) continue;
+      rows.add([fmtDate('${g['date'] ?? ''}'), '${g['plate'] ?? ''}', '${g['driver'] ?? ''}', '${g['statement'] ?? ''}', '${g['host'] ?? ''}', '${g['notes'] ?? ''}']);
+    }
+    exportTablePdf(
+      context: context,
+      title: 'دفتر البوابة',
+      subtitle: 'عدد السجلات: ${rows.length}',
+      headers: ['التاريخ', 'رقم السيارة', 'السائق', 'البيان', 'المضيف', 'ملاحظات'],
+      widths: [55, 65, 65, 75, 65, 70],
+      rows: rows,
+      landscape: true,
+    );
   }
 
   @override
@@ -94,7 +113,14 @@ class _GateScreenState extends State<GateScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                SearchBox(hint: 'بحث برقم السيارة أو السائق أو البيان...', value: _q, onChanged: (v) => setState(() => _q = v)),
+                Expanded(child: SearchBox(hint: 'بحث برقم السيارة أو السائق أو البيان...', value: _q, onChanged: (v) => setState(() => _q = v))),
+                const SizedBox(width: 6),
+                IconButton.filledTonal(
+                  tooltip: 'PDF للطباعة والإرسال',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                  onPressed: _rows == null ? null : _pdf,
+                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                ),
                 Expanded(
                 child: RefreshIndicator(
               onRefresh: _load,

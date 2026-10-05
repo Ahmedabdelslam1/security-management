@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -13,6 +14,37 @@ class MonitorScreen extends StatefulWidget {
 
 class _MonitorScreenState extends State<MonitorScreen> {
   Map? _data;
+
+  void _pdf() {
+    if (_data == null) return;
+    if (_tab == 0) {
+      final log = (_data!['log'] as List? ?? []).map((x) => x as Map).toList();
+      final rows = <List<String>>[];
+      for (final l in log) {
+        if (!_filter.isEmpty && !'${l['user'] ?? ''} ${l['action'] ?? ''} ${l['details'] ?? ''}'.contains(_filter)) continue;
+        rows.add(['${l['time'] ?? ''}', '${l['user'] ?? ''}', '${l['action'] ?? ''}', '${l['page'] ?? ''}', '${l['details'] ?? ''}']);
+      }
+      exportTablePdf(
+        context: context,
+        title: 'سجل نشاط المستخدمين',
+        headers: ['الوقت', 'المستخدم', 'الإجراء', 'الشاشة', 'التفاصيل'],
+        widths: [70, 65, 65, 55, 95],
+        rows: rows,
+        landscape: true,
+      );
+    } else {
+      final us = (_data!['users'] as List? ?? []).map((x) => x as Map).toList();
+      final rows = [for (final u in us) ['${u['name'] ?? ''}', '${u['username'] ?? ''}', u['online'] == true ? 'متصل الآن' : 'غير متصل', '${u['lastSeen'] ?? ''}']];
+      exportTablePdf(
+        context: context,
+        title: 'حالة المستخدمين',
+        headers: ['الاسم', 'المستخدم', 'الحالة', 'آخر ظهور'],
+        widths: [100, 80, 60, 75],
+        rows: rows,
+      );
+    }
+  }
+
   bool _busy = false;
   String _filter = '';
   int _tab = 0; // 0 = نشاط، 1 = حالة المستخدمين
@@ -63,6 +95,12 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     selected: {_tab},
                     onSelectionChanged: (s) => setState(() => _tab = s.first),
                   ),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'PDF للطباعة والإرسال',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                  onPressed: _data == null ? null : _pdf,
+                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
                 ),
                 IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
               ],

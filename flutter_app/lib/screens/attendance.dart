@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
+import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
@@ -165,7 +166,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Text(_err!, style: TextStyle(color: cs.onErrorContainer, fontSize: 12.5)),
             ),
-          SearchBox(hint: 'بحث عن عامل بالاسم أو البطاقة...', value: _q, onChanged: (v) => setState(() => _q = v)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+            child: Row(
+              children: [
+                Expanded(child: SearchBox(hint: 'بحث عن عامل بالاسم أو البطاقة...', value: _q, onChanged: (v) => setState(() => _q = v))),
+                const SizedBox(width: 6),
+                IconButton.filledTonal(
+                  tooltip: 'PDF للطباعة والإرسال',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
+                  onPressed: _pdf,
+                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                ),
+              ],
+            ),
+          ),
           // قائمة العمال
           Expanded(
             child: workers.isEmpty
@@ -182,6 +197,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _pdf() {
+    final ws = _q.isEmpty ? App.I.workers : App.I.workers.where((x) => txtMatch(_q, [x.name, x.card])).toList();
+    final rows = <List<String>>[];
+    var present = 0;
+    for (final w in ws) {
+      final c = _ctl[w.id];
+      if (c == null) continue;
+      if (c.status != '--') present++;
+      rows.add([w.name, c.status == '--' ? '—' : c.status, c.loc.isEmpty ? '—' : c.loc, c.xh.isEmpty || c.xh == '0' ? '—' : c.xh, c.notes]);
+    }
+    exportTablePdf(
+      context: context,
+      title: 'كشف الحضور اليومي',
+      subtitle: fmtDate(_dstr),
+      headers: ['اسم العامل', 'الموقف', 'مكان الحضور', 'إضافي', 'ملاحظات'],
+      widths: [95, 75, 75, 45, 90],
+      rows: rows,
+      totalsRow: ['الحضور: $present من ${ws.length}', '', '', '', ''],
     );
   }
 

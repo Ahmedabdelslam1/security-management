@@ -341,7 +341,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        _totalsBar('$days يوم حضور', total, _shareWorker),
+        _totalsBar('$days يوم حضور', total, _shareWorker, onPdf: () {
+          final ww = App.I.worker(_wid ?? '');
+          exportTablePdf(
+            context: context,
+            title: 'تقرير عامل: ${ww.name}',
+            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+            headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
+            widths: [55, 55, 60, 40, 45, 70],
+            rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, r.xh > 0 ? otText(r.xh) : '—', r.counts ? r2(r.wage + r.xh * _hourly(ww)).toStringAsFixed(2) : '—', r.notes]],
+            totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2), ''],
+          );
+        }),
         Expanded(
           child: recs.isEmpty
               ? const Center(child: Text('لا سجلات حضور في هذه الفترة', style: TextStyle(color: Color(0xFF64748B))))
@@ -407,7 +418,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        _totalsBar('$days يوم حضور', total, () => _shareRows('تقرير مكان: ${_loc ?? ''}', rows)),
+        _totalsBar('$days يوم حضور', total, () => _shareRows('تقرير مكان: ${_loc ?? ''}', rows), onPdf: () {
+          exportTablePdf(
+            context: context,
+            title: 'تقرير مكان الحضور: ${_loc ?? ''}',
+            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+            headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي'],
+            widths: [95, 55, 55, 50, 55],
+            rows: [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total.toStringAsFixed(2)]],
+            totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2)],
+          );
+        }),
         Expanded(
           child: rows.isEmpty
               ? const Center(child: Text('لا سجلات في هذا المكان خلال الفترة', style: TextStyle(color: Color(0xFF64748B))))
@@ -443,7 +464,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       children: [
         Material(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 10), child: _dateRow())),
-        _totalsBar('$days يوم — إضافي ${otText(xh)}', total, () => _shareRows('تقرير مجمع للعاملين', rows)),
+        _totalsBar('$days يوم — إضافي ${otText(xh)}', total, () => _shareRows('تقرير مجمع للعاملين', rows), onPdf: () {
+          exportTablePdf(
+            context: context,
+            title: 'تقرير مجمع للعاملين',
+            subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+            headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'إضافي', 'الإجمالي'],
+            widths: [95, 55, 55, 50, 55],
+            rows: [for (final m in rows) [m.w.name, '${m.days}', m.w.wage.toStringAsFixed(m.w.wage == m.w.wage.truncateToDouble() ? 0 : 2), otText(m.xh), m.total > 0 ? m.total.toStringAsFixed(2) : '—']],
+            totalsRow: ['الإجمالي', '$days يوم', '', otText(xh), total.toStringAsFixed(2)],
+          );
+        }),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 20),
@@ -609,7 +640,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _totalsBar(String mid, double total, VoidCallback onShare) {
+  Widget _totalsBar(String mid, double total, VoidCallback onShare, {VoidCallback? onPdf}) {
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -621,8 +652,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Flexible(child: Text(mid, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5), overflow: TextOverflow.ellipsis)),
           const Spacer(),
           Text('$total ج', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF7C5CFC))),
-          const SizedBox(width: 8),
-          IconButton(onPressed: onShare, icon: const Icon(Icons.share), tooltip: 'مشاركة التقرير'),
+          const SizedBox(width: 4),
+          IconButton(onPressed: onShare, icon: const Icon(Icons.share), tooltip: 'مشاركة كنص'),
+          if (onPdf != null) IconButton(onPressed: onPdf, icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF6D28D9)), tooltip: 'PDF للطباعة والإرسال'),
         ],
       ),
     );
