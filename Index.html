@@ -468,7 +468,7 @@ function svgThumb(txt,c1){var s='<svg xmlns="http://www.w3.org/2000/svg" width="
 /* ============ الساعة ============ */
 var WD=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 function tick(){var d=new Date(),wd=WD[d.getDay()];
-var dt=('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+var dt=d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2);
 var h=d.getHours(),ap=h<12?'ص':'م';h=h%12||12;
 var tm=('0'+h).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2)+' '+ap;
 var lv=document.getElementById('loginWeekday');
