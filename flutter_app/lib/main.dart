@@ -40,7 +40,8 @@ class SecurityApp extends StatelessWidget {
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
-          elevation: 1.5,
+          elevation: 4,
+          shadowColor: const Color(0x667C5CFC), // توهج بنفسجي حول كل الكروت
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         filledButtonTheme: FilledButtonThemeData(
