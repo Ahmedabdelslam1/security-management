@@ -202,7 +202,7 @@ function workerOut(array $w, bool $full, array $ls): array {
 }
 
 function recValue(array $r, ?array $w): float {
-    $h = $w ? (num($w['wage'] ?? 0) / (num($w['hours'] ?? 8, 8) ?: 8)) : 0;
+    $h = $w ? ((num($r['wage'] ?? 0) ?: num($w['wage'] ?? 0)) / (num($w['hours'] ?? 8, 8) ?: 8)) : 0;
     return round((num($r['wage'] ?? 0) + num($r['xh'] ?? 0) * $h) * 100) / 100;
 }
 
@@ -271,7 +271,7 @@ function apiSaveDay(?string $token, string $date, array $recs): array {
         $fresh[] = [
             'date' => $date, 'wid' => $w['id'], 'name' => $w['name'],
             'status' => $r['status'], 'loc' => clip($r['loc'] ?? '', 80),
-            'wage' => num($w['wage'] ?? 0),
+            'wage' => num($r['wage'] ?? 0) > 0 ? num($r['wage']) : num($w['wage'] ?? 0),
             'xh' => $extra ? max(0, num($r['xh'] ?? 0)) : 0,
             'notes' => clip($r['notes'] ?? '', 300),
             'settleId' => isset($paid[$w['id']]) ? $paid[$w['id']]['sid'] : '',
@@ -327,7 +327,7 @@ function apiSettleWorkers(?string $token, array $ids, string $from, string $to, 
         $diff = round(($val - (!empty($r['settleId']) ? num($r['paidAmt'] ?? 0) : 0)) * 100) / 100;
         if (abs($diff) < 0.005) continue;
         $wasPaid = !empty($r['settleId']);
-        $otPart = $wasPaid ? $diff : ($counts ? num($r['xh'] ?? 0) * (num($w['wage'] ?? 0) / (num($w['hours'] ?? 8, 8) ?: 8)) : 0);
+        $otPart = $wasPaid ? $diff : ($counts ? num($r['xh'] ?? 0) * ((num($r['wage'] ?? 0) ?: num($w['wage'] ?? 0)) / (num($w['hours'] ?? 8, 8) ?: 8)) : 0);
         $r['settleId'] = $sid;
         $r['paidAmt'] = (string)$val;
         if (!isset($per[$r['wid']])) $per[$r['wid']] = ['days' => 0, 'amt' => 0, 'ot' => 0, 'name' => $w['name']];

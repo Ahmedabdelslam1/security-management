@@ -379,7 +379,7 @@ function workerOut_(w, full, ls) {
 
 /* قيمة اليوم = الأجر + الساعات الإضافية × أجر الساعة */
 function recValue_(r, w) {
-  var h = w ? (num_(w.wage) / (num_(w.hours, 8) || 8)) : 0;
+  var h = w ? ((num_(r.wage) || num_(w.wage)) / (num_(w.hours, 8) || 8)) : 0;
   return Math.round((num_(r.wage) + num_(r.xh) * h) * 100) / 100;
 }
 
@@ -444,13 +444,14 @@ function saveDay(token, date, recs) {
       var c = closed[w.id];
       if (c) {
         var same = c.status === r.status && String(c.loc) === clip_(r.loc, 80) &&
-          num_(c.xh) === (extra ? Math.max(0, num_(r.xh)) : 0) && String(c.notes) === clip_(r.notes, 300);
+          num_(c.xh) === (extra ? Math.max(0, num_(r.xh)) : 0) && String(c.notes) === clip_(r.notes, 300) &&
+          (!num_(r.wage) || num_(r.wage) === num_(c.wage));
         if (!same) blocked.push(w.name);
         return;
       }
       fresh.push({
         date: date, wid: w.id, name: w.name, status: r.status, loc: clip_(r.loc, 80),
-        wage: num_(w.wage), xh: extra ? Math.max(0, num_(r.xh)) : 0, notes: clip_(r.notes, 300),
+        wage: num_(r.wage) > 0 ? num_(r.wage) : num_(w.wage), xh: extra ? Math.max(0, num_(r.xh)) : 0, notes: clip_(r.notes, 300),
         settleId: '', paidAmt: ''
       });
     });
@@ -496,7 +497,7 @@ function settleWorkers(token, ids, from, to, adj, loc, setDate) {
       var diff = Math.round((val - (r.settleId ? num_(r.paidAmt) : 0)) * 100) / 100;
       if (Math.abs(diff) < 0.005) return;
       var wasPaid = !!r.settleId;
-      var otPart = wasPaid ? diff : (counts ? num_(r.xh) * (num_(w.wage) / (num_(w.hours, 8) || 8)) : 0);
+      var otPart = wasPaid ? diff : (counts ? num_(r.xh) * ((num_(r.wage) || num_(w.wage)) / (num_(w.hours, 8) || 8)) : 0);
       r.settleId = sid;
       r.paidAmt = String(val);
       var p = per[r.wid] || (per[r.wid] = { days: 0, amt: 0, ot: 0, name: w.name });
