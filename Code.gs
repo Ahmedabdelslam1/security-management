@@ -74,7 +74,7 @@ function _liveIndex() {
  * ملاحظة: بعد أي تعديل لا بد من نشر نسخة جديدة (Deploy > Manage deployments > Edit > New version). */
 function apiMap_() {
   return {
-    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, addLog: addLog,
+    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, rev: rev, addLog: addLog,
     bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
@@ -180,7 +180,17 @@ function writeAll_(name, objs) {
 function locked_(fn) {
   var lock = LockService.getScriptLock();
   lock.waitLock(25000);
-  try { return fn(); } finally { lock.releaseLock(); }
+  try {
+    var out = fn();
+    try { PropertiesService.getScriptProperties().setProperty('REV', String(Date.now())); } catch (e) {}
+    return out;
+  } finally { lock.releaseLock(); }
+}
+
+/* رقم تعديل البيانات: يتغير مع كل كتابة، فيعرف كل جهاز متى يُحدّث نفسه تلقائيًا */
+function rev(token) {
+  auth_(token);
+  return PropertiesService.getScriptProperties().getProperty('REV') || '0';
 }
 
 function now_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
@@ -424,7 +434,7 @@ function allLocs_(att) {
 }
 
 /* ===================== الحضور والتسوية ===================== */
-function saveDay(token, date, recs) {
+function saveDay(token, date, recs, partial) {
   var u = auth_(token, 'attendance');
   if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
   if (!Array.isArray(recs)) throw new Error('بيانات غير صحيحة');
@@ -434,10 +444,11 @@ function saveDay(token, date, recs) {
     /* الأيام المسوّاة مغلقة: لا تُعدَّل ولا تُحذف، وتبقى كما سُجّلت وقت التسوية */
     var existing = readAll_('Attendance'), closed = {};
     existing.forEach(function (r) { if (r.date === date && r.settleId) closed[r.wid] = r; });
-    var fresh = [], seen = {}, blocked = [];
+    var fresh = [], seen = {}, blocked = [], touched = {};
     recs.forEach(function (r) {
       var w = workers[String(r.wid)];
       if (!w || seen[w.id]) return;
+      touched[w.id] = 1;
       if (STATUSES.indexOf(r.status) === -1) return;
       seen[w.id] = 1;
       var extra = EXTRA_STATUSES.indexOf(r.status) !== -1;
@@ -455,7 +466,7 @@ function saveDay(token, date, recs) {
         settleId: '', paidAmt: ''
       });
     });
-    var all = existing.filter(function (r) { return r.date !== date || r.settleId; }).concat(fresh);
+    var all = existing.filter(function (r) { return r.date !== date || r.settleId || (partial && !touched[r.wid]); }).concat(fresh);
     writeAll_('Attendance', all);
     var known = readAll_('Locations').map(function (x) { return x.name; });
     var add = [];
