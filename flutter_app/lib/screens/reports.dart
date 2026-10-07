@@ -549,22 +549,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             tb += b; td += d; tt += x; tnet += m.total + b - d - x;
           }
           tnet = r2(tnet);
-          return _totalsBar('$days يوم — إضافي ${r2(rows.fold<double>(0, (s, m) => s + m.ot))} • الصافي ${tnet.toStringAsFixed(2)} ج', total, () => _shareRows('تقرير مجمع للعاملين', rows), onPdf: () async {
-            await _loadAdj();
-            var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
-            final rws = [for (final m in rows) [m.w.name, '${m.days}', m.wageAvg.toStringAsFixed(m.wageAvg == m.wageAvg.truncateToDouble() ? 0 : 2), m.gross > 0 ? m.gross.toStringAsFixed(2) : '—', m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
-            for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
-            exportTablePdf(
-              context: context,
-              title: 'تقرير مجمع للعاملين',
-              subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
-              headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
-              widths: [3.2, 1, 1.1, 1.3, 1.1, 1.2, 1.2, 1.1, 1.4],
-              landscape: true,
-              rows: rws,
-              totalsRow: ['الإجمالي', '$days يوم', '', r2(rows.fold<double>(0, (s, m) => s + m.gross)).toStringAsFixed(2), r2(rows.fold<double>(0, (s, m) => s + m.ot)).toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
-            );
-          });
+          return _totalsBar('$days يوم — إضافي ${r2(rows.fold<double>(0, (s, m) => s + m.ot))} • الصافي ${tnet.toStringAsFixed(2)} ج', total, null);
         }),
         Expanded(
           child: ListView.builder(
@@ -731,7 +716,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _totalsBar(String mid, double total, VoidCallback onShare, {VoidCallback? onPdf}) {
+  Widget _totalsBar(String mid, double total, VoidCallback? onShare, {VoidCallback? onPdf}) {
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -744,7 +729,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const Spacer(),
           Text('$total ج', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF7C5CFC))),
           const SizedBox(width: 4),
-          IconButton(onPressed: onShare, icon: const Icon(Icons.share), tooltip: 'مشاركة كنص'),
+          if (onShare != null) IconButton(onPressed: onShare, icon: const Icon(Icons.share), tooltip: 'مشاركة كنص'),
           if (onPdf != null) IconButton(onPressed: onPdf, icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF6D28D9)), tooltip: 'PDF للطباعة والإرسال'),
         ],
       ),

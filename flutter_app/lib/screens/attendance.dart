@@ -352,22 +352,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ],
               const SizedBox(height: 8),
               TextField(
-                controller: TextEditingController(text: c.wg)..selection = TextSelection.collapsed(offset: c.wg.length),
-                enabled: !isSettled,
-                readOnly: c.wgLocked,
-                onTap: () { if (c.wgLocked) setState(() => c.wgLocked = false); },
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  labelText: c.wgLocked ? 'أجر اليوم (تلقائي — اضغط للتعديل)' : 'أجر اليوم لهذا اليوم',
-                ),
-                style: const TextStyle(fontSize: 13.5),
-                onChanged: (v) => setState(() => c.wg = v),
-              ),
-              const SizedBox(height: 8),
-              TextField(
                 controller: TextEditingController(text: c.notes)..selection = TextSelection.collapsed(offset: c.notes.length),
                 decoration: const InputDecoration(
                   isDense: true,

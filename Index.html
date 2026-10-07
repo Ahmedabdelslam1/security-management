@@ -228,7 +228,7 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
           </div>
           <div id="attDayWrap">
             <div class="table-wrap"><table><thead><tr>
-              <th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th><th>أجر اليوم</th><th>المستحق (عدد الأيام + ساعات إضافي =)</th><th>ملاحظات</th><th class="noprint">حفظ</th>
+              <th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th><th>المستحق</th><th>ملاحظات</th><th class="noprint">حفظ</th>
             </tr></thead><tbody id="attBody"></tbody></table></div>
           </div>
           <div id="attPeriodWrap" style="display:none">
@@ -349,7 +349,6 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
               <label>من</label><input type="date" id="rsFrom">
               <label>إلى</label><input type="date" id="rsTo">
               <button class="btn primary" onclick="runSummary()">عرض</button>
-              <button class="btn" onclick="printSummary()">🖨 طباعة</button>
             </div>
             <div class="table-wrap"><table><thead><tr>
               <th>اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>إضافي</th><th>المكافآت</th><th>الخصومات</th><th>الضرائب</th><th>الصافي</th><th>التوقيع</th>
@@ -627,9 +626,9 @@ var wgv=rec.wage||w.wage,c=dueCalc(w,date,st,rec.xh||0,rec.loc||'',wgv);
 var lk=!!rec.settleId,dis=lk?' disabled':'';
 return '<tr data-wid="'+w.id+'" data-name="'+esc(w.name)+'"'+(lk?' class="locked" data-locked="1"':'')+'>'+
 '<td><span class="wlink" onclick="openWorkerStatus(\''+w.id+'\')" title="عرض موقف العامل حسب الفترة">'+esc(w.name)+'</span></td>'+
-'<td><select class="st" onchange="toggleExtra(this)"'+dis+'><option value="--">--</option>'+STS.map(function(s){return '<option'+(st===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></td>'+
+'<td><input class="wg" type="hidden" value="'+wgv+'"><select class="st" onchange="toggleExtra(this)"'+dis+'><option value="--">--</option>'+STS.map(function(s){return '<option'+(st===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></td>'+
 '<td><input class="loc" list="locList" value="'+esc(rec.loc||'')+'" placeholder="مكان الحضور" style="width:130px" oninput="locChanged(this)"'+dis+'></td>'+
-'<td><input class="wg" type="number" min="0" step="0.01" inputmode="decimal" value="'+wgv+'" readonly title="أجر اليوم تلقائي — اضغط للتعديل" onclick="if(!this.disabled){this.readOnly=false;this.select();}" oninput="refreshDue(this.closest(\'tr\'))" style="width:70px;padding:4px 6px;background:#f1f5f9"'+dis+'></td>'+
+''+
 '<td class="'+dueCls(c)+'" style="white-space:nowrap">'+dueText(c)+paidMark(w,date,st,rec.xh||0,rec.loc||'',wgv)+'</td>'+
 '<td style="min-width:135px"><span class="xhw" style="display:'+(need?'flex':'none')+';align-items:center;gap:4px;font-size:11px;color:#64748b;margin-bottom:2px">ساعات إضافية <input class="xh" type="number" min="0" step="0.5" value="'+(rec.xh||'')+'" oninput="refreshDue(this.closest(\'tr\'))" style="width:56px;padding:3px 6px;font-size:12px"'+dis+'></span>'+
 '<input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="width:100%"'+dis+'></td>'+

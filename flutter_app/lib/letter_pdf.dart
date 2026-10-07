@@ -26,10 +26,6 @@ Future<Uint8List> buildLetterPdf({
   final ttf = pw.Font.ttf(fontData);
   final bold = pw.Font.ttf(boldData);
 
-  Uint8List? logo;
-  try {
-    logo = (await rootBundle.load('assets/logo.png')).buffer.asUint8List();
-  } catch (_) {}
   final doc = pw.Document(theme: pw.ThemeData.withFont(base: ttf, bold: bold));
   final blue = const pw.PdfColor.fromInt(0xFF1D4ED8);
   final light = const pw.PdfColor.fromInt(0xFFEAF1FE);
@@ -50,8 +46,7 @@ Future<Uint8List> buildLetterPdf({
       maxPages: 12,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
-        if (logo != null) pw.Center(child: pw.Image(pw.MemoryImage(logo), width: 150, height: 90)),
-        pw.SizedBox(height: 10),
+        pw.SizedBox(height: 6),
         pw.Directionality(
           textDirection: pw.TextDirection.rtl,
           child: pw.Column(
