@@ -30,7 +30,10 @@ jobs:
           rm -rf lib && mv /tmp/lib_backup lib
 
       - run: flutter pub get
-      - run: flutter build apk --debug
+      - name: flutter build apk --debug
+        run: |
+          set -o pipefail
+          flutter build apk --debug 2>&1 | tee ../build.log || { grep -E "(Error|error)" ../build.log | grep -E "lib/|\.dart" | head -15 | sed 's/^/::error::/'; exit 1; }
 
       - name: رفع ملف الـ APK كملف قابل للتحميل
         uses: actions/upload-artifact@v4

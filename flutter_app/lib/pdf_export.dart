@@ -92,7 +92,7 @@ Future<void> exportTablePdf({
                       decoration: pw.BoxDecoration(border: pw.Border.all(color: blue, width: 1)),
                       child: pw.Column(children: [
                         pw.Text(totalLabel, style: pw.TextStyle(font: bold, fontSize: 9, color: blue)),
-                        pw.Text(total, style: pw.TextStyle(font: bold, fontSize: 14, color: blue)),
+                        pw.Text(total!, style: pw.TextStyle(font: bold, fontSize: 14, color: blue)),
                       ]),
                     )
                   else

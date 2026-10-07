@@ -86,7 +86,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _tab != 'home') setState(() => _tab = 'home');
       },
       child: Scaffold(
