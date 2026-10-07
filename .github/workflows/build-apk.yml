@@ -8,9 +8,6 @@ on:
 permissions:
   contents: write
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -46,13 +43,6 @@ jobs:
         with:
           name: security-management-apk
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
-
-      - name: نشر الـ APK على الإصدار ليتحدث التطبيق تلقائيًا
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp build/app/outputs/flutter-apk/app-debug.apk /tmp/security-management.apk
-          gh release upload v1.0-android /tmp/security-management.apk --clobber --repo "${{ github.repository }}"
 
       - name: نشر الـ APK على الإصدار ليتحدث التطبيق تلقائيًا
         env:
