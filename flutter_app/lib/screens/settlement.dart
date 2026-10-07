@@ -56,6 +56,10 @@ class _SettlePaneState extends State<_SettlePane> {
   final Set<String> _sel = {};
   bool _busy = false;
   String? _err;
+  final Map<String, List<double>> _adj = {}; // wid -> [مكافآت، خصومات، ضرائب]
+
+  List<double> _a(String id) => _adj[id] ?? [0, 0, 0];
+  double _netOf(Worker w, _Due d) => r2(d.amount + _a(w.id)[0] - _a(w.id)[1] - _a(w.id)[2]);
 
   String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -73,14 +77,28 @@ class _SettlePaneState extends State<_SettlePane> {
       if (_loc != null && r.loc != _loc) continue;
       final counts = r.loc.trim().isNotEmpty;
       if (r.settleId.isEmpty && !counts) continue;
-      final val = counts ? r.wage + r.xh * _hourly(w) : 0.0;
+      final hr = (r.wage > 0 ? r.wage : w.wage) / (w.hours <= 0 ? 8 : w.hours);
+      final val = counts ? r.wage + r.xh * hr : 0.0;
       final diff = (val - (r.settleId.isNotEmpty ? r.paidAmt : 0)) * 100;
       final diffR = diff.round() / 100;
       if (diffR.abs() < 0.005) continue;
       d.amount += diffR;
-      if (r.settleId.isEmpty) d.days++;
+      if (r.settleId.isEmpty) {
+        d.days++;
+        d.wsum += r.wage;
+        if (counts) {
+          d.ot += r.xh * hr;
+          d.hrs += r.xh;
+        }
+      } else {
+        d.ot += diffR;
+        d.hrs += hr > 0 ? diffR / hr : 0.0;
+      }
     }
     d.amount = r2(d.amount);
+    d.ot = r2(d.ot);
+    d.hrs = r2(d.hrs);
+    d.wage = d.days > 0 ? r2(d.wsum / d.days) : w.wage;
     return d;
   }
 
@@ -91,17 +109,22 @@ class _SettlePaneState extends State<_SettlePane> {
     for (final w in ws) {
       final d = _dueOf(w);
       if (d.amount.abs() < 0.005) continue;
-      total += d.amount;
-      rows.add([w.name, d.days.toString(), d.amount > 0 ? 'مستحق' : 'سابق صرفه', d.amount.toStringAsFixed(2)]);
+      final a = _a(w.id);
+      final net = _netOf(w, d);
+      total += net;
+      rows.add([w.name, '${d.days}', d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
     }
     exportTablePdf(
       context: context,
-      title: 'تسوية العاملين — المستحقات',
+      title: 'تسوية العاملين',
       subtitle: '${_from == null ? 'الكل' : fmtDate(_d(_from!))} ← ${fmtDate(_d(_to))}',
-      headers: ['اسم العامل', 'أيام جديدة', 'البيان', 'المبلغ (ج)'],
-      widths: [110, 55, 65, 60],
+      headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'التوقيع'],
+      widths: [3.2, 1, 1.1, 1.3, 1.1, 1.1, 1.1, 1.1, 1.4, 1.6],
+      landscape: true,
       rows: rows,
-      totalsRow: ['الإجمالي', '', '', r2(total).toStringAsFixed(2)],
+      total: r2(total).toStringAsFixed(2),
+      totalLabel: 'قيمة التسوية (الإجمالي)',
+      totalsRow: ['الإجمالي', '${rows.fold<int>(0, (s, r) => s + int.parse(r[1]))}', '', r2(rows.fold<double>(0, (s, r) => s + double.parse(r[3]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[4]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[5]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[6]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[7]))).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
     );
   }
 
@@ -124,7 +147,7 @@ class _SettlePaneState extends State<_SettlePane> {
     }
     final selected = App.I.workers.where((w) => _sel.contains(w.id)).toList();
     final withDue = selected.where((w) => _dueOf(w).amount.abs() >= 0.005).toList();
-    final total = withDue.fold<double>(0, (s, w) => s + _dueOf(w).amount);
+    final total = withDue.fold<double>(0, (s, w) => s + _netOf(w, _dueOf(w)));
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -143,7 +166,7 @@ class _SettlePaneState extends State<_SettlePane> {
         _sel.toList(),
         _from == null ? '' : _d(_from!),
         _d(_to),
-        {},
+        {for (final w in withDue) w.id: {'b': _a(w.id)[0], 'd': _a(w.id)[1], 't': _a(w.id)[2]}},
         _loc,
       ]) as Map;
       await App.I.bootstrap(silent: true);
@@ -152,7 +175,7 @@ class _SettlePaneState extends State<_SettlePane> {
         content: Text('تم صرف ${res['count']} عامل — ${res['amount']} ج'),
         backgroundColor: Colors.green.shade700,
       ));
-      setState(() => _sel.clear());
+      setState(() { _sel.clear(); _adj.clear(); });
     } on ApiException catch (e) {
       setState(() => _err = e.message);
     } finally {
@@ -266,26 +289,61 @@ class _SettlePaneState extends State<_SettlePane> {
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(color: sel ? cs.primary : Colors.transparent, width: 1.2),
                       ),
-                      child: CheckboxListTile(
-                        value: sel,
-                        onChanged: (v) => setState(() { v == true ? _sel.add(w.id) : _sel.remove(w.id); }),
-                        title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: Text(
-                          d.amount.abs() < 0.005
-                              ? 'لا مستحقات ضمن التحديد'
-                              : 'مستحق: ${d.amount} ج — ${d.days} يوم',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: d.amount.abs() < 0.005 ? const Color(0xFF64748B) : Colors.green.shade800,
-                            fontWeight: FontWeight.w700,
+                      child: Column(
+                        children: [
+                          CheckboxListTile(
+                            value: sel,
+                            onChanged: (v) => setState(() { v == true ? _sel.add(w.id) : _sel.remove(w.id); }),
+                            title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                            subtitle: Text(
+                              d.amount.abs() < 0.005
+                                  ? 'لا مستحقات ضمن التحديد'
+                                  : 'مستحق: ${d.amount} ج (${d.label})\nأجر اليوم ${d.wage} • الإجمالي ${d.gross} • إضافي ${d.ot}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: d.amount.abs() < 0.005 ? const Color(0xFF64748B) : Colors.green.shade800,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            secondary: d.amount.abs() < 0.005
+                                ? const Icon(Icons.check_circle_outline, color: Color(0xFF94A3B8))
+                                : Text('${_netOf(w, d)}\nالصافي', textAlign: TextAlign.center,
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
                           ),
-                        ),
-                        secondary: d.amount.abs() < 0.005
-                            ? const Icon(Icons.check_circle_outline, color: Color(0xFF94A3B8))
-                            : Text('${d.amount}\nج', textAlign: TextAlign.center,
-                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-                        ),
+                          if (d.amount.abs() >= 0.005)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                              child: Row(
+                                children: [
+                                  for (final k in const [0, 1, 2]) ...[
+                                    Expanded(
+                                      child: TextFormField(
+                                        key: ValueKey('adj$k${w.id}'),
+                                        initialValue: _a(w.id)[k] == 0 ? '' : _a(w.id)[k].toString(),
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: const TextStyle(fontSize: 12.5),
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          border: const OutlineInputBorder(),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+                                          labelText: const ['المكافآت', 'الخصومات', 'الضرائب'][k],
+                                          labelStyle: const TextStyle(fontSize: 11.5),
+                                        ),
+                                        onChanged: (v) {
+                                          final cur = List<double>.from(_a(w.id));
+                                          cur[k] = double.tryParse(v) ?? 0;
+                                          setState(() => _adj[w.id] = cur);
+                                        },
+                                      ),
+                                    ),
+                                    if (k < 2) const SizedBox(width: 6),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
+                    ),
                     );
                   },
                 ),
@@ -303,22 +361,38 @@ class _PayrollPane extends StatefulWidget {
 }
 
 class _PayrollPaneState extends State<_PayrollPane> {
+  double _n(Map r, String k) => ((r[k] ?? 0) as num).toDouble();
+  double _gross(Map r) => r2(_n(r, 'amount') - _n(r, 'ot'));
+  double _wageOf(Map r) {
+    final days = _n(r, 'days');
+    if (days > 0) return r2(_gross(r) / days);
+    return App.I.worker('${r['wid'] ?? ''}').wage;
+  }
+
   void _pdf() {
     final all = _rows ?? [];
     final rows = <List<String>>[];
     var total = 0.0;
     for (final r in all) {
       if (!_q.isEmpty && !txtMatch(_q, ['${r['name'] ?? ''}', '${r['user'] ?? ''}'])) continue;
-      total += (r['amount'] ?? 0).toDouble();
-      rows.add(['${r['name'] ?? ''}', '${r['amount'] ?? 0}', '${r['days'] ?? ''}', fmtDate('${r['date'] ?? ''}'), '${r['user'] ?? ''}']);
+      total += _n(r, 'net');
+      rows.add([
+        '${r['name'] ?? ''}', '${r['days'] ?? 0}', _wageOf(r).toStringAsFixed(2), _gross(r).toStringAsFixed(2),
+        _n(r, 'ot').toStringAsFixed(2), _n(r, 'bonus').toStringAsFixed(2), _n(r, 'ded').toStringAsFixed(2),
+        _n(r, 'tax').toStringAsFixed(2), _n(r, 'net').toStringAsFixed(2), '',
+      ]);
     }
+    double col(int i) => r2(rows.fold<double>(0, (s, r) => s + double.parse(r[i])));
     exportTablePdf(
       context: context,
-      title: 'مسير صرف الأجور',
-      headers: ['اسم العامل', 'المبلغ (ج)', 'الأيام', 'تاريخ الصرف', 'صُرف بواسطة'],
-      widths: [95, 55, 45, 65, 65],
+      title: 'المرتبات',
+      subtitle: '${_from == null ? 'الكل' : fmtDate(_d(_from))} ← ${_to == null ? 'اليوم' : fmtDate(_d(_to))}',
+      headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'التوقيع'],
+      widths: [3.2, 1, 1.1, 1.3, 1.1, 1.1, 1.1, 1.1, 1.4, 1.6],
+      landscape: true,
       rows: rows,
-      totalsRow: ['الإجمالي', r2(total).toStringAsFixed(2), '', '', ''],
+      total: r2(total).toStringAsFixed(2),
+      totalsRow: ['الإجمالي', '${rows.fold<int>(0, (s, r) => s + int.parse(r[1]))}', '', col(3).toStringAsFixed(2), col(4).toStringAsFixed(2), col(5).toStringAsFixed(2), col(6).toStringAsFixed(2), col(7).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
     );
   }
   String _q = '';
@@ -363,7 +437,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
   Widget build(BuildContext context) {
     final all = _rows ?? [];
     final rows = _q.isEmpty ? all : all.where((r) => txtMatch(_q, [r['name'], r['user']])).toList();
-    final total = rows.fold<double>(0, (s, r) => s + (r['amount'] ?? 0).toDouble());
+    final total = rows.fold<double>(0, (s, r) => s + _n(r, 'net'));
     return Column(
       children: [
         Material(
@@ -425,7 +499,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
           width: double.infinity,
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: Text('الإجمالي المصروف: $total ج — ${rows.length} سجل',
+          child: Text('الصافي المصروف: ${r2(total)} ج — ${rows.length} سجل',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
         ),
         Expanded(
@@ -458,9 +532,14 @@ class _PayrollPaneState extends State<_PayrollPane> {
                                         child: Text(r['name'] ?? '',
                                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                                       ),
-                                      Text('${r['amount']} ج',
+                                      Text('${_n(r, 'net')} ج',
                                           style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF7C5CFC))),
                                     ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${r['days'] ?? 0} يوم × ${_wageOf(r)} = ${_gross(r)} • إضافي ${_n(r, 'ot')}\nمكافآت ${_n(r, 'bonus')} • خصومات ${_n(r, 'ded')} • ضرائب ${_n(r, 'tax')}',
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -483,5 +562,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
 
 class _Due {
   int days = 0;
-  double amount = 0;
+  double amount = 0, ot = 0, hrs = 0, wsum = 0, wage = 0;
+  double get gross => r2(amount - ot);
+  String get label => '$days يوم${hrs > 0 ? ' + ${otText(hrs)} إضافي' : ''}';
 }

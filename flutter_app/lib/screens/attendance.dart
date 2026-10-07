@@ -42,6 +42,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           loc: byWid[w.id]?.loc ?? '',
           xh: byWid[w.id]?.xh.toString() ?? '',
           notes: byWid[w.id]?.notes ?? '',
+          wg: _numStr((byWid[w.id]?.wage ?? 0) > 0 ? byWid[w.id]!.wage : w.wage),
         ),
     };
     setState(() {});
@@ -72,6 +73,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           'status': c.status,
           'loc': c.loc.trim(),
           'xh': kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
+          'wage': double.tryParse(c.wg) ?? 0,
           'notes': c.notes.trim(),
         });
       });
@@ -200,6 +202,47 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
+  String _numStr(double x) => x == x.truncateToDouble() ? x.truncate().toString() : x.toString();
+
+  // المستحق = عدد الأيام + الإضافي = الإجمالي (نفس منطق الويب)
+  String _dueText(Worker w, _RowCtl c) {
+    var days = 0;
+    var ot = 0.0;
+    var hrsTotal = 0.0;
+    var amt = 0.0;
+    final hrs = w.hours <= 0 ? 8.0 : w.hours;
+    AttRec? saved;
+    for (final r in App.I.att) {
+      if (r.wid != w.id) continue;
+      if (r.date == _dstr) saved = r;
+      if (r.date.compareTo(_dstr) >= 0) continue;
+      final h = (r.wage > 0 ? r.wage : w.wage) / hrs;
+      final val = r.counts ? r.wage + r.xh * h : 0.0;
+      final d = r2(val - (r.settleId.isNotEmpty ? r.paidAmt : 0));
+      amt += d;
+      if (d > 0.005) {
+        days++;
+        ot += r.settleId.isNotEmpty ? d : r.xh * h;
+        hrsTotal += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.xh;
+      }
+    }
+    final wgRaw = double.tryParse(c.wg) ?? 0;
+    final wg = wgRaw > 0 ? wgRaw : w.wage;
+    final counts = c.status != '--' && c.loc.trim().isNotEmpty;
+    final xh = kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0.0;
+    final liveOt = xh * (wg / hrs);
+    final settled = saved != null && saved.settleId.isNotEmpty;
+    final d = r2((counts ? wg + liveOt : 0.0) - (settled ? saved!.paidAmt : 0));
+    amt += d;
+    if (d > 0.005) {
+      days++;
+      ot += settled ? d : liveOt;
+      hrsTotal += settled ? (wg > 0 ? d / (wg / hrs) : 0.0) : xh;
+    }
+    final hr0 = hrsTotal;
+    return '$days يوم${hr0 > 0 ? ' + ${otText(r2(hr0))} إضافي' : ''} = ${r2(amt < 0 ? 0 : amt)} ج';
+  }
+
   void _pdf() {
     final ws = _q.isEmpty ? App.I.workers : App.I.workers.where((x) => txtMatch(_q, [x.name, x.card])).toList();
     final rows = <List<String>>[];
@@ -255,7 +298,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Text('${w.wage} ج', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B), fontSize: 13)),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            Text('المستحق: ${_dueText(w, c)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFFB91C1C))),
+            const SizedBox(height: 6),
             // الموقف
             DropdownButtonFormField<String>(
               value: kStatuses.contains(c.status) ? c.status : '--',
@@ -302,9 +347,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     labelText: 'ساعات إضافية',
                   ),
                   style: const TextStyle(fontSize: 13.5),
-                  onChanged: (v) => c.xh = v,
+                  onChanged: (v) => setState(() => c.xh = v),
                 ),
               ],
+              const SizedBox(height: 8),
+              TextField(
+                controller: TextEditingController(text: c.wg)..selection = TextSelection.collapsed(offset: c.wg.length),
+                enabled: !isSettled,
+                readOnly: c.wgLocked,
+                onTap: () { if (c.wgLocked) setState(() => c.wgLocked = false); },
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  labelText: c.wgLocked ? 'أجر اليوم (تلقائي — اضغط للتعديل)' : 'أجر اليوم لهذا اليوم',
+                ),
+                style: const TextStyle(fontSize: 13.5),
+                onChanged: (v) => setState(() => c.wg = v),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: TextEditingController(text: c.notes)..selection = TextSelection.collapsed(offset: c.notes.length),
@@ -318,10 +379,53 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 onChanged: (v) => c.notes = v,
               ),
             ],
+            if (!isSettled)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => _saveOne(w),
+                    icon: const Icon(Icons.save, size: 16),
+                    label: const Text('حفظ'),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveOne(Worker w) async {
+    final c = _ctl[w.id]!;
+    try {
+      final rec = {
+        'wid': w.id,
+        'status': c.status,
+        'loc': c.loc.trim(),
+        'xh': kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
+        'wage': double.tryParse(c.wg) ?? 0,
+        'notes': c.notes.trim(),
+      };
+      final res = await Api.auth('saveDay', [_dstr, [rec], true]) as Map;
+      final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
+      final app = App.I;
+      final kept = app.att.where((r) => r.date != _dstr).toList()..addAll(fresh);
+      final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();
+      app.att..clear()..addAll(kept);
+      app.locs.addAll(newLocs);
+      c.wgLocked = true;
+      app.notifyListeners();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ ${w.name}'), backgroundColor: Colors.green.shade700, duration: const Duration(seconds: 1)));
+      }
+    } on SessionExpired {
+      await _relogin();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _err = e.message);
+    }
   }
 
   Future<void> _newLoc(_RowCtl c) async {
@@ -349,5 +453,7 @@ class _RowCtl {
   String loc;
   String xh;
   String notes;
-  _RowCtl({required this.status, required this.loc, required this.xh, required this.notes});
+  String wg;
+  bool wgLocked = true; // أجر اليوم تلقائي ومغلق حتى الضغط عليه
+  _RowCtl({required this.status, required this.loc, required this.xh, required this.notes, required this.wg});
 }

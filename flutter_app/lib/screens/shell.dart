@@ -41,7 +41,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     });
     // مزامنة فورية مع الويب: سحب أي إضافة/تعديل كل 15 ثانية
     _sync = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (!App.I.loading) App.I.bootstrap(silent: true).catchError((_) {});
+      if (!App.I.loading) App.I.syncIfChanged().catchError((_) {});
     });
     // فحص التحديث عند البدء ثم كل 6 ساعات
     Future.delayed(const Duration(seconds: 4), () { if (mounted) autoUpdate(context); });
@@ -84,7 +84,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     ];
     if (!tabs.any((t) => t.id == _tab) && tabs.isNotEmpty) _tab = tabs.first.id;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop && _tab != 'home') setState(() => _tab = 'home');
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(appTitle(_tab)),
         centerTitle: true,
@@ -155,7 +160,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           builder: (c, _) => _body(_tab),
         ),
       ),
-    );
+    ));
   }
 
   Widget _drawer(BuildContext context, AppUser u, List<_Tab> tabs) {

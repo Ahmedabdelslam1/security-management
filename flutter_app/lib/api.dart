@@ -16,6 +16,7 @@ class SessionExpired implements Exception {
 }
 
 class Api {
+  static final http.Client _shared = http.Client(); // اتصال دائم لتسريع كل الطلبات
   static String? _url;
   static String? _token;
   static const _kUrl = 'gas_url_v2';
@@ -96,7 +97,7 @@ class Api {
 
     final body = jsonEncode({'action': action, 'args': args});
     http.Response res;
-    final client = http.Client();
+    final client = _shared;
     try {
       if (_isPhpBackend(u) || !u.contains('script.google.com')) {
         // سيرفر PHP أو أي API مباشر — POST JSON عادي
@@ -128,8 +129,6 @@ class Api {
       }
     } catch (e) {
       throw ApiException('تعذر الوصول للسيرفر — تأكد من الرابط والإنترنت');
-    } finally {
-      client.close();
     }
 
     Map out;

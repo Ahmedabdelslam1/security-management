@@ -8,8 +8,9 @@ import 'models.dart';
 class LetterRow {
   final String name;
   final int days;
-  final double wage, xh, total, b, d, tax, net;
-  const LetterRow(this.name, this.days, this.wage, this.xh, this.total, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0});
+  final double wage, gross, ot, b, d, tax, net;
+  const LetterRow(this.name, this.days, this.wage, this.gross, this.ot, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0});
+  double get total => gross + ot;
 }
 
 /// يبني PDF خطاب الاعتماد كاملًا: ترويسة اللوجو + المعنون + التفقيط + جدول التسوية + الإجمالي
@@ -24,20 +25,20 @@ Future<Uint8List> buildLetterPdf({
   final boldData = await rootBundle.load('assets/fonts/TimesNewRoman-Bold.ttf');
   final ttf = pw.Font.ttf(fontData);
   final bold = pw.Font.ttf(boldData);
+
   Uint8List? logo;
   try {
     logo = (await rootBundle.load('assets/logo.png')).buffer.asUint8List();
   } catch (_) {}
-
   final doc = pw.Document(theme: pw.ThemeData.withFont(base: ttf, bold: bold));
   final blue = const pw.PdfColor.fromInt(0xFF1D4ED8);
   final light = const pw.PdfColor.fromInt(0xFFEAF1FE);
   final gray = const pw.PdfColor.fromInt(0xFF64748B);
 
   final tot = _r2(rows.fold<double>(0, (s, r) => s + r.net)); // الصافي = الإجمالي + المكافآت - الخصومات - الضرائب
-  final gTot = _r2(rows.fold<double>(0, (s, r) => s + r.total));
+  final gTot = _r2(rows.fold<double>(0, (s, r) => s + r.gross));
   final days = rows.fold<int>(0, (s, r) => s + r.days);
-  final txh = _r2(rows.fold<double>(0, (s, r) => s + r.xh));
+  final txh = _r2(rows.fold<double>(0, (s, r) => s + r.ot));
   final tb = _r2(rows.fold<double>(0, (s, r) => s + r.b));
   final td = _r2(rows.fold<double>(0, (s, r) => s + r.d));
   final tt = _r2(rows.fold<double>(0, (s, r) => s + r.tax));
@@ -49,8 +50,7 @@ Future<Uint8List> buildLetterPdf({
       maxPages: 12,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
-        if (logo != null)
-          pw.Center(child: pw.Image(pw.MemoryImage(logo), width: 150, height: 90)),
+        if (logo != null) pw.Center(child: pw.Image(pw.MemoryImage(logo), width: 150, height: 90)),
         pw.SizedBox(height: 10),
         pw.Directionality(
           textDirection: pw.TextDirection.rtl,
@@ -120,8 +120,8 @@ Future<Uint8List> buildLetterPdf({
 }
 
 pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, int days, double txh, double tb, double td, double tt, double gTot, double tot) {
-  const headers = ['اسم العامل', 'عدد أيام الحضور', 'أجر اليوم', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'إجمالى', 'ملاحظات'];
-  final widths = [72.0, 52.0, 44.0, 44.0, 44.0, 44.0, 44.0, 48.0, 48.0];
+  const headers = ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'ملاحظات'];
+  final widths = [3.0, 1.0, 1.0, 1.2, 1.0, 1.0, 1.1, 1.0, 1.3, 1.2];
   pw.Widget cell(String t, {bool head = false, bool isBold = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
@@ -155,11 +155,12 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
             cell(r.name, isBold: true),
             cell('${r.days}'),
             cell(_trimNum(r.wage)),
-            cell(r.xh > 0 ? _trimNum(r.xh) : '—'),
+            cell(_trimNum(r.gross)),
+            cell(r.ot > 0 ? _trimNum(r.ot) : '—'),
             cell(r.b > 0 ? _trimNum(r.b) : '—'),
             cell(r.d > 0 ? _trimNum(r.d) : '—'),
             cell(r.tax > 0 ? _trimNum(r.tax) : '—'),
-            cell(_trimNum(r.total), isBold: true, fg: blue),
+            cell(_trimNum(r.net), isBold: true, fg: blue),
             cell(''),
           ],
         ),
@@ -169,17 +170,18 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
           cell('الإجمالي', head: true),
           cell('$days', head: true),
           cell('', head: true),
+          cell(_trimNum(gTot), head: true),
           cell(txh > 0 ? _trimNum(txh) : '—', head: true),
           cell(tb > 0 ? _trimNum(tb) : '—', head: true),
           cell(td > 0 ? _trimNum(td) : '—', head: true),
           cell(tt > 0 ? _trimNum(tt) : '—', head: true),
-          cell(_trimNum(gTot), head: true, fg: blue),
-          cell('الصافي: ${_trimNum(tot)}', head: true, fg: blue),
+          cell(_trimNum(tot), head: true, fg: blue),
+          cell('', head: true),
         ],
       ),
     ],
     columnWidths: {
-      for (var i = 0; i < widths.length; i++) i: pw.FixedColumnWidth(widths[i]),
+      for (var i = 0; i < widths.length; i++) i: pw.FlexColumnWidth(widths[i]),
     },
   );
 }

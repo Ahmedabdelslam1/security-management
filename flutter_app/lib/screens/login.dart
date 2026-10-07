@@ -91,11 +91,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 6),
                 Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: cs.onSurface)),
                 const SizedBox(height: 18),
-                Card(
+                Center(child: SizedBox(width: 240, child: Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -103,28 +103,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextField(
                             controller: _u,
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(labelText: 'اسم المستخدم', prefixIcon: Icon(Icons.person_outline), isDense: true),
+                            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), labelStyle: TextStyle(fontSize: 12.5), labelText: 'اسم المستخدم', prefixIcon: Icon(Icons.person_outline), isDense: true),
                           ),
                           const SizedBox(height: 10),
                           TextField(
                             controller: _p,
                             obscureText: true,
                             onSubmitted: (_) => _login(),
-                            decoration: const InputDecoration(labelText: 'كلمة المرور', prefixIcon: Icon(Icons.lock_outline), isDense: true),
+                            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), labelStyle: TextStyle(fontSize: 12.5), labelText: 'كلمة المرور', prefixIcon: Icon(Icons.lock_outline), isDense: true),
                           ),
                         ] else ...[
-                          TextField(controller: _rgName, decoration: const InputDecoration(labelText: 'الاسم بالكامل', isDense: true)),
+                          TextField(controller: _rgName, decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), labelStyle: TextStyle(fontSize: 12.5), labelText: 'الاسم بالكامل', isDense: true)),
                           const SizedBox(height: 10),
-                          TextField(controller: _rgUser, decoration: const InputDecoration(labelText: 'اسم المستخدم', isDense: true)),
+                          TextField(controller: _rgUser, decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), labelStyle: TextStyle(fontSize: 12.5), labelText: 'اسم المستخدم', isDense: true)),
                           const SizedBox(height: 10),
-                          TextField(controller: _rgPass, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور', isDense: true)),
+                          TextField(controller: _rgPass, obscureText: true, decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), labelStyle: TextStyle(fontSize: 12.5), labelText: 'كلمة المرور', isDense: true)),
                         ],
                         const SizedBox(height: 14),
                         if (_busy) const Center(child: CircularProgressIndicator())
                         else ...[
                           FilledButton(
                             onPressed: _reg ? _register : _login,
-                            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
+                            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 8), textStyle: const TextStyle(fontSize: 13)),
                             child: Text(_reg ? 'إرسال طلب التسجيل' : 'دخول'),
                           ),
                           TextButton(
@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                ),
+                ))),
               ],
             ),
           ),

@@ -15,6 +15,8 @@ Future<void> exportTablePdf({
   required List<List<String>> rows,
   List<String>? totalsRow,
   bool landscape = false,
+  String? total,
+  String totalLabel = 'الإجمالي',
 }) async {
   if (rows.isEmpty && totalsRow == null) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للطباعة'), backgroundColor: Colors.black54));
@@ -22,10 +24,6 @@ Future<void> exportTablePdf({
   }
   final base = pw.Font.ttf(await rootBundle.load('assets/fonts/TimesNewRoman.ttf'));
   final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/TimesNewRoman-Bold.ttf'));
-  Uint8List? logo;
-  try {
-    logo = (await rootBundle.load('assets/logo.png')).buffer.asUint8List();
-  } catch (_) {}
   final doc = pw.Document(theme: pw.ThemeData.withFont(base: base, bold: bold));
   final blue = const pw.PdfColor.fromInt(0xFF1D4ED8);
   final light = const pw.PdfColor.fromInt(0xFFEAF1FE);
@@ -33,7 +31,7 @@ Future<void> exportTablePdf({
   pw.Widget cell(String t, {bool head = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
-      padding: const pw.EdgeInsets.symmetric(vertical: 4.5, horizontal: 4),
+      padding: const pw.EdgeInsets.symmetric(vertical: 3.5, horizontal: 3),
       alignment: pw.Alignment.center,
       child: pw.Text(
         t,
@@ -67,8 +65,8 @@ Future<void> exportTablePdf({
   doc.addPage(
     pw.MultiPage(
       pageFormat: landscape ? pw.PdfPageFormat.a4.landscape : pw.PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(36, 32, 36, 32),
-      maxPages: 30,
+      margin: const pw.EdgeInsets.fromLTRB(28, 26, 28, 26),
+      maxPages: 100,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
         pw.Directionality(
@@ -79,7 +77,6 @@ Future<void> exportTablePdf({
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  if (logo != null) pw.Image(pw.MemoryImage(logo), width: 64, height: 40) else pw.Text(''),
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -89,7 +86,17 @@ Future<void> exportTablePdf({
                       ],
                     ),
                   ),
-                  pw.Text('إدارة الأمن', style: pw.TextStyle(font: bold, fontSize: 10, color: blue)),
+                  if (total != null)
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: pw.BoxDecoration(border: pw.Border.all(color: blue, width: 1)),
+                      child: pw.Column(children: [
+                        pw.Text(totalLabel, style: pw.TextStyle(font: bold, fontSize: 9, color: blue)),
+                        pw.Text(total, style: pw.TextStyle(font: bold, fontSize: 14, color: blue)),
+                      ]),
+                    )
+                  else
+                    pw.SizedBox(width: 1),
                 ],
               ),
               pw.SizedBox(height: 10),
@@ -97,7 +104,7 @@ Future<void> exportTablePdf({
                 border: pw.TableBorder.all(color: blue, width: 0.7),
                 tableWidth: pw.TableWidth.max,
                 children: tableRows,
-                columnWidths: {for (var i = 0; i < widths.length; i++) i: pw.FixedColumnWidth(widths[i])},
+                columnWidths: {for (var i = 0; i < widths.length; i++) i: pw.FlexColumnWidth(widths[i])},
               ),
               pw.SizedBox(height: 12),
               pw.Align(

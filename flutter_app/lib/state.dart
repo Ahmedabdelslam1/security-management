@@ -30,6 +30,15 @@ class App extends ChangeNotifier {
     }
   }
 
+  String? _rev;
+  /// مزامنة خفيفة: تسأل السيرفر عن رقم التعديل فقط، وتسحب البيانات كاملة إذا تغيّر
+  Future<void> syncIfChanged() async {
+    final v = (await Api.auth('rev')).toString();
+    if (_rev == v) return;
+    _rev = v;
+    await bootstrap(silent: true);
+  }
+
   Future<void> logout() async {
     try { await Api.auth('logout'); } catch (_) {}
     await Api.clear();
