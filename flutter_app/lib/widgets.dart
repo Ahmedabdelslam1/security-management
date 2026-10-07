@@ -117,6 +117,7 @@ const tabColors = <String, List<int>>{
   'workers': [0xFFFDE68A, 0xFFB45309], // عاملين — أصفر
   'reports': [0xFFFBCFE8, 0xFFBE185D], // تقارير — وردي
   'gate': [0xFFDDD6FE, 0xFF6D28D9], // بوابة — بنفسجي
+  'procs': [0xFFFED7AA, 0xFFC2410C], // إجراءات يومية — برتقالي
   'users': [0xFF99F6E4, 0xFF0F766E], // مستخدمين — تركواز
   'monitor': [0xFFFECACA, 0xFFB91C1C], // متابعة — أحمر
   'settings': [0xFFBAE6FD, 0xFF0369A1], // إعدادات — سماوي

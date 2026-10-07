@@ -368,10 +368,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 alignment: AlignmentDirectional.centerEnd,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: FilledButton.tonalIcon(
+                  child: IconButton.filledTonal(
+                    tooltip: 'حفظ',
+                    visualDensity: VisualDensity.compact,
                     onPressed: () => _saveOne(w),
                     icon: const Icon(Icons.save, size: 16),
-                    label: const Text('حفظ'),
                   ),
                 ),
               ),

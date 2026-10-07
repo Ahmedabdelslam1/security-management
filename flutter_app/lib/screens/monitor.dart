@@ -14,11 +14,14 @@ class MonitorScreen extends StatefulWidget {
 
 class _MonitorScreenState extends State<MonitorScreen> {
   Map? _data;
+  // سجل الإجراءات: التعديل والإضافة والحذف فقط
+  static final _editRe = RegExp('تعديل|إضافة|اضافة|حذف|حفظ|تسوية|تسجيل دخول بوابة');
+  bool _isEdit(String a) => _editRe.hasMatch(a);
 
   void _pdf() {
     if (_data == null) return;
     if (_tab == 0) {
-      final log = (_data!['log'] as List? ?? []).map((x) => x as Map).toList();
+      final log = (_data!['log'] as List? ?? []).map((x) => x as Map).where((l) => _isEdit('${l['action'] ?? ''}')).toList();
       final rows = <List<String>>[];
       for (final l in log) {
         if (!_filter.isEmpty && !'${l['user'] ?? ''} ${l['action'] ?? ''} ${l['details'] ?? ''}'.contains(_filter)) continue;
@@ -68,7 +71,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final log = (_data?['log'] as List? ?? []).map((x) => x as Map).toList();
+    final log = (_data?['log'] as List? ?? []).map((x) => x as Map).where((l) => _isEdit('${l['action'] ?? ''}')).toList();
     final users = (_data?['users'] as List? ?? []).map((x) => x as Map).toList();
     final filtered = _filter.isEmpty
         ? log

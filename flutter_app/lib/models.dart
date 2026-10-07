@@ -105,3 +105,23 @@ String otText(double h) {
   if (h >= 3 && h <= 10 && h % 1 == 0) return '${h.toInt()} ساعات';
   return '$h ساعة';
 }
+
+/// المستحق للعامل حتى اليوم: عدد الأيام + ساعات الإضافي = المبلغ
+String workerDueText(Worker w, List<AttRec> att) {
+  var days = 0;
+  var hrs = 0.0;
+  var amt = 0.0;
+  final hpd = w.hours <= 0 ? 8.0 : w.hours;
+  for (final r in att) {
+    if (r.wid != w.id) continue;
+    final h = (r.wage > 0 ? r.wage : w.wage) / hpd;
+    final val = r.counts ? r.wage + r.xh * h : 0.0;
+    final d = r2(val - (r.settleId.isNotEmpty ? r.paidAmt : 0));
+    if (d > 0.005) {
+      days++;
+      amt += d;
+      hrs += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.xh;
+    }
+  }
+  return '$days يوم${hrs > 0 ? ' + ${otText(r2(hrs))} إضافي' : ''} = ${r2(amt)} ج';
+}

@@ -415,6 +415,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
               widths: [55, 55, 60, 40, 45, 70],
               rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, r.xh > 0 ? otText(r.xh) : '—', r.counts ? r2(r.wage + r.xh * _hourlyR(r, ww)).toStringAsFixed(2) : '—', r.notes]],
+              total: net2.toStringAsFixed(2),
               totalsRow: ['الإجمالي', '$days يوم', '', '', total.toStringAsFixed(2), ''],
             );
           });
@@ -504,6 +505,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               widths: [3.2, 1, 1.1, 1.3, 1.1, 1.2, 1.2, 1.1, 1.4],
               landscape: true,
               rows: rws,
+              total: r2(n2).toStringAsFixed(2),
               totalsRow: ['الإجمالي', '$days يوم', '', r2(rows.fold<double>(0, (s, m) => s + m.gross)).toStringAsFixed(2), r2(rows.fold<double>(0, (s, m) => s + m.ot)).toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
             );
           });
@@ -549,7 +551,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
             tb += b; td += d; tt += x; tnet += m.total + b - d - x;
           }
           tnet = r2(tnet);
-          return _totalsBar('$days يوم — إضافي ${r2(rows.fold<double>(0, (s, m) => s + m.ot))} • الصافي ${tnet.toStringAsFixed(2)} ج', total, null);
+          return _totalsBar('$days يوم — إضافي ${r2(rows.fold<double>(0, (s, m) => s + m.ot))} • الصافي ${tnet.toStringAsFixed(2)} ج', total, null, onPdf: () async {
+            await _loadAdj();
+            var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
+            final rws = [for (final m in rows) [m.w.name, '${m.days}', m.wageAvg.toStringAsFixed(m.wageAvg == m.wageAvg.truncateToDouble() ? 0 : 2), m.gross > 0 ? m.gross.toStringAsFixed(2) : '—', m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
+            for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
+            exportTablePdf(
+              context: context,
+              title: 'تقرير مجمع للعاملين',
+              subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+              headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
+              widths: [3.2, 1, 1.1, 1.3, 1.1, 1.2, 1.2, 1.1, 1.4],
+              landscape: true,
+              rows: rws,
+              total: r2(n2).toStringAsFixed(2),
+              totalsRow: ['الإجمالي', '$days يوم', '', r2(rows.fold<double>(0, (s, m) => s + m.gross)).toStringAsFixed(2), r2(rows.fold<double>(0, (s, m) => s + m.ot)).toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
+            );
+          });
         }),
         Expanded(
           child: ListView.builder(

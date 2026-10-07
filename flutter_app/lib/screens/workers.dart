@@ -201,7 +201,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
                                 '${w.wage} ج/يوم • ${w.hours} ساعات'
                                 '${w.card.isEmpty ? '' : ' • بطاقة ${w.card}'}'
                                 '${w.phone.isEmpty ? '' : ' • ${w.phone}'}'
-                                '${w.lastSet.isEmpty ? '' : ' • آخر تسوية ${fmtDate(w.lastSet)}'}',
+                                '${w.lastSet.isEmpty ? '' : ' • آخر تسوية ${fmtDate(w.lastSet)}'}\nالمستحق: ${workerDueText(w, App.I.att)}',
                                 style: const TextStyle(fontSize: 12.5),
                               ),
                             ),
