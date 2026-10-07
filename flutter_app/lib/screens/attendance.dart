@@ -357,10 +357,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 readOnly: c.wgLocked,
                 onTap: () { if (c.wgLocked) setState(() => c.wgLocked = false); },
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   labelText: c.wgLocked ? 'أجر اليوم (تلقائي — اضغط للتعديل)' : 'أجر اليوم لهذا اليوم',
                 ),
                 style: const TextStyle(fontSize: 13.5),
