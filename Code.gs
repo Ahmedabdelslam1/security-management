@@ -26,6 +26,7 @@ var SHEETS = {
   Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt'],
+  Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt'],
   Log:        ['time', 'user', 'action', 'page', 'details']
 };
 var SCHEMA_CHECKED_ = {};
@@ -78,7 +79,8 @@ function apiMap_() {
     bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
-    getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage
+    getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
+    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles
   };
 }
 
@@ -825,6 +827,113 @@ function getGateImage(token, id, idx) {
     var blob = DriveApp.getFileById(fid).getBlob();
     return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
   } catch (err) { return null; }
+}
+
+/* ===================== الإجراءات اليومية ===================== */
+var P_TYPES_ = ['--', 'دخول', 'خروج'];
+var P_SIGN_ = ['--', 'تم الختم والتوقيع'];
+
+function fileList_(s) {
+  try { var a = JSON.parse(s || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+
+function saveDoc_(dataUrl, label) {
+  var m = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('صيغة الملف غير مدعومة (صورة أو PDF)');
+  if (m[2].length > 7000000) throw new Error('حجم الملف كبير');
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], label + '-' + Date.now());
+  return { id: imgFolder_().createFile(blob).getId(), t: m[1] === 'application/pdf' ? 'pdf' : 'img' };
+}
+
+function procOut_(p) {
+  return {
+    id: p.id, seq: num_(p.seq), date: p.date, weekday: p.weekday, plate: p.plate, driver: p.driver, rep: p.rep,
+    statement: p.statement, ptype: p.ptype || '--', signed: p.signed || '--', signDate: p.signDate, signer: p.signer,
+    bookPage: p.bookPage, supervisor: p.supervisor, notes: p.notes,
+    docs: fileList_(p.docs).map(function (f) { return f.t; }), other: fileList_(p.other).map(function (f) { return f.t; }),
+    createdBy: p.createdBy
+  };
+}
+
+function listProcs(token) {
+  auth_(token, 'gate');
+  var rows = readAll_('Procs').map(procOut_);
+  rows.sort(function (a, b) { return a.date === b.date ? b.seq - a.seq : (a.date < b.date ? 1 : -1); });
+  return rows.slice(0, 3000);
+}
+
+function saveProc(token, e) {
+  var u = auth_(token, 'gate');
+  e = e || {};
+  var date = String(e.date || '');
+  if (!validDate_(date)) throw new Error('حدد التاريخ');
+  var plate = clip_(e.plate, 40), driver = clip_(e.driver, 80), rep = clip_(e.rep, 80);
+  if (!plate && !driver && !rep) throw new Error('اكتب رقم السيارة أو اسم السائق أو المندوب / الموظف');
+  var ptype = P_TYPES_.indexOf(e.ptype) === -1 ? '--' : e.ptype;
+  var signed = P_SIGN_.indexOf(e.signed) === -1 ? '--' : e.signed;
+  var signDate = clip_(e.signDate, 10);
+  if (signed !== '--' && signDate && !validDate_(signDate)) throw new Error('تاريخ الختم والتوقيع غير صحيح');
+  var nd = Array.isArray(e.newDocs) ? e.newDocs : [], no = Array.isArray(e.newOther) ? e.newOther : [];
+  if (nd.length > 10 || no.length > 10) throw new Error('الحد الأقصى 10 ملفات في المرة الواحدة لكل بند');
+  return locked_(function () {
+    var rows = readAll_('Procs'), cur = null;
+    if (e.id) {
+      cur = rows.filter(function (x) { return x.id === String(e.id); })[0];
+      if (!cur) throw new Error('السجل غير موجود');
+    } else {
+      var mx = 0;
+      rows.forEach(function (x) { mx = Math.max(mx, num_(x.seq)); });
+      cur = { id: 'p' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, docs: '[]', other: '[]', createdBy: u.name, createdAt: now_() };
+      rows.push(cur);
+    }
+    function apply(field, fresh, removeIdx) {
+      var list = fileList_(cur[field]), rm = (Array.isArray(removeIdx) ? removeIdx : []).map(Number);
+      var keep = list.filter(function (f, i) { return rm.indexOf(i) === -1; });
+      if (keep.length + fresh.length > 30) throw new Error('الحد الأقصى 30 ملفًا لكل بند');
+      list.forEach(function (f, i) { if (rm.indexOf(i) !== -1) trashImg_(f.id); });
+      fresh.forEach(function (d) { keep.push(saveDoc_(d, 'proc')); });
+      cur[field] = JSON.stringify(keep);
+    }
+    apply('docs', nd, e.removeDocs);
+    apply('other', no, e.removeOther);
+    cur.date = date; cur.weekday = weekday_(date); cur.plate = plate; cur.driver = driver; cur.rep = rep;
+    cur.statement = clip_(e.statement, 300); cur.ptype = ptype; cur.signed = signed;
+    cur.signDate = signed === '--' ? '' : signDate; cur.signer = signed === '--' ? '' : clip_(e.signer, 80);
+    cur.bookPage = signed === '--' ? '' : clip_(e.bookPage, 40);
+    cur.supervisor = clip_(e.supervisor, 80); cur.notes = clip_(e.notes, 300);
+    writeAll_('Procs', rows);
+    log_(u.name, e.id ? 'تعديل إجراء يومي' : 'إضافة إجراء يومي', 'الإجراءات اليومية', (plate || rep || driver) + ' — ' + date);
+    return procOut_(cur);
+  });
+}
+
+function deleteProc(token, id) {
+  var u = auth_(token, 'gate');
+  return locked_(function () {
+    var keep = [], hit = null;
+    readAll_('Procs').forEach(function (g) { if (g.id === String(id)) hit = g; else keep.push(g); });
+    if (!hit) throw new Error('السجل غير موجود');
+    fileList_(hit.docs).concat(fileList_(hit.other)).forEach(function (f) { trashImg_(f.id); });
+    writeAll_('Procs', keep);
+    log_(u.name, 'حذف إجراء يومي', 'الإجراءات اليومية', (hit.plate || hit.rep || hit.driver) + ' — ' + hit.date);
+    return true;
+  });
+}
+
+/* كل ملفات السجل دفعة واحدة (صور كاملة الوضوح + PDF) */
+function getProcFiles(token, id) {
+  auth_(token, 'gate');
+  var p = readAll_('Procs').filter(function (x) { return x.id === String(id); })[0];
+  if (!p) return { docs: [], other: [] };
+  function load(list) {
+    return list.map(function (f) {
+      try {
+        var blob = DriveApp.getFileById(f.id).getBlob();
+        return { t: f.t, data: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
+      } catch (err) { return { t: f.t, data: '' }; }
+    });
+  }
+  return { docs: load(fileList_(p.docs)), other: load(fileList_(p.other)) };
 }
 
 function resetAll(token) {

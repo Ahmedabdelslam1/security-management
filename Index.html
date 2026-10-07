@@ -101,6 +101,7 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 .gth.rm img{opacity:.3}
 .wlink{color:#2563eb;font-weight:800;cursor:pointer;text-decoration:underline dotted}
 .wlink:hover{color:#1d4ed8}
+.unset{font-size:11px;max-width:120px;width:1%}#setBody td.noprint{max-width:130px;font-size:11px;line-height:1.3}#setBody .badge{font-size:10px;padding:1px 6px;white-space:normal}
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
 .badge.due{background:#fef3c7;color:#b45309}
 .badge.paid{background:#dcfce7;color:#15803d}
@@ -108,7 +109,7 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 /* أيقونات بألوان مختلفة */
 #mainNav button>span:first-child{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;margin-left:6px}
 #nav-attendance>span:first-child{background:#dbeafe}#nav-settlement>span:first-child{background:#bbf7d0}#nav-workers>span:first-child{background:#fde68a}
-#nav-reports>span:first-child{background:#fbcfe8}#nav-gate>span:first-child{background:#ddd6fe}#nav-users>span:first-child{background:#99f6e4}#nav-monitor>span:first-child{background:#fecaca}
+#nav-reports>span:first-child{background:#fbcfe8}#nav-gate>span:first-child{background:#ddd6fe}#nav-procs>span:first-child{background:#fed7aa}#nav-users>span:first-child{background:#99f6e4}#nav-monitor>span:first-child{background:#fecaca}
 .hdr-user button[onclick^="openCalculator"]{background:#e0e7ff;font-size:24px;line-height:1;padding:3px 10px}.hdr-user button[onclick^="captureScreen"]{background:#fbcfe8}.hdr-user button[onclick^="refreshAll"]{background:#bbf7d0}
 .hdr-user button[onclick^="openChangePassword"]{background:#fde68a}#backBtn{background:#bae6fd}
 tr.locked td{background:#f8fafc}
@@ -228,7 +229,7 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
           </div>
           <div id="attDayWrap">
             <div class="table-wrap"><table><thead><tr>
-              <th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th><th>المستحق</th><th>ملاحظات</th><th class="noprint">حفظ</th>
+              <th>اسم العامل</th><th>الموقف</th><th>مكان الحضور</th><th>المستحق</th><th>ملاحظات</th>
             </tr></thead><tbody id="attBody"></tbody></table></div>
           </div>
           <div id="attPeriodWrap" style="display:none">
@@ -298,7 +299,7 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
       <!-- التقارير -->
       <section id="sec-reports" class="section" style="display:none">
         <div class="card">
-          <div class="card-head"><h2>التقارير</h2></div>
+          <div class="card-head"><h2>التقارير</h2><div class="head-actions"><button class="btn" onclick="printCombined()">🖨 طباعة مجمع</button></div></div>
           <div class="subtabs">
             <button class="active" id="rtab1" onclick="showRepSub(1)">حسب العامل</button>
             <button id="rtab2" onclick="showRepSub(2)">حسب مكان الحضور</button>
@@ -376,6 +377,24 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
           </tr></thead><tbody id="gateBody"></tbody></table></div>
         </div>
       </section>
+      <section id="sec-procs" class="section" style="display:none">
+        <div class="card">
+          <div class="card-head"><h2>الإجراءات اليومية</h2>
+            <div class="head-actions"><button class="btn" onclick="printProcs()">🖨 طباعة</button><button class="btn primary" onclick="openProcModal()">➕ إجراء جديد</button></div>
+          </div>
+          <div class="filters">
+            <input id="procQ" class="inp" style="flex:1;min-width:200px" autocomplete="off" placeholder="🔍 بحث في كل البنود (التاريخ، السيارة، السائق، المندوب، البيان، المشرف، الملاحظات...)" oninput="drawProcs()">
+            <select id="procType" onchange="drawProcs()"><option value="">كل أنواع الإجراء</option><option>دخول</option><option>خروج</option><option>--</option></select>
+            <label>من</label><input type="date" id="procFrom" onchange="drawProcs()">
+            <label>إلى</label><input type="date" id="procTo" onchange="drawProcs()">
+            <button class="btn" onclick="clearProcFilter()">مسح</button>
+          </div>
+          <div class="totals" id="procTotals"></div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>م</th><th>التاريخ</th><th>اليوم</th><th>رقم السيارة</th><th>اسم السائق</th><th>المندوب / الموظف</th><th>البيان</th><th>نوع الإجراء</th><th>صورة المستندات</th><th>توقيع المستند</th><th>مشرف الوردية</th><th>ملاحظات</th><th>مستندات أخرى</th><th class="noprint">إجراءات</th>
+          </tr></thead><tbody id="procBody"></tbody></table></div>
+        </div>
+      </section>
       <section id="sec-none" class="section" style="display:none"><div class="card" style="text-align:center;padding:30px"><h2 style="margin-bottom:8px">لا توجد صلاحيات لهذا الحساب</h2><p style="color:#64748b">تواصل مع المدير لتفعيل الشاشات المطلوبة، ثم اضغط ⟳ في الأعلى.</p></div></section>
       <section id="sec-users" class="section" style="display:none">
         <div class="card">
@@ -447,6 +466,7 @@ function mAvg(m){return m.days?r2(m.gross/m.days):m.w.wage;}
 function recDue(r,w){var v=counts(r)?recVal(r,w):0;return r2(v-(r.settleId?(r.paidAmt||0):0));}
 function recs(w,upto){return ATT.filter(function(r){return r.wid===w.id&&r.date<=upto&&recDue(r,w)>0.005;});}
 function unDays(w,upto){return recs(w,upto).length;}
+function unText(w,upto){var rs=recs(w,upto),h=0,a=0;rs.forEach(function(r){var d=recDue(r,w),hr=hourlyR(r,w);a+=d;h+=r.settleId?(hr>0?d/hr:0):(Number(r.xh)||0);});h=r2(h);return rs.length+' يوم'+(h>0?' + '+otText(h)+' إضافي':'')+' = '+r2(a)+' ج';}
 function unAmount(w,upto){var c=0;recs(w,upto).forEach(function(r){c+=recDue(r,w);});return r2(c);}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none';},2200);}
 function openModal(h){document.getElementById('modalBox').innerHTML=h;document.getElementById('modalWrap').classList.add('show');updateBack();}
@@ -525,11 +545,11 @@ function doChangePassword(){var o=document.getElementById('cpOld').value,n=docum
 if(n!==n2)return toast('تأكيد كلمة المرور غير مطابق');
 api('changePassword',o,n).then(function(){closeModal();toast('تم تغيير كلمة المرور');}).catch(fail);}
 function buildNav(){var tabs=[];
-[['attendance','الحضور'],['settlement','التسوية'],['workers','العاملين'],['reports','التقارير'],['gate','دفتر البوابة']].forEach(function(t){
-var k=t[0];if(k==='settlement')k='attendance';
+[['attendance','الحضور'],['settlement','التسوية'],['workers','العاملين'],['reports','التقارير'],['gate','دفتر البوابة'],['procs','الإجراءات اليومية']].forEach(function(t){
+var k=t[0];if(k==='settlement')k='attendance';if(k==='procs')k='gate';
 if(USER.role==='admin'||(USER.perms&&USER.perms[k]))tabs.push(t);});
 if(USER.role==='admin'){tabs.push(['users','المستخدمين'],['monitor','المتابعة']);}
-var ICONS={attendance:'\uD83D\uDCCB',settlement:'\uD83D\uDCB0',workers:'\uD83D\uDC65',reports:'\uD83D\uDCCA',users:'\uD83D\uDC64',monitor:'\uD83D\uDDA5',gate:'\uD83D\uDEAA'};
+var ICONS={attendance:'\uD83D\uDCCB',settlement:'\uD83D\uDCB0',workers:'\uD83D\uDC65',reports:'\uD83D\uDCCA',users:'\uD83D\uDC64',monitor:'\uD83D\uDDA5',gate:'\uD83D\uDEAA',procs:'\uD83D\uDCDD'};
 document.getElementById('mainNav').innerHTML=tabs.map(function(t){return '<button id="nav-'+t[0]+'" onclick="switchTab(\''+t[0]+'\')"><span>'+(ICONS[t[0]]||'')+'</span><span>'+t[1]+'</span></button>';}).join('');}
 /* ============ أدوات سريعة: آلة حاسبة + تصوير الشاشة ============ */
 var CALC_EXPR='';var CALC_MEM=0;
@@ -580,7 +600,7 @@ function initInputs(){var td=todayStr(),ms=monthStart();
 document.getElementById('attDate').value=td;
 ['per','set','rw','rl','rs','rlLet'].forEach(function(p){document.getElementById(p+'From').value=ms;document.getElementById(p+'To').value=td;});
 refreshLists();}
-var TABS={none:'',gate:'دفتر البوابة',attendance:'الحضور',settlement:'التسوية',workers:'العاملين',reports:'التقارير',users:'المستخدمين',monitor:'المتابعة'};
+var TABS={none:'',gate:'دفتر البوابة',procs:'الإجراءات اليومية',attendance:'الحضور',settlement:'التسوية',workers:'العاملين',reports:'التقارير',users:'المستخدمين',monitor:'المتابعة'};
 var NAVH=[];
 function switchTab(n,fromBack){Object.keys(TABS).forEach(function(s){var el=document.getElementById('sec-'+s);if(el)el.style.display=s===n?'block':'none';
 var bt=document.getElementById('nav-'+s);if(bt)bt.classList.toggle('active',s===n);});
@@ -593,7 +613,8 @@ if(n==='workers')renderWorkers();
 if(n==='reports'){runWorkerReport();}
 if(n==='users')renderUsers();
 if(n==='monitor')renderMonitor();
-if(n==='gate')renderGate();}
+if(n==='gate')renderGate();
+if(n==='procs')renderProcs();}
 /* زر الرجوع: يغلق النافذة المفتوحة أولًا، ثم يرجع للصفحة السابقة (ويعمل مع زر الرجوع في الهاتف دون الخروج من البرنامج) */
 function updateBack(){var b=document.getElementById('backBtn');if(!b)return;var m=document.getElementById('modalWrap'),open=m&&m.classList.contains('show');b.style.visibility=(NAVH.length||open)?'visible':'hidden';}
 function goBack(){var m=document.getElementById('modalWrap');if(m&&m.classList.contains('show')){closeModal();return;}
@@ -625,14 +646,14 @@ var need=EXTRA_STS.indexOf(st)!==-1;
 var wgv=rec.wage||w.wage,c=dueCalc(w,date,st,rec.xh||0,rec.loc||'',wgv);
 var lk=!!rec.settleId,dis=lk?' disabled':'';
 return '<tr data-wid="'+w.id+'" data-name="'+esc(w.name)+'"'+(lk?' class="locked" data-locked="1"':'')+'>'+
-'<td><span class="wlink" onclick="openWorkerStatus(\''+w.id+'\')" title="عرض موقف العامل حسب الفترة">'+esc(w.name)+'</span></td>'+
+'<td style="min-width:170px"><span class="wlink" onclick="openWorkerStatus(\''+w.id+'\')" title="عرض موقف العامل حسب الفترة">'+esc(w.name)+'</span></td>'+
 '<td><input class="wg" type="hidden" value="'+wgv+'"><select class="st" onchange="toggleExtra(this)"'+dis+'><option value="--">--</option>'+STS.map(function(s){return '<option'+(st===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></td>'+
 '<td><input class="loc" list="locList" value="'+esc(rec.loc||'')+'" placeholder="مكان الحضور" style="width:130px" oninput="locChanged(this)"'+dis+'></td>'+
 ''+
 '<td class="'+dueCls(c)+'" style="white-space:nowrap">'+dueText(c)+paidMark(w,date,st,rec.xh||0,rec.loc||'',wgv)+'</td>'+
 '<td style="min-width:135px"><span class="xhw" style="display:'+(need?'flex':'none')+';align-items:center;gap:4px;font-size:11px;color:#64748b;margin-bottom:2px">ساعات إضافية <input class="xh" type="number" min="0" step="0.5" value="'+(rec.xh||'')+'" oninput="refreshDue(this.closest(\'tr\'))" style="width:56px;padding:3px 6px;font-size:12px"'+dis+'></span>'+
-'<input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="width:100%"'+dis+'></td>'+
-'<td class="noprint">'+(lk?'':'<button class="btn small primary" onclick="saveRow(this.closest(\'tr\'))">حفظ</button>')+'</td></tr>';}).join('');
+'<div style="display:flex;gap:4px;align-items:center"><input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="flex:1;min-width:0"'+dis+'>'+(lk?'':'<button class="btn small primary noprint" title="حفظ" onclick="saveRow(this.closest(\'tr\'))" style="padding:2px 6px;font-size:12px">💾</button>')+'</div></td>'+
+'</tr>';}).join('');
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){refreshDue(tr);});}
 function refreshDue(tr){var date=document.getElementById('attDate').value||todayStr(),w=W(tr.getAttribute('data-wid')),
 st=tr.querySelector('.st').value,li=tr.querySelector('.loc'),xh=tr.querySelector('.xh').value,wg=tr.querySelector('.wg').value,c=dueCalc(w,date,st,xh,li.value,wg),td=tr.querySelector('.unset');
@@ -804,7 +825,7 @@ document.getElementById('workersBody').innerHTML=WORKERS.map(function(w){
 return '<tr data-wid="'+w.id+'"><td><input type="checkbox" class="wChk"></td>'+
 '<td><b>'+esc(w.name)+'</b></td><td>'+esc(w.card)+'</td><td>'+esc(w.phone)+'</td><td>'+w.wage+'</td><td>'+w.hours+'</td>'+
 '<td>'+thumbHtml(w,'card')+'</td><td>'+thumbHtml(w,'photo')+'</td>'+
-'<td>'+fmtD(w.lastSet)+'</td><td>'+unDays(w,td)+'</td>'+
+'<td>'+fmtD(w.lastSet)+'</td><td style="font-size:11.5px">'+unText(w,td)+'</td>'+
 '<td style="white-space:nowrap"><button class="btn small" onclick="settleOne(\''+w.id+'\')">تسوية</button> <button class="btn small" onclick="openWorkerModal(\''+w.id+'\')">تعديل</button> <button class="btn small danger" onclick="deleteWorker(\''+w.id+'\')">حذف</button></td></tr>';}).join('')
 ||'<tr><td colspan="11" class="mut" style="text-align:center">لا يوجد عاملين بعد</td></tr>';
 loadThumbs();}
@@ -850,7 +871,7 @@ delete IMG[w.id+':card'];delete IMG[w.id+':photo'];
 closeModal();refreshLists();renderWorkers();toast('تم حفظ العامل');}).catch(function(e){btn.disabled=false;btn.textContent='حفظ';fail(e);});}
 function printWorkers(){var td=todayStr();
 paper('كشف العاملين','<h2>كشف العاملين اليومية</h2><table><thead><tr><th>الاسم</th><th>رقم البطاقة</th><th>التليفون</th><th>أجر اليوم</th><th>ساعات العمل</th><th>آخر تسوية</th><th>المستحق</th></tr></thead><tbody>'+
-WORKERS.map(function(w){return '<tr><td>'+esc(w.name)+'</td><td>'+esc(w.card)+'</td><td>'+esc(w.phone)+'</td><td>'+w.wage+'</td><td>'+w.hours+'</td><td>'+fmtD(w.lastSet)+'</td><td>'+unDays(w,td)+'</td></tr>';}).join('')+'</tbody></table>');}
+WORKERS.map(function(w){return '<tr><td>'+esc(w.name)+'</td><td>'+esc(w.card)+'</td><td>'+esc(w.phone)+'</td><td>'+w.wage+'</td><td>'+w.hours+'</td><td>'+fmtD(w.lastSet)+'</td><td>'+unText(w,td)+'</td></tr>';}).join('')+'</tbody></table>');}
 /* ============ التقارير ============ */
 function showRepSub(n){[1,2,3,4].forEach(function(i){document.getElementById('rep'+i).style.display=i===n?'block':'none';
 document.getElementById('rtab'+i).classList.toggle('active',i===n);});}
@@ -928,6 +949,7 @@ var T={b:r2(rows.reduce(function(s,m){return s+m.b;},0)),d:r2(rows.reduce(functi
 LAST_RS={rows:rows,days:days,total:total,from:f,to:t,T:T};
 document.getElementById('rsBody').innerHTML=rows.map(function(m){return '<tr><td><span style="color:#2563eb;font-weight:700;cursor:pointer" onclick="openDetail(\''+m.w.id+'\')">'+esc(m.w.name)+'</span></td><td>'+m.days+'</td><td>'+mAvg(m)+'</td><td>'+r2(m.gross)+'</td><td>'+r2(m.ot)+'</td><td>'+m.b+'</td><td>'+m.d+'</td><td>'+m.t+'</td><td>'+m.net+'</td><td></td></tr>';}).join('');
 document.getElementById('rsFoot').innerHTML='<th>الإجمالي</th><th>'+days+'</th><th></th><th>'+gsum(rows,'gross')+'</th><th>'+gsum(rows,'ot')+'</th><th>'+T.b+'</th><th>'+T.d+'</th><th>'+T.t+'</th><th>'+T.net+'</th><th></th>';}
+function printCombined(){var f=document.getElementById('rsFrom').value,t=document.getElementById('rsTo').value;if(!f||!t){showRepSub(3);return toast('حدد الفترة (من - إلى) في التقرير المجمع ثم اضغط طباعة مجمع');}loadAdj().then(function(){runSummaryNow();printSummary();}).catch(fail);}
 function printSummary(){if(!LAST_RS)return toast('اعرض التقرير أولاً');var r=LAST_RS;
 paper('تقرير مجمع','<h2>تقرير مجمع للعاملين</h2><div class="meta">من '+fmtD(r.from)+' إلى '+fmtD(r.to)+'</div>'+
 '<table><thead><tr><th class="nm">اسم العامل</th><th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>إضافي</th><th>المكافآت</th><th>الخصومات</th><th>الضرائب</th><th>الصافي</th><th>التوقيع</th></tr></thead><tbody>'+
@@ -981,10 +1003,11 @@ function openResetPass(un){openModal('<h3>كلمة مرور جديدة للمس�
 function doResetPass(un){api('resetUserPassword',un,document.getElementById('rpNew').value).then(function(){closeModal();toast('تم تغيير كلمة المرور');}).catch(fail);}
 /* ============ المتابعة ============ */
 function renderMonitor(){api('getMonitor').then(function(d){MON=d;drawMonitor();}).catch(fail);}
+var MON_RE=/تعديل|إضافة|اضافة|حذف|حفظ|تسوية|تسجيل دخول بوابة/;
 function drawMonitor(){document.getElementById('monUsersBody').innerHTML=MON.users.map(function(u){
 return '<tr><td>'+esc(u.name)+'</td><td>'+esc(u.lastLogin||'--')+'</td><td>'+esc(u.lastAction||'--')+'</td>'+
 '<td>'+(u.online?'<span class="dot-on"></span><span class="ok">متصل الآن</span>':'<span class="dot-off"></span><span class="mut">غير متصل</span>')+'</td><td>'+u.count+'</td></tr>';}).join('');
-document.getElementById('monLogBody').innerHTML=MON.log.map(function(l){
+document.getElementById('monLogBody').innerHTML=MON.log.filter(function(l){return MON_RE.test(l.action);}).map(function(l){
 return '<tr><td>'+esc(l.time)+'</td><td>'+esc(l.user)+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.page)+'</td><td>'+esc(l.details)+'</td></tr>';}).join('')
 ||'<tr><td colspan="5" class="mut" style="text-align:center">لا يوجد سجل بعد</td></tr>';}
 function printMonitor(){paper('متابعة المستخدمين','<h2>متابعة المستخدمين وسجل النشاط</h2>'+
@@ -992,7 +1015,7 @@ function printMonitor(){paper('متابعة المستخدمين','<h2>متاب�
 MON.users.map(function(u){return '<tr><td>'+esc(u.name)+'</td><td>'+esc(u.lastLogin||'--')+'</td><td>'+(u.online?'متصل الآن':'غير متصل')+'</td></tr>';}).join('')+'</tbody></table>'+
 '<h3 style="margin:12px 0 4px">سجل الإجراءات</h3>'+
 '<table><thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>الصفحة</th><th>التفاصيل</th></tr></thead><tbody>'+
-MON.log.map(function(l){return '<tr><td>'+esc(l.time)+'</td><td>'+esc(l.user)+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.page)+'</td><td>'+esc(l.details)+'</td></tr>';}).join('')+'</tbody></table>');}
+MON.log.filter(function(l){return MON_RE.test(l.action);}).map(function(l){return '<tr><td>'+esc(l.time)+'</td><td>'+esc(l.user)+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.page)+'</td><td>'+esc(l.details)+'</td></tr>';}).join('')+'</tbody></table>');}
 /* ============ أدوات الأرقام ============ */
 function payNum(v){v=parseFloat(String(v).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}));return isNaN(v)||v<0?0:v;}
 /* ============ المرتبات ============ */
@@ -1028,6 +1051,94 @@ api('updatePayrollAdj',id,wid,g('bonus'),g('ded'),g('tax')).then(function(){clos
 function printPayroll(){if(!PR_VIEW||!PR_VIEW.rows.length)return toast('لا توجد بيانات للطباعة');var v=PR_VIEW,T=prSum(v.rows),f=document.getElementById('prFrom').value,t=document.getElementById('prTo').value;
 paper('المرتبات','<h2>المرتبات</h2><div class="meta">من '+fmtD(f)+' إلى '+fmtD(t)+(v.mode==='d'?' — تفصيلي':'')+'</div><table><thead>'+prHead(v.mode,false)+'</thead><tbody>'+
 v.rows.map(function(r){return '<tr>'+prCells(r,v.mode,false).replace(/<b>|<\/b>/g,'')+'</tr>';}).join('')+'</tbody><tfoot>'+prFoot(T,v.mode,false)+'</tfoot></table>',{land:true,total:T.net});}
+/* ============ الإجراءات اليومية ============ */
+var PROCS=[],PM={id:null,rmD:{},rmO:{}},PFILES={},PREP=null,PBACK=null;
+function pg(id){return document.getElementById(id);}
+function procText(p){return nrm([p.seq,p.weekday,fmtD(p.date),p.date,p.plate,p.driver,p.rep,p.statement,p.ptype,p.signed,p.signDate,p.signer,p.bookPage,p.supervisor,p.notes].join(' '));}
+function renderProcs(){api('listProcs').then(function(r){PROCS=r;drawProcs();}).catch(fail);}
+function clearProcFilter(){pg('procQ').value='';pg('procFrom').value='';pg('procTo').value='';pg('procType').value='';drawProcs();}
+function procFiltered(){var words=nrm(pg('procQ').value.trim()).split(/\s+/).filter(Boolean),f=pg('procFrom').value,t=pg('procTo').value,ty=pg('procType').value;
+return PROCS.filter(function(p){if(f&&p.date<f)return false;if(t&&p.date>t)return false;if(ty&&p.ptype!==ty)return false;var tx=procText(p);return words.every(function(w){return tx.indexOf(w)!==-1;});});}
+function plink(kind,id,txt){return txt?'<span class="glink" title="تقرير يومي" onclick="procReport(\''+kind+'\',\''+id+'\')">'+esc(txt)+'</span>':'<span class="mut">—</span>';}
+function signCell(p){return p.signed==='تم الختم والتوقيع'?'<span class="ok">✔ تم الختم والتوقيع</span><div class="mut" style="font-size:11px">'+fmtD(p.signDate)+' — '+esc(p.signer)+(p.bookPage?' — ص/ع: '+esc(p.bookPage):'')+'</div>':'<span class="mut">—</span>';}
+function filesBtn(p,field){var a=p[field]||[];return a.length?'<button class="btn small" onclick="viewProcFiles(\''+p.id+'\',\''+field+'\')">📎 '+a.length+' عرض</button>':'<span class="mut">—</span>';}
+function procRow(p,actions){return '<tr><td>'+p.seq+'</td><td>'+fmtD(p.date)+'</td><td>'+esc(p.weekday)+'</td><td><b>'+plink('plate',p.id,p.plate)+'</b></td><td>'+plink('driver',p.id,p.driver)+'</td><td>'+plink('rep',p.id,p.rep)+'</td><td>'+esc(p.statement)+'</td><td>'+esc(p.ptype)+'</td><td>'+filesBtn(p,'docs')+'</td><td>'+signCell(p)+'</td><td>'+esc(p.supervisor)+'</td><td>'+esc(p.notes)+'</td><td>'+filesBtn(p,'other')+'</td>'+
+(actions?'<td class="noprint" style="white-space:nowrap"><button class="btn small" onclick="openProcModal(\''+p.id+'\')">تعديل</button> <button class="btn small danger" onclick="deleteProcRow(\''+p.id+'\')">حذف</button></td>':'')+'</tr>';}
+function drawProcs(){var rs=procFiltered();
+pg('procTotals').innerHTML=tbox('عدد الإجراءات',rs.length)+tbox('دخول',rs.filter(function(p){return p.ptype==='دخول';}).length)+tbox('خروج',rs.filter(function(p){return p.ptype==='خروج';}).length)+tbox('الإجمالي بالسجل',PROCS.length);
+pg('procBody').innerHTML=rs.map(function(p){return procRow(p,true);}).join('')||'<tr><td colspan="14" class="mut" style="text-align:center">لا توجد إجراءات</td></tr>';}
+function procDl(key){var seen={},o=[];PROCS.forEach(function(g){var v=String(g[key]||'').trim();if(v&&!seen[v]){seen[v]=1;o.push('<option value="'+esc(v)+'">');}});return '<datalist id="pdl_'+key+'">'+o.join('')+'</datalist>';}
+function procAuto(key){var v=nrm(pg('pf_'+key).value.trim());if(!v)return;var other=key==='plate'?'driver':'plate',o=pg('pf_'+other);if(o.value.trim())return;
+var hit=PROCS.filter(function(g){return nrm(g[key]).trim()===v&&g[other];})[0];if(hit)o.value=hit[other];}
+function procSignToggle(){pg('pSignBox').style.display=pg('pf_signed').value==='تم الختم والتوقيع'?'grid':'none';}
+function procTake(){PBACK=PREP&&PREP.open?PREP:null;if(PREP)PREP.open=false;}
+function procAfter(){if(PBACK){PREP=PBACK;PBACK=null;showProcReport();}}
+function openProcModal(id){procTake();var g=id?(PROCS.filter(function(x){return x.id===id;})[0]||{}):{};PM={id:id||null,rmD:{},rmO:{}};
+function f(key,label,type){return '<div><label class="gl">'+label+'</label><input class="inp" id="pf_'+key+'" '+(type||'')+' list="pdl_'+key+'" value="'+esc(g[key]||'')+'" autocomplete="off"></div>';}
+function sel(key,label,opts,ch){return '<div><label class="gl">'+label+'</label><select class="inp" id="pf_'+key+'"'+(ch?' onchange="'+ch+'"':'')+'>'+opts.map(function(o){return '<option'+((g[key]||'--')===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>';}
+openModal('<h3>'+(id?'تعديل إجراء':'إجراء يومي جديد')+'</h3><div class="gridf">'+
+'<div><label class="gl">التاريخ</label><input class="inp" type="date" id="pf_date" value="'+(g.date||todayStr())+'" onchange="procDayLabel()"><div id="pf_day" class="mut" style="font-size:12px;margin:-6px 0 6px"></div></div>'+
+f('plate','رقم السيارة','onchange="procAuto(\'plate\')"')+f('driver','اسم السائق','onchange="procAuto(\'driver\')"')+f('rep','المندوب / الموظف')+f('statement','البيان')+
+sel('ptype','نوع الإجراء',['--','دخول','خروج'])+'</div>'+
+'<label class="gl">صورة المستندات (صورة أو أكثر أو ملف PDF)</label><input class="inp" id="pf_docs" type="file" accept="image/*,application/pdf" multiple><div id="pExistD"></div>'+
+'<div class="gridf">'+sel('signed','توقيع المستند',['--','تم الختم والتوقيع'],'procSignToggle()')+'</div>'+
+'<div class="gridf" id="pSignBox" style="display:none"><div><label class="gl">تاريخ الختم والتوقيع</label><input class="inp" type="date" id="pf_signDate" value="'+esc(g.signDate||todayStr())+'"></div>'+f('signer','اسم القائم بالعمل')+f('bookPage','رقم الصفحة والعمود في الدفتر')+'</div>'+
+'<div class="gridf">'+f('supervisor','مشرف الوردية')+f('notes','ملاحظات')+'</div>'+
+'<label class="gl">مستندات أخرى (صورة أو أكثر أو ملف PDF)</label><input class="inp" id="pf_other" type="file" accept="image/*,application/pdf" multiple><div id="pExistO"></div>'+
+['plate','driver','rep','statement','supervisor'].map(procDl).join('')+
+'<button class="btn primary block" id="pSave" onclick="saveProcRow()" style="margin-top:8px">حفظ</button>');
+procDayLabel();procSignToggle();if(id&&((g.docs||[]).length||(g.other||[]).length))loadProcThumbs(id);}
+function procDayLabel(){var d=pg('pf_date').value,el=pg('pf_day');el.textContent=d?'اليوم: '+WD[new Date(d+'T12:00:00').getDay()]:'';}
+function getProcFilesData(id){if(PFILES[id])return Promise.resolve(PFILES[id]);return api('getProcFiles',id).then(function(r){PFILES[id]=r;return r;});}
+function loadProcThumbs(id){getProcFilesData(id).then(function(r){
+function box(list,key,rm,divId,title){if(!list.length)return;var h='<div class="gl" style="margin-top:4px">'+title+' (اضغط حذف لإزالة ملف)</div>';
+list.forEach(function(f,i){h+='<div class="gth" id="pth_'+key+i+'">'+(f.t==='pdf'?'<div style="padding:14px">📄 PDF</div>':'<img alt="" src="'+f.data+'">')+'<button type="button" class="btn small" onclick="toggleProcRm(\''+key+'\','+i+')">حذف</button></div>';});pg(divId).innerHTML=h;}
+box(r.docs,'D',PM.rmD,'pExistD','صور المستندات الحالية');box(r.other,'O',PM.rmO,'pExistO','المستندات الأخرى الحالية');}).catch(function(){});}
+function toggleProcRm(k,i){var m=k==='D'?PM.rmD:PM.rmO;m[i]=!m[i];pg('pth_'+k+i).classList.toggle('rm',!!m[i]);}
+function fileToData(f){if(/^image\//.test(f.type))return fileToJpeg(f,1600);
+return new Promise(function(res,rej){if(f.size>5000000)return rej(new Error('ملف PDF كبير (الحد 5 ميجا)'));var fr=new FileReader();fr.onerror=function(){rej(new Error('تعذر قراءة الملف'));};fr.onload=function(){res(fr.result);};fr.readAsDataURL(f);});}
+function readFilesData(inp){var fs=inp&&inp.files?[].slice.call(inp.files):[];return Promise.all(fs.map(fileToData));}
+function saveProcRow(){var v=function(k){return pg('pf_'+k).value.trim();};
+if(!v('plate')&&!v('driver')&&!v('rep'))return toast('اكتب رقم السيارة أو السائق أو المندوب');
+var btn=pg('pSave');btn.disabled=true;btn.textContent='جاري الحفظ...';var nd,no;
+readFilesData(pg('pf_docs')).then(function(a){nd=a;return readFilesData(pg('pf_other'));}).then(function(b){no=b;
+return api('saveProc',{id:PM.id,date:v('date'),plate:v('plate'),driver:v('driver'),rep:v('rep'),statement:v('statement'),ptype:v('ptype'),signed:v('signed'),signDate:v('signDate'),signer:v('signer'),bookPage:v('bookPage'),supervisor:v('supervisor'),notes:v('notes'),
+newDocs:nd,newOther:no,removeDocs:Object.keys(PM.rmD).filter(function(k){return PM.rmD[k];}).map(Number),removeOther:Object.keys(PM.rmO).filter(function(k){return PM.rmO[k];}).map(Number)});}).then(function(p){
+var i=PROCS.map(function(x){return x.id;}).indexOf(p.id);if(i===-1)PROCS.unshift(p);else PROCS[i]=p;delete PFILES[p.id];
+PROCS.sort(function(a,b){return a.date===b.date?b.seq-a.seq:(a.date<b.date?1:-1);});closeModal();drawProcs();procAfter();toast('تم الحفظ');}).catch(function(e){btn.disabled=false;btn.textContent='حفظ';fail(e);});}
+function deleteProcRow(id){procTake();var g=PROCS.filter(function(x){return x.id===id;})[0]||{};
+confirmBox('حذف هذا الإجراء ('+(g.plate||g.rep||g.driver||'')+') نهائيًا؟',function(){api('deleteProc',id).then(function(){PROCS=PROCS.filter(function(x){return x.id!==id;});delete PFILES[id];drawProcs();procAfter();toast('تم الحذف');}).catch(fail);});}
+/* عرض كل الصور بحجم واضح + PDF + طباعة */
+function viewProcFiles(id,field){var p=PROCS.filter(function(x){return x.id===id;})[0]||{};var title=field==='docs'?'صور المستندات':'مستندات أخرى';
+openModal('<h3>'+title+' — '+esc(p.plate||p.rep||p.driver||'')+' ('+fmtD(p.date)+')</h3><div id="pvBox" class="mut">جاري التحميل...</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn primary block" onclick="printProcFiles()">🖨 طباعة الملفات</button><button class="btn block" onclick="closeModal()">إغلاق</button></div>');
+showProcFiles(id,field);}
+var PV_LIST=[];
+function showProcFiles(id,field){getProcFilesData(id).then(function(r){PV_LIST=r[field]||[];
+pg('pvBox').outerHTML='<div id="pvBox" style="display:grid;gap:12px;max-height:72vh;overflow:auto">'+(PV_LIST.map(function(f,i){
+if(!f.data)return '<div class="mut">ملف غير متاح</div>';
+return f.t==='pdf'?'<div><a class="btn" href="'+f.data+'" download="document-'+(i+1)+'.pdf" target="_blank">📄 فتح / تحميل PDF '+(i+1)+'</a><embed src="'+f.data+'" type="application/pdf" style="width:100%;height:480px;margin-top:6px"></div>':'<img alt="" src="'+f.data+'" style="width:100%;border-radius:10px;border:1px solid #e2e8f0">';}).join('')||'<div class="mut">لا توجد ملفات</div>')+'</div>';}).catch(fail);}
+function printProcFiles(){var imgs=PV_LIST.filter(function(f){return f.t!=='pdf'&&f.data;});if(!imgs.length)return toast('لا توجد صور للطباعة (ملفات PDF تُطبع من فتحها)');
+openModal('<div class="paper">'+imgs.map(function(f){return '<img alt="" src="'+f.data+'" style="width:100%;max-height:270mm;object-fit:contain;display:block;margin:0 auto;page-break-after:always">';}).join('')+'</div>'+printBar());}
+/* تقرير يومي (للتاريخ المختار) لسيارة / سائق / مندوب */
+function procMatch(kind,val,x){return nrm(x[kind]).trim()===nrm(val).trim();}
+function procReport(kind,id){var p=PROCS.filter(function(x){return x.id===id;})[0];if(!p)return;var val=p[kind];if(!String(val).trim())return;
+PREP={kind:kind,val:val,from:p.date,to:p.date,open:true};showProcReport();}
+function procRepRows(){if(!PREP)return [];return PROCS.filter(function(x){return procMatch(PREP.kind,PREP.val,x)&&(!PREP.from||x.date>=PREP.from)&&(!PREP.to||x.date<=PREP.to);}).sort(function(a,b){return a.date===b.date?a.seq-b.seq:(a.date<b.date?-1:1);});}
+function procRepTitle(){return (PREP.kind==='plate'?'تقرير يومي للسيارة ':(PREP.kind==='driver'?'تقرير يومي للسائق ':'تقرير يومي للمندوب / الموظف '))+PREP.val;}
+function showProcReport(){PREP.open=true;openModal('<h3>'+esc(procRepTitle())+'</h3>'+
+'<div class="filters" style="margin-bottom:8px"><label>من</label><input type="date" id="prpFrom" value="'+(PREP.from||'')+'" onchange="procRepDates()"><label>إلى</label><input type="date" id="prpTo" value="'+(PREP.to||'')+'" onchange="procRepDates()">'+
+'<button class="btn" onclick="procRepAll()">كل الأيام</button><button class="btn primary" onclick="printProcReport()">🖨 طباعة</button><button class="btn" onclick="closeModal();PREP=null">إغلاق</button></div>'+
+'<div class="totals" id="prpTotals"></div><div class="table-wrap" style="max-height:60vh;overflow:auto"><table><thead><tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>رقم السيارة</th><th>اسم السائق</th><th>المندوب / الموظف</th><th>البيان</th><th>نوع الإجراء</th><th>صورة المستندات</th><th>توقيع المستند</th><th>مشرف الوردية</th><th>ملاحظات</th><th>مستندات أخرى</th><th class="noprint">إجراءات</th></tr></thead><tbody id="prpBody"></tbody></table></div>');drawProcReport();}
+function procRepDates(){PREP.from=pg('prpFrom').value;PREP.to=pg('prpTo').value;drawProcReport();}
+function procRepAll(){PREP.from='';PREP.to='';pg('prpFrom').value='';pg('prpTo').value='';drawProcReport();}
+function drawProcReport(){var rs=procRepRows();pg('prpTotals').innerHTML=tbox('عدد الإجراءات',rs.length)+tbox('دخول',rs.filter(function(p){return p.ptype==='دخول';}).length)+tbox('خروج',rs.filter(function(p){return p.ptype==='خروج';}).length);
+pg('prpBody').innerHTML=rs.map(function(p){return procRow(p,true);}).join('')||'<tr><td colspan="14" class="mut" style="text-align:center">لا توجد إجراءات في الفترة</td></tr>';}
+function procPrintTable(rs){return '<table><thead><tr><th>م</th><th>التاريخ</th><th>اليوم</th><th>رقم السيارة</th><th class="nm">اسم السائق</th><th class="nm">المندوب / الموظف</th><th class="nm">البيان</th><th>نوع الإجراء</th><th>توقيع المستند</th><th>مشرف الوردية</th><th>ملاحظات</th></tr></thead><tbody>'+
+rs.map(function(p){return '<tr><td>'+p.seq+'</td><td>'+fmtD(p.date)+'</td><td>'+esc(p.weekday)+'</td><td>'+esc(p.plate)+'</td><td class="nm">'+esc(p.driver)+'</td><td class="nm">'+esc(p.rep)+'</td><td class="nm">'+esc(p.statement)+'</td><td>'+esc(p.ptype)+'</td><td>'+(p.signed==='تم الختم والتوقيع'?'تم الختم والتوقيع — '+fmtD(p.signDate)+' — '+esc(p.signer)+(p.bookPage?' — ص/ع '+esc(p.bookPage):''):'—')+'</td><td>'+esc(p.supervisor)+'</td><td>'+esc(p.notes)+'</td></tr>';}).join('')+'</tbody></table>';}
+function printProcs(){var rs=procFiltered().slice().sort(function(a,b){return a.date===b.date?a.seq-b.seq:(a.date<b.date?-1:1);});if(!rs.length)return toast('لا توجد إجراءات للطباعة');
+paper('الإجراءات اليومية','<h2>الإجراءات اليومية</h2><div class="meta">'+(pg('procFrom').value?'من '+fmtD(pg('procFrom').value)+' ':'')+(pg('procTo').value?'إلى '+fmtD(pg('procTo').value):'')+(pg('procType').value?' — '+pg('procType').value:'')+'</div>'+procPrintTable(rs),{land:true,total:rs.length,totalLabel:'عدد الإجراءات'});}
+function printProcReport(){var rs=procRepRows();if(!rs.length)return toast('لا توجد إجراءات للطباعة');
+paper('تقرير يومي','<h2>'+esc(procRepTitle())+'</h2><div class="meta">'+(PREP.from?'من '+fmtD(PREP.from)+' ':'')+(PREP.to?'إلى '+fmtD(PREP.to):'')+'</div>'+procPrintTable(rs),{land:true,total:rs.length,totalLabel:'عدد الإجراءات'});}
 /* ============ دفتر دخول البوابة ============ */
 var GATE=[],GM={id:null,rm:{}},GIMG={};
 function nrm(s){return String(s==null?'':s).toLowerCase().replace(/[ً-ٰٟـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});}
