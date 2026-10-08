@@ -1,5 +1,9 @@
 // تصدير أي شاشة كـ PDF — للطباعة والإرسال (نفس هوية الويب: جدول أزرق + خط Times New Roman + اللوجو)
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart' as pw;
 import 'package:pdf/widgets.dart' as pw;
@@ -119,10 +123,22 @@ Future<void> exportTablePdf({
   );
   final bytes = await doc.save();
   if (!context.mounted) return;
-  await _pdfActionsSheet(context, bytes);
+  await _pdfActionsSheet(context, bytes, title, headers, [...rows, if (totalsRow != null) totalsRow]);
 }
 
-Future<void> _pdfActionsSheet(BuildContext context, Uint8List bytes) {
+String _csvCell(String v) => '"${v.replaceAll('"', '""')}"';
+
+Future<void> _shareExcel(String title, List<String> headers, List<List<String>> rows) async {
+  final b = StringBuffer('\uFEFF');
+  b.writeln(headers.map(_csvCell).join(','));
+  for (final r in rows) { b.writeln(r.map(_csvCell).join(',')); }
+  final dir = await getTemporaryDirectory();
+  final f = File('${dir.path}/${title.replaceAll(RegExp(r'[^\w\u0600-\u06FF]+'), '-')}.csv');
+  await f.writeAsBytes(utf8.encode(b.toString()));
+  await Share.shareXFiles([XFile(f.path, mimeType: 'text/csv')], subject: title);
+}
+
+Future<void> _pdfActionsSheet(BuildContext context, Uint8List bytes, String title, List<String> headers, List<List<String>> rows) {
   return showModalBottomSheet(
     context: context,
     showDragHandle: true,
@@ -152,6 +168,16 @@ Future<void> _pdfActionsSheet(BuildContext context, Uint8List bytes) {
                 icon: const Icon(Icons.send, size: 19),
                 label: const Text('إرسال PDF (واتساب / بريد / إلخ)'),
                 onPressed: () { Navigator.pop(context); Printing.sharePdf(bytes: bytes, filename: 'تقرير-إدارة-الأمن.pdf'); },
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F766E)),
+                icon: const Icon(Icons.table_chart, size: 19),
+                label: const Text('تصدير Excel'),
+                onPressed: () { Navigator.pop(context); _shareExcel(title, headers, rows); },
               ),
             ),
           ],

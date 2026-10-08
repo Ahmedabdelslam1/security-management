@@ -208,6 +208,8 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
       <div class="brand">إدارة الأمن</div>
       <div class="hdr-user"><button class="btn small" id="backBtn" onclick="goBack()" title="رجوع">⬅ رجوع</button><span id="hdrName"></span>
         <button class="btn small" onclick="openCalculator()" title="الآلة الحاسبة">🖩</button>
+        <button class="btn small" style="background:#dcfce7;color:#15803d;padding:2px 6px" onclick="exportPage('xls')" title="تصدير الصفحة إلى Excel">📗</button>
+        <button class="btn small" style="background:#fee2e2;color:#b91c1c;padding:2px 6px" onclick="exportPage('pdf')" title="تصدير الصفحة إلى PDF">📕</button>
         <button class="btn small" onclick="captureScreen()" title="تصوير الشاشة">📷</button>
         <button class="btn small" onclick="refreshAll()" title="تحديث البيانات">⟳</button>
         <button class="btn small" onclick="openChangePassword()" title="تغيير كلمة المرور">🔑</button>
@@ -559,6 +561,18 @@ if(USER.role==='admin'||(USER.perms&&USER.perms[k]))tabs.push(t);});
 if(USER.role==='admin'){tabs.push(['users','المستخدمين'],['monitor','المتابعة']);}
 var ICONS={attendance:'\uD83D\uDCCB',settlement:'\uD83D\uDCB0',workers:'\uD83D\uDC65',reports:'\uD83D\uDCCA',users:'\uD83D\uDC64',monitor:'\uD83D\uDDA5',gate:'\uD83D\uDEAA',procs:'\uD83D\uDCDD'};
 document.getElementById('mainNav').innerHTML=tabs.map(function(t){return '<button id="nav-'+t[0]+'" onclick="switchTab(\''+t[0]+'\')"><span>'+(ICONS[t[0]]||'')+'</span><span>'+t[1]+'</span></button>';}).join('');}
+/* ============ تصدير الصفحة/التقرير الحالي إلى Excel أو PDF ============ */
+function exportRoot(){var m=document.querySelector('#modalWrap.show .paper');if(m)return m;return document.getElementById('sec-'+CURTAB)||document.body;}
+function exportHtml(){var root=exportRoot(),out='';root.querySelectorAll('table').forEach(function(t){
+if(!t.offsetParent&&!t.closest('.paper'))return;var c=t.cloneNode(true);
+c.querySelectorAll('.noprint,button,script,style').forEach(function(x){x.remove();});
+c.querySelectorAll('input,select,textarea').forEach(function(x){var v=x.tagName==='SELECT'?(x.options[x.selectedIndex]||{}).text:x.value;x.replaceWith(document.createTextNode(v||''));});
+c.querySelectorAll('[class],[style]').forEach(function(x){x.removeAttribute('class');x.removeAttribute('style');});
+c.setAttribute('border','1');c.setAttribute('cellpadding','4');c.setAttribute('style','border-collapse:collapse;direction:rtl;font-family:Times New Roman;font-size:13px');out+=c.outerHTML+'<br>';});return out;}
+function exportPage(kind){var html=exportHtml(),title=(TABS&&TABS[CURTAB])||'تقرير';if(!html)return toast('لا توجد جداول في هذه الصفحة للتصدير');
+var doc='<html dir="rtl"><head><meta charset="utf-8"><title>'+title+'</title></head><body dir="rtl"><h3>'+title+' — '+new Date().toLocaleDateString('ar-EG')+'</h3>'+html+'</body></html>';
+if(kind==='xls'){var b=new Blob(['\ufeff'+doc],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=title+'.xls';document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(a.href);},1500);toast('تم تصدير ملف Excel');return;}
+paper(title,html);setTimeout(function(){toast('اضغط طباعة ثم اختر "حفظ كـ PDF"');},300);}
 /* ============ أدوات سريعة: آلة حاسبة + تصوير الشاشة ============ */
 var CALC_EXPR='';var CALC_MEM=0;
 function calcBtn(l,fn){return '<button class="btn" style="font-size:17px;padding:12px 0" onclick="'+fn+'">'+l+'</button>';}
