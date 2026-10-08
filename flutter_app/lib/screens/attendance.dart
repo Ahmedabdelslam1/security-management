@@ -251,16 +251,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final c = _ctl[w.id];
       if (c == null) continue;
       if (c.status != '--') present++;
-      rows.add([w.name, c.status == '--' ? '—' : c.status, c.loc.isEmpty ? '—' : c.loc, c.xh.isEmpty || c.xh == '0' ? '—' : c.xh, c.notes]);
+      final xhN = double.tryParse(c.xh) ?? 0;
+      final ex = (kExtraStatuses.contains(c.status) && xhN > 0) ? 'إضافي (${_numStr(xhN)}) ساعة' : '';
+      rows.add([w.name, c.status == '--' ? '—' : c.status, c.loc.isEmpty ? '—' : c.loc, [ex, c.notes].where((x) => x.isNotEmpty).join(' — ')]);
     }
     exportTablePdf(
       context: context,
       title: 'كشف الحضور اليومي',
       subtitle: fmtDate(_dstr),
-      headers: ['اسم العامل', 'الموقف', 'مكان الحضور', 'إضافي', 'ملاحظات'],
-      widths: [95, 75, 75, 45, 90],
+      headers: ['اسم العامل', 'الموقف', 'مكان الحضور', 'ملاحظات'],
+      widths: [95, 75, 75, 120],
       rows: rows,
-      totalsRow: ['الحضور: $present من ${ws.length}', '', '', '', ''],
+      totalsRow: ['الحضور: $present من ${ws.length}', '', '', ''],
     );
   }
 
@@ -352,7 +354,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     isDense: true,
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    labelText: 'ساعات إضافية',
+                    labelText: 'إضافي (ساعة)',
                   ),
                   style: const TextStyle(fontSize: 13.5),
                   onChanged: (v) => setState(() => c.xh = v),

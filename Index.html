@@ -673,7 +673,7 @@ return '<tr data-wid="'+w.id+'" data-name="'+esc(w.name)+'"'+(lk?' class="locked
 '<td><input class="loc" list="locList" value="'+esc(rec.loc||'')+'" placeholder="مكان الحضور" style="width:130px" oninput="locChanged(this)"'+dis+'></td>'+
 ''+
 '<td class="'+dueCls(c)+'" style="white-space:normal;word-break:break-word">'+dueText(c)+paidMark(w,date,st,rec.xh||0,rec.loc||'',wgv)+'</td>'+
-'<td style="min-width:135px"><span class="xhw" style="display:'+(need?'flex':'none')+';align-items:center;gap:4px;font-size:11px;color:#64748b;margin-bottom:2px">ساعات إضافية <input class="xh" type="number" min="0" step="0.5" value="'+(rec.xh||'')+'" oninput="refreshDue(this.closest(\'tr\'))" style="width:56px;padding:3px 6px;font-size:12px"'+dis+'></span>'+
+'<td style="min-width:135px"><span class="xhw" style="display:'+(need?'flex':'none')+';align-items:center;gap:4px;font-size:11px;color:#64748b;margin-bottom:2px">إضافي (ساعة) <input class="xh" type="number" min="0" step="0.5" value="'+(rec.xh||'')+'" oninput="refreshDue(this.closest(\'tr\'))" style="width:56px;padding:3px 6px;font-size:12px"'+dis+'></span>'+
 '<div style="display:flex;gap:4px;align-items:center"><input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="flex:1;min-width:0"'+dis+'>'+(lk?'':'<button class="btn small primary noprint" title="حفظ" onclick="saveRow(this.closest(\'tr\'))" style="padding:2px 6px;font-size:12px">💾</button>')+'</div></td>'+
 '</tr>';}).join('');
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){refreshDue(tr);});}
@@ -686,7 +686,7 @@ if(EXTRA_STS.indexOf(sel.value)!==-1){wrap.style.display='flex';if(!xh.value)xh.
 refreshDue(tr);}
 function locChanged(inp){var tr=inp.closest('tr'),st=tr.querySelector('.st');
 if(inp.value.trim()&&st.value==='--'){st.value='حضور';toggleExtra(st);}else refreshDue(tr);}
-function notesX(x){var n=String((x&&x.notes)||''),e=Number((x&&x.xh)||0);return (e?'ساعات إضافية: '+e+'. ':'')+n;}
+function notesX(x){var n=String((x&&x.notes)||''),e=Number((x&&x.xh)||0);return (e?'إضافي ('+e+') ساعة. ':'')+n;}
 function saveDay(){var date=document.getElementById('attDate').value;if(!date)return toast('حدد التاريخ');
 var recs=[];
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){
