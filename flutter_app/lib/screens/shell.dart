@@ -55,6 +55,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.resumed) {
       App.I.bootstrap(silent: true).catchError((_) {});
+      autoUpdate(context);
     }
   }
 

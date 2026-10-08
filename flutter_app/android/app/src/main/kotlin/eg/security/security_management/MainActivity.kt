@@ -22,6 +22,12 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
                     try {
+                        if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+                            startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            result.error("NO_PERM", "allow install from this app", null)
+                            return@setMethodCallHandler
+                        }
                         val file = File(path)
                         val uri: Uri = FileProvider.getUriForFile(
                             this, "$packageName.fileprovider", file

@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-const String appVersion = '1.10.1';
+const String appVersion = '1.10.2';
 const String _versionUrl =
     'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json';
 const String _apkUrl =
@@ -41,7 +41,10 @@ Future<String?> fetchNewerVersion() async {
 /// تحديث تلقائي كامل وصامت: بدون أي نافذة تأكيد أو شريط تقدم أو إشعار خطأ.
 /// يفحص الإصدار، يحمّل الملف في الخلفية، ثم يفتح المثبّت مباشرة.
 /// لا يستخدم BuildContext نهائيًا — يعمل حتى لو المستخدم غيّر الشاشة.
+bool _updating = false;
 Future<void> autoUpdate(BuildContext context) async {
+  if (_updating) return;
+  _updating = true;
   try {
     final newer = await fetchNewerVersion();
     if (newer == null) return;
@@ -65,5 +68,7 @@ Future<void> autoUpdate(BuildContext context) async {
     }
   } catch (_) {
     // صمت تام أيضًا على فشل الفحص أو التحميل — بدون إشعارات نهائيًا
+  } finally {
+    _updating = false;
   }
 }
