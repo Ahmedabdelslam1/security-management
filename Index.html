@@ -564,8 +564,13 @@ document.getElementById('mainNav').innerHTML=tabs.map(function(t){return '<butto
 /* ============ تصدير الصفحة/التقرير الحالي إلى Excel أو PDF ============ */
 function exportRoot(){var m=document.querySelector('#modalWrap.show .paper');if(m)return m;return document.getElementById('sec-'+CURTAB)||document.body;}
 function exportHtml(){var root=exportRoot(),out='';root.querySelectorAll('table').forEach(function(t){
-if(!t.offsetParent&&!t.closest('.paper'))return;var c=t.cloneNode(true);
+if(!t.offsetParent&&!t.closest('.paper'))return;if(!t.querySelector('tbody tr'))return;
+var hid=[];t.querySelectorAll('*').forEach(function(x){if(getComputedStyle(x).display==='none'||x.type==='hidden'||(x.classList&&x.classList.contains('wg'))){x.setAttribute('data-hid','1');hid.push(x);}});
+var c=t.cloneNode(true);hid.forEach(function(x){x.removeAttribute('data-hid');});
+c.querySelectorAll('[data-hid]').forEach(function(x){x.remove();});
+c.querySelectorAll('.xhw').forEach(function(x){var i=x.querySelector('input'),v=i?Number(i.value)||0:0;if(v>0)x.replaceWith(document.createTextNode('إضافي ('+v+') ساعة '));else x.remove();});
 c.querySelectorAll('.noprint,button,script,style').forEach(function(x){x.remove();});
+c.querySelectorAll('.xhw').forEach(function(x){var i=x.querySelector('input'),v=i?Number(i.value)||0:0;if(/display:\s*none/.test(x.getAttribute('style')||'')||!v)x.remove();else x.replaceWith(document.createTextNode('إضافي ('+v+') ساعة '));});
 c.querySelectorAll('input,select,textarea').forEach(function(x){var v=x.tagName==='SELECT'?(x.options[x.selectedIndex]||{}).text:x.value;x.replaceWith(document.createTextNode(v||''));});
 c.querySelectorAll('[class],[style]').forEach(function(x){x.removeAttribute('class');x.removeAttribute('style');});
 c.setAttribute('border','1');c.setAttribute('cellpadding','4');c.setAttribute('style','border-collapse:collapse;direction:rtl;font-family:Times New Roman;font-size:13px');out+=c.outerHTML+'<br>';});return out;}
@@ -658,7 +663,7 @@ function paidMark(w,date,st,xh,loc,wg){var saved=ATT.filter(function(r){return r
 if(!saved||!saved.settleId)return '';
 return Math.abs(liveVal(w,st,xh,loc,wg)-(saved.paidAmt||0))<=0.005?' <span class="badge lock">🔒 مغلق — مصروف</span>':' <span class="badge due">🔒 مغلق — معدّل بعد الصرف</span>';}
 function isLocked(date,wid){return ATT.some(function(r){return r.date===date&&r.wid===wid&&!!r.settleId;});}
-function dueText(c){return '<small style="font-size:9px;line-height:1.35;display:block"><span style="color:#1d4ed8">'+c.days+' يوم</span>'+(c.hrs>0?' <span style="color:#ea580c">+ '+otText(c.hrs)+' إضافي</span>':'')+' <span style="color:#15803d">= '+c.amt+'</span></small>';}
+function dueText(c){return '<small style="font-size:9px;line-height:1.35;display:block"><span style="color:#1d4ed8">'+c.days+' يوم</span>'+(c.hrs>0?' <span style="color:#ea580c">+ إضافي ('+(Math.round(c.hrs*100)/100)+') ساعة</span>':'')+' <span style="color:#15803d">= '+c.amt+'</span></small>';}
 function dueCls(c){return 'unset'+(c.days>0||c.amt>0?' due-red':'');}
 function renderDay(){var date=document.getElementById('attDate').value||todayStr();
 document.getElementById('attBody').innerHTML=WORKERS.map(function(w){

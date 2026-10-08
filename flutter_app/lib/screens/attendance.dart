@@ -240,7 +240,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       hrsTotal += settled ? (wg > 0 ? d / (wg / hrs) : 0.0) : xh;
     }
     final hr0 = hrsTotal;
-    return ['$days يوم', hr0 > 0 ? '+ ${otText(r2(hr0))} إضافي' : '', '= ${r2(amt < 0 ? 0 : amt)}'];
+    return ['$days يوم', hr0 > 0 ? '+ إضافي (${_numStr(r2(hr0))}) ساعة' : '', '= ${r2(amt < 0 ? 0 : amt)}'];
   }
 
   void _pdf() {
