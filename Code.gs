@@ -89,7 +89,7 @@ function apiMap_() {
 
 /* تحديث يدوي من زر المستخدمين: يمسح الذاكرة المؤقتة ويسحب أحدث واجهة من GitHub ويرجع إصدار التطبيق المتاح */
 function refreshLive(token) {
-  auth_(token, 'admin');
+  auth_(token);
   var c = CacheService.getScriptCache(), ks = ['WEBX_N', 'GS_FN', 'GS_SN'];
   for (var i = 0; i < 30; i++) { ks.push('WEBX_' + i); ks.push('GS_F' + i); ks.push('GS_S' + i); }
   try { c.removeAll(ks); } catch (e) {}

@@ -630,7 +630,7 @@ var p=NAVH.pop();if(p&&document.getElementById('nav-'+p))switchTab(p,true);else{
 window.addEventListener('popstate',function(){if(TOKEN){var m=document.getElementById('modalWrap');if(m&&m.classList.contains('show')){closeModal();}else if(NAVH.length){var p=NAVH.pop();if(document.getElementById('nav-'+p))switchTab(p,true);}
 try{history.pushState({t:CURTAB},'');}catch(e){}}});
 try{history.replaceState({t:'start'},'');history.pushState({t:'app'},'');}catch(e){}
-function refreshAll(){toast('جاري التحديث...');reloadData().then(function(){refreshLists();buildNav();var ok=document.getElementById('nav-'+CURTAB);var first=document.querySelector('#mainNav button');switchTab(ok?CURTAB:(first?first.id.replace('nav-',''):'none'));toast('تم تحديث البيانات');}).catch(fail);}
+function refreshAll(){toast('جاري التحديث...');api('refreshLive').catch(function(){}).then(function(){return reloadData();}).then(function(){refreshLists();buildNav();var ok=document.getElementById('nav-'+CURTAB);var first=document.querySelector('#mainNav button');switchTab(ok?CURTAB:(first?first.id.replace('nav-',''):'none'));toast('تم تحديث البيانات');}).catch(fail);}
 function log(a,p,d){if(!USER||!TOKEN)return;api('addLog',a,p,d||'').catch(function(){});}
 /* ============ الحضور ============ */
 function liveOt(w,st,xh,wg){return EXTRA_STS.indexOf(st)!==-1?(Number(xh)||0)*((Number(wg)||w.wage||0)/((w.hours||8)||8)):0;}

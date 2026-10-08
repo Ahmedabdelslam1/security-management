@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../state.dart';
+import '../api.dart';
 import '../updater.dart';
 import '../widgets.dart';
 import 'attendance.dart';
@@ -137,8 +138,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           // زر تحديث يدوي (مزامنة فورية)
           IconButton(
             tooltip: 'مزامنة الآن',
-            onPressed: () {
-              App.I.bootstrap().catchError((_) {});
+            onPressed: () async {
+              final m = ScaffoldMessenger.of(context);
+              m.showSnackBar(const SnackBar(content: Text('جاري تحديث البيانات والإصدار...'), duration: Duration(seconds: 2)));
+              try { await Api.auth('refreshLive', []); } catch (_) {}
+              try { await App.I.bootstrap(); } catch (_) {}
+              final msg = await forceUpdate();
+              m.showSnackBar(SnackBar(content: Text(msg)));
             },
             icon: const Icon(Icons.sync, size: 20),
           ),
