@@ -120,7 +120,7 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  static const _permDefs = [('workers', 'العاملين'), ('attendance', 'الحضور'), ('reports', 'التقارير'), ('gate', 'دفتر البوابة')];
+  static const _permDefs = [('workers', 'العاملين'), ('attendance', 'الحضور'), ('reports', 'التقارير'), ('gate', 'دفتر البوابة'), ('procs', 'الإجراءات اليومية')];
 
   Future<void> _perms(AppUser u) async {
     final Map<String, bool> perms = {
@@ -128,6 +128,7 @@ class _UsersScreenState extends State<UsersScreen> {
       'attendance': u.perms['attendance'] == 1 || u.perms['attendance'] == true,
       'reports': u.perms['reports'] == 1 || u.perms['reports'] == true,
       'gate': u.perms['gate'] == 1 || u.perms['gate'] == true,
+      'procs': u.perms['procs'] == 1 || u.perms['procs'] == true,
     };
     final ok = await showModalBottomSheet<bool>(
       context: context,

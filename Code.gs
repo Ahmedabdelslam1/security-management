@@ -13,7 +13,7 @@
 var TZ = 'Africa/Cairo';
 var STATUSES = ['حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
-var PERMS = ['workers', 'attendance', 'reports', 'gate'];
+var PERMS = ['workers', 'attendance', 'reports', 'gate', 'procs'];
 var SESSION_TTL = 1800;             // الجلسة تنتهي بعد نصف ساعة بلا أي نشاط (تتجدد مع كل طلب)
 var SESSION_MAX_IDLE = 30 * 60 * 1000;
 var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
@@ -897,14 +897,14 @@ function procOut_(p) {
 }
 
 function listProcs(token) {
-  auth_(token, 'gate');
+  auth_(token, 'procs');
   var rows = readAll_('Procs').map(procOut_);
   rows.sort(function (a, b) { return a.date === b.date ? b.seq - a.seq : (a.date < b.date ? 1 : -1); });
   return rows.slice(0, 3000);
 }
 
 function saveProc(token, e) {
-  var u = auth_(token, 'gate');
+  var u = auth_(token, 'procs');
   e = e || {};
   var date = String(e.date || '');
   if (!validDate_(date)) throw new Error('حدد التاريخ');
@@ -949,7 +949,7 @@ function saveProc(token, e) {
 }
 
 function deleteProc(token, id) {
-  var u = auth_(token, 'gate');
+  var u = auth_(token, 'procs');
   return locked_(function () {
     var keep = [], hit = null;
     readAll_('Procs').forEach(function (g) { if (g.id === String(id)) hit = g; else keep.push(g); });
@@ -963,7 +963,7 @@ function deleteProc(token, id) {
 
 /* كل ملفات السجل دفعة واحدة (صور كاملة الوضوح + PDF) */
 function getProcFiles(token, id) {
-  auth_(token, 'gate');
+  auth_(token, 'procs');
   var p = readAll_('Procs').filter(function (x) { return x.id === String(id); })[0];
   if (!p) return { docs: [], other: [] };
   function load(list) {

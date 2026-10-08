@@ -546,7 +546,7 @@ if(n!==n2)return toast('تأكيد كلمة المرور غير مطابق');
 api('changePassword',o,n).then(function(){closeModal();toast('تم تغيير كلمة المرور');}).catch(fail);}
 function buildNav(){var tabs=[];
 [['attendance','الحضور'],['settlement','التسوية'],['workers','العاملين'],['reports','التقارير'],['gate','دفتر البوابة'],['procs','الإجراءات اليومية']].forEach(function(t){
-var k=t[0];if(k==='settlement')k='attendance';if(k==='procs')k='gate';
+var k=t[0];if(k==='settlement')k='attendance';
 if(USER.role==='admin'||(USER.perms&&USER.perms[k]))tabs.push(t);});
 if(USER.role==='admin'){tabs.push(['users','المستخدمين'],['monitor','المتابعة']);}
 var ICONS={attendance:'\uD83D\uDCCB',settlement:'\uD83D\uDCB0',workers:'\uD83D\uDC65',reports:'\uD83D\uDCCA',users:'\uD83D\uDC64',monitor:'\uD83D\uDDA5',gate:'\uD83D\uDEAA',procs:'\uD83D\uDCDD'};
@@ -963,7 +963,7 @@ openModal('<h3>تقرير مفصل: '+esc(w.name)+'</h3><div class="meta" style=
 rows.map(function(r){return '<tr><td>'+fmtD(r.date)+'</td><td>'+r.status+'</td><td>'+esc(r.loc)+'</td><td>'+Math.round(recVal(r,w)*100)/100+'</td><td>'+esc(notesX(r))+'</td></tr>';}).join('')+'</tbody></table></div>'+
 '<button class="btn primary block" onclick="closeModal()" style="margin-top:12px">إغلاق</button>');}
 /* ============ المستخدمين ============ */
-var PERM_LBL={workers:'العاملين',attendance:'الحضور والتسوية',reports:'التقارير',gate:'دفتر البوابة'};
+var PERM_LBL={workers:'العاملين',attendance:'الحضور والتسوية',reports:'التقارير',gate:'دفتر البوابة',procs:'الإجراءات اليومية'};
 function permBoxes(cls,perms){return Object.keys(PERM_LBL).map(function(p){
 return '<label style="margin-left:10px;font-size:12.5px;white-space:nowrap"><input type="checkbox" class="'+cls+'" data-p="'+p+'"'+(perms&&perms[p]?' checked':'')+'> '+PERM_LBL[p]+'</label>';}).join('');}
 function renderUsers(){document.getElementById('usersBody').innerHTML=USERS.map(function(u){
