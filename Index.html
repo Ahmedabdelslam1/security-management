@@ -73,9 +73,9 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .filters label{font-size:13px;color:#475569;font-weight:600}
 .totals{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
-.tbox{border:1px solid transparent;border-radius:8px;padding:3px 7px;text-align:center;min-width:0;flex:1 1 0;white-space:nowrap}
-.tbox b{display:block;font-size:12.5px}
-.tbox span{font-size:9.5px;opacity:.85}
+.tbox{border:1px solid transparent;border-radius:7px;padding:1px 4px;text-align:center;min-width:0;flex:1 1 0;white-space:nowrap}
+.tbox b{display:block;font-size:11px;line-height:1.3}
+.tbox span{font-size:8.5px;opacity:.85}
 .tbox:nth-child(8n+1){background:#dbeafe;color:#1d4ed8;border-color:#1d4ed833}
 .tbox:nth-child(8n+2){background:#dcfce7;color:#15803d;border-color:#15803d33}
 .tbox:nth-child(8n+3){background:#fef3c7;color:#b45309;border-color:#b4530933}
@@ -920,7 +920,7 @@ return {w:w,days:rs.length,wage:r2(gr/rs.length),gross:r2(gr),ot:r2(ot),total:r2
 function runLetterReport(){loadAdj().then(runLetterReportNow).catch(fail);}
 function runLetterReportNow(){var rs=letterRepRows(),tot=r2(rs.reduce(function(a,r){return a+r.total;},0));
 var net=r2(rs.reduce(function(a,r){return a+r.net;},0));
-document.getElementById('rlLetTotals').innerHTML=tbox('عدد العمال',rs.length)+tbox('إجمالي الأيام',rs.reduce(function(a,r){return a+r.days;},0))+tbox('الإجمالي',tot)+tbox('المكافآت',r2(rs.reduce(function(a,r){return a+r.b;},0)))+tbox('الخصومات',r2(rs.reduce(function(a,r){return a+r.d;},0)))+tbox('الضرائب',r2(rs.reduce(function(a,r){return a+r.t;},0)))+tbox('الصافي',net);
+document.getElementById('rlLetTotals').innerHTML=tbox('عدد العمال',rs.length)+tbox('إجمالي الأيام',rs.reduce(function(a,r){return a+r.days;},0))+tbox('الإجمالي',tot)+tbox('إضافي',r2(rs.reduce(function(a,r){return a+(Number(r.ot)||0);},0)))+tbox('المكافآت',r2(rs.reduce(function(a,r){return a+r.b;},0)))+tbox('الخصومات',r2(rs.reduce(function(a,r){return a+r.d;},0)))+tbox('الضرائب',r2(rs.reduce(function(a,r){return a+r.t;},0)))+tbox('الصافي',net);
 document.getElementById('rlLetBody').innerHTML=rs.map(function(r){return '<tr><td>'+esc(r.w.name)+'</td><td>'+r.days+'</td><td>'+r.wage+'</td><td>'+otText(r.xh)+'</td><td>'+r.total+'</td><td>'+r.b+'</td><td>'+r.d+'</td><td>'+r.t+'</td><td>'+r.net+'</td></tr>';}).join('')||'<tr><td colspan="9" class="mut" style="text-align:center">لا توجد سجلات</td></tr>';}
 function printLetterReport(){loadAdj().then(function(){var rs=letterRepRows();if(!rs.length)return toast('لا توجد سجلات في الفترة');
 letterDoc(rs,document.getElementById('rlLetLoc').value,document.getElementById('rlLetFrom').value,document.getElementById('rlLetTo').value);}).catch(fail);}
@@ -955,7 +955,7 @@ var total=Math.round(rows.reduce(function(s,m){return s+m.total;},0)*100)/100;
 rows.forEach(function(m){var A=ADJ[m.w.id]||{b:0,d:0,t:0};m.b=A.b;m.d=A.d;m.t=A.t;m.net=r2(m.total+A.b-A.d-A.t);});
 var T={b:r2(rows.reduce(function(s,m){return s+m.b;},0)),d:r2(rows.reduce(function(s,m){return s+m.d;},0)),t:r2(rows.reduce(function(s,m){return s+m.t;},0)),net:r2(rows.reduce(function(s,m){return s+m.net;},0))};
 LAST_RL={rows:rows,total:total,loc:loc,from:f,to:t,T:T};
-document.getElementById('rlTotals').innerHTML=tbox('المكان',esc(loc))+tbox('إجمالي الأيام',rows.reduce(function(s,m){return s+m.days;},0))+tbox('الإجمالي',total)+tbox('المكافآت',T.b)+tbox('الخصومات',T.d)+tbox('الضرائب',T.t)+tbox('الصافي',T.net);
+document.getElementById('rlTotals').innerHTML=tbox('المكان',esc(loc))+tbox('إجمالي الأيام',rows.reduce(function(s,m){return s+m.days;},0))+tbox('الإجمالي',total)+tbox('إضافي',r2(rows.reduce(function(s,m){return s+(Number(m.ot)||0);},0)))+tbox('المكافآت',T.b)+tbox('الخصومات',T.d)+tbox('الضرائب',T.t)+tbox('الصافي',T.net);
 document.getElementById('rlBody').innerHTML=rows.map(function(m){return '<tr><td class="nm">'+esc(m.w.name)+'</td><td>'+m.days+'</td><td>'+mAvg(m)+'</td><td>'+r2(m.gross)+'</td><td>'+r2(m.ot)+'</td><td>'+m.b+'</td><td>'+m.d+'</td><td>'+m.t+'</td><td>'+m.net+'</td><td></td></tr>';}).join('')
 ||'<tr><td colspan="9" class="mut" style="text-align:center">لا توجد سجلات</td></tr>';}
 function printLocationReport(){if(!LAST_RL)return toast('اعرض التقرير أولاً');var r=LAST_RL;
@@ -1068,7 +1068,7 @@ return (mode==='d'?'<td>'+fmtDW(r.date)+'</td><td class="nm">'+esc(r.name)+'</td
 function prHead(mode,edit){return '<tr>'+(mode==='d'?'<th>تاريخ التسوية</th><th class="nm">اسم العامل</th><th>الفترة</th>':'<th class="nm">اسم العامل</th>')+'<th>عدد الأيام</th><th>أجر اليوم</th><th>الإجمالي</th><th>إضافي</th><th>المكافآت</th><th>الخصومات</th><th>الضرائب</th><th>الصافي</th>'+(edit&&mode==='d'?'<th class="noprint">إجراء</th>':'')+(edit?'':'<th>التوقيع</th>')+'</tr>';}
 function prFoot(T,mode,edit){return '<tr><th'+(mode==='d'?' colspan="3"':'')+'>الإجمالي</th><th>'+T.days+'</th><th></th><th>'+r2(T.amount-T.ot)+'</th><th>'+T.ot+'</th><th>'+T.bonus+'</th><th>'+T.ded+'</th><th>'+T.tax+'</th><th>'+T.net+'</th>'+(edit&&mode==='d'?'<th class="noprint"></th>':'')+(edit?'':'<th></th>')+'</tr>';}
 function drawPayroll(){var v=prView();PR_VIEW=v;var T=prSum(v.rows);
-document.getElementById('prTotals').innerHTML=tbox('عدد السطور',v.rows.length)+tbox('الأجور والإضافي',T.amount)+tbox('المكافآت',T.bonus)+tbox('الخصومات',T.ded)+tbox('الضرائب',T.tax)+tbox('الصافي',T.net);
+document.getElementById('prTotals').innerHTML=tbox('عدد السطور',v.rows.length)+tbox('الأجور والإضافي',T.amount)+tbox('إضافي',T.ot)+tbox('المكافآت',T.bonus)+tbox('الخصومات',T.ded)+tbox('الضرائب',T.tax)+tbox('الصافي',T.net);
 document.getElementById('prHead').innerHTML=prHead(v.mode,true);
 document.getElementById('prBody').innerHTML=v.rows.map(function(r){return '<tr>'+prCells(r,v.mode,true)+'</tr>';}).join('')||'<tr><td colspan="12" class="mut" style="text-align:center">لا توجد تسويات في هذه الفترة</td></tr>';
 document.getElementById('prFoot').innerHTML=v.rows.length?prFoot(T,v.mode,true):'';}
