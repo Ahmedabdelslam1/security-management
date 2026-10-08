@@ -993,9 +993,16 @@ rows.map(function(r){return '<tr><td>'+fmtD(r.date)+'</td><td>'+r.status+'</td><
 var PERM_LBL={workers:'العاملين',attendance:'الحضور والتسوية',reports:'التقارير',gate:'دفتر البوابة',procs:'الإجراءات اليومية'};
 function permBoxes(cls,perms){return Object.keys(PERM_LBL).map(function(p){
 return '<label style="margin-left:10px;font-size:12.5px;white-space:nowrap"><input type="checkbox" class="'+cls+'" data-p="'+p+'"'+(perms&&perms[p]?' checked':'')+'> '+PERM_LBL[p]+'</label>';}).join('');}
-function refreshFiles(b){if(b)b.disabled=true;toast('جاري سحب أحدث الملفات...');
-api('refreshLive').then(function(r){toast('تم التحديث — واجهة الويب '+Math.round(r.web/1024)+'KB، إصدار التطبيق '+(r.appVersion||'—')+'، جاري إعادة التحميل');
-setTimeout(function(){try{window.top.location.reload();}catch(e){location.reload();}},1200);}).catch(function(e){if(b)b.disabled=false;toast(errMsg(e));});}
+function refreshFiles(b){if(b)b.disabled=true;toast('جاري سحب أحدث الملفات من GitHub...');
+var old=false;
+api('refreshLive').catch(function(e){old=true;}).then(function(){
+return fetch('https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Index.html?t='+Date.now(),{cache:'no-store'});})
+.then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+.then(function(t){if(t.length<20000||!/<\/html>\s*$/i.test(t))throw new Error('ملف غير مكتمل');
+toast((old?'تنبيه: سكربت Google قديم، الصق Code.gs الجديد من GitHub. ':'')+'تم سحب الواجهة ('+Math.round(t.length/1024)+'KB) — جاري التحميل، سجّل الدخول مجدداً');
+setTimeout(function(){document.open();document.write(t);document.close();},1200);})
+.catch(function(e){if(b)b.disabled=false;toast('تعذر السحب مباشرة ('+(e&&e.message||e)+')'+(old?' — سكربت Google قديم، الصق Code.gs الجديد':''));
+if(!old)setTimeout(function(){try{window.top.location.reload();}catch(x){location.reload();}},1500);});}
 function renderUsers(){document.getElementById('usersBody').innerHTML=USERS.map(function(u){
 var st=u.status==='approved'?'<span class="ok">معتمد</span>':u.status==='pending'?'<span class="warn">بانتظار الموافقة</span>':'<span class="mut">موقوف</span>';
 var perms=u.role==='admin'?'<b>مدير — كل الصلاحيات</b>':permBoxes('pchk',u.perms)+
