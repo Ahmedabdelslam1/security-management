@@ -36,7 +36,7 @@ jobs:
       - name: flutter build apk --debug
         run: |
           set -o pipefail
-          flutter build apk --debug 2>&1 | tee ../build.log || { grep -E "Error|error:|FAILED|What went wrong|Could not|lib/.*dart" ../build.log | grep -v Unzipping | head -40 | sed 's/^/::error::/'; exit 1; }
+          flutter build apk --debug 2>&1 | tee ../build.log || { grep -A12 -E "What went wrong|error:|Error:" ../build.log | grep -v Unzipping | head -50 | sed 's/^/::error::/'; exit 1; }
 
       - name: رفع ملف الـ APK كملف قابل للتحميل
         uses: actions/upload-artifact@v4
