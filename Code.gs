@@ -46,22 +46,25 @@ function doGet() {
 function _liveIndex() {
   var cache = CacheService.getScriptCache();
   try {
-    // نسخة مخزنة؟
-    var n = Number(cache.get('WEB_IDX_N') || 0);
+    var n = Number(cache.get('WEBX_N') || 0);
     if (n > 0) {
-      var html = '';
-      for (var i = 0; i < n; i++) html += cache.get('WEB_IDX_' + i) || '';
-      if (html && /<html/i.test(html)) return html;
+      var ks = []; for (var i = 0; i < n; i++) ks.push('WEBX_' + i);
+      var m = cache.getAll(ks), html = '';
+      for (var k = 0; k < n; k++) html += m[ks[k]] || '';
+      if (html && /<html/i.test(html) && /<\/html>\s*$/i.test(html)) return html;
     }
-    // اسحب آخر نسخة من GitHub
-    var r = UrlFetchApp.fetch(REPO_RAW_INDEX, { muteHttpExceptions: true });
+  } catch (e0) {}
+  try {
+    var r = UrlFetchApp.fetch(REPO_RAW_INDEX + '?t=' + Date.now(), { muteHttpExceptions: true });
     if (r.getResponseCode() === 200) {
       var html2 = r.getContentText();
       if (/<html/i.test(html2) && html2.length > 10000) {
-        var CH = 90000; // حد الذاكرة المؤقتة 100KB للمفتاح
-        var parts = Math.ceil(html2.length / CH);
-        for (var j = 0; j < parts; j++) cache.put('WEB_IDX_' + j, html2.slice(j * CH, (j + 1) * CH), 300);
-        cache.put('WEB_IDX_N', String(parts), 300);
+        try { // الحرف العربي = 2 بايت، لذا قطع صغيرة (حد المفتاح 100KB)، وفشل التخزين لا يمنع عرض النسخة الجديدة
+          var CH = 30000, parts = Math.ceil(html2.length / CH), o = {};
+          for (var j = 0; j < parts; j++) o['WEBX_' + j] = html2.slice(j * CH, (j + 1) * CH);
+          o['WEBX_N'] = String(parts);
+          cache.putAll(o, 300);
+        } catch (e1) {}
         return html2;
       }
     }
