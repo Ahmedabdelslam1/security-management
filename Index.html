@@ -101,7 +101,7 @@ tfoot th{background:#ece7fb;color:#5b3fc9}
 .gth.rm img{opacity:.3}
 .wlink{color:#2563eb;font-weight:800;cursor:pointer;text-decoration:underline dotted}
 .wlink:hover{color:#1d4ed8}
-.unset{font-size:11px;max-width:120px;width:1%}#setBody td.noprint{max-width:130px;font-size:11px;line-height:1.3}#setBody .badge{font-size:10px;padding:1px 6px;white-space:normal}
+.unset{font-size:10px;max-width:110px;width:1%}#sec-attendance input.note{max-width:90px;font-size:11px}#setBody td.noprint{max-width:130px;font-size:11px;line-height:1.3}#setBody .badge{font-size:10px;padding:1px 6px;white-space:normal}
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
 .badge.due{background:#fef3c7;color:#b45309}
 .badge.paid{background:#dcfce7;color:#15803d}
@@ -636,7 +636,7 @@ function paidMark(w,date,st,xh,loc,wg){var saved=ATT.filter(function(r){return r
 if(!saved||!saved.settleId)return '';
 return Math.abs(liveVal(w,st,xh,loc,wg)-(saved.paidAmt||0))<=0.005?' <span class="badge lock">🔒 مغلق — مصروف</span>':' <span class="badge due">🔒 مغلق — معدّل بعد الصرف</span>';}
 function isLocked(date,wid){return ATT.some(function(r){return r.date===date&&r.wid===wid&&!!r.settleId;});}
-function dueText(c){return '<small style="font-size:11px">'+c.days+' يوم'+(c.hrs>0?' + '+otText(c.hrs)+' إضافي':'')+' = '+c.amt+' ج</small>';}
+function dueText(c){return '<small style="font-size:10px"><span style="color:#1d4ed8">'+c.days+' يوم</span>'+(c.hrs>0?' <span style="color:#ea580c">+ '+otText(c.hrs)+' إضافي</span>':'')+' <span style="color:#15803d">= '+c.amt+'</span></small>';}
 function dueCls(c){return 'unset'+(c.days>0||c.amt>0?' due-red':'');}
 function renderDay(){var date=document.getElementById('attDate').value||todayStr();
 document.getElementById('attBody').innerHTML=WORKERS.map(function(w){

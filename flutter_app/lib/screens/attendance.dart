@@ -205,7 +205,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _numStr(double x) => x == x.truncateToDouble() ? x.truncate().toString() : x.toString();
 
   // المستحق = عدد الأيام + الإضافي = الإجمالي (نفس منطق الويب)
-  String _dueText(Worker w, _RowCtl c) {
+  List<String> _dueParts(Worker w, _RowCtl c) {
     var days = 0;
     var ot = 0.0;
     var hrsTotal = 0.0;
@@ -240,7 +240,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       hrsTotal += settled ? (wg > 0 ? d / (wg / hrs) : 0.0) : xh;
     }
     final hr0 = hrsTotal;
-    return '$days يوم${hr0 > 0 ? ' + ${otText(r2(hr0))} إضافي' : ''} = ${r2(amt < 0 ? 0 : amt)} ج';
+    return ['$days يوم', hr0 > 0 ? '+ ${otText(r2(hr0))} إضافي' : '', '= ${r2(amt < 0 ? 0 : amt)}'];
   }
 
   void _pdf() {
@@ -299,7 +299,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ],
             ),
             const SizedBox(height: 4),
-            Text('المستحق: ${_dueText(w, c)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFFB91C1C))),
+            Builder(builder: (_) {
+              final p = _dueParts(w, c);
+              return Text.rich(TextSpan(style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10), children: [
+                const TextSpan(text: 'المستحق: ', style: TextStyle(color: Color(0xFF64748B))),
+                TextSpan(text: p[0], style: const TextStyle(color: Color(0xFF1D4ED8))),
+                if (p[1].isNotEmpty) TextSpan(text: ' ${p[1]}', style: const TextStyle(color: Color(0xFFEA580C))),
+                TextSpan(text: ' ${p[2]}', style: const TextStyle(color: Color(0xFF15803D))),
+              ]));
+            }),
             const SizedBox(height: 6),
             // الموقف
             DropdownButtonFormField<String>(
