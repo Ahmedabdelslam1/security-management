@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-const String appVersion = '1.10.4';
+const String appVersion = '1.10.5';
 const String _versionUrl =
     'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json';
 const String _apkUrl =
@@ -43,11 +43,18 @@ Future<String?> fetchNewerVersion() async {
 /// لا يستخدم BuildContext نهائيًا — يعمل حتى لو المستخدم غيّر الشاشة.
 bool _updating = false;
 Future<void> autoUpdate(BuildContext context) async {
-  if (_updating) return;
+  await _runUpdate();
+}
+
+/// تحديث فوري يدوي (زر المستخدمين): يرجع رسالة بالنتيجة
+Future<String> forceUpdate() => _runUpdate();
+
+Future<String> _runUpdate() async {
+  if (_updating) return 'التحديث قيد التنفيذ';
   _updating = true;
   try {
     final newer = await fetchNewerVersion();
-    if (newer == null) return;
+    if (newer == null) return 'أنت على آخر إصدار ($appVersion)';
 
     final client = http.Client();
     final res = await client.send(http.Request('GET', Uri.parse(_apkUrl))).timeout(const Duration(minutes: 5));
@@ -62,12 +69,14 @@ Future<void> autoUpdate(BuildContext context) async {
 
     try {
       await _channel.invokeMethod('install', file.path);
+      return 'تم تحميل الإصدار $newer — أكّد التثبيت';
     } catch (_) {
+      return 'اسمح بالتثبيت من هذا التطبيق ثم اضغط التحديث مرة أخرى';
       // صمت تام: لو فشل فتح المثبت (مثلاً صلاحية غير ممنوحة)، نحاول مرة واحدة أخرى
       // في المرة القادمة لفتح التطبيق دون إظهار أي رسالة للمستخدم الآن.
     }
   } catch (_) {
-    // صمت تام أيضًا على فشل الفحص أو التحميل — بدون إشعارات نهائيًا
+    return 'تعذر التحديث — تأكد من الإنترنت';
   } finally {
     _updating = false;
   }

@@ -21,7 +21,6 @@ class HomeScreen extends StatelessWidget {
       if (u?.can('reports') ?? false) ('reports', 'التقارير', Icons.bar_chart),
       if (u?.isAdmin ?? false) ('users', 'المستخدمين', Icons.manage_accounts_outlined),
       if (u?.isAdmin ?? false) ('monitor', 'المتابعة', Icons.monitor_heart_outlined),
-      ('settings', 'الإعدادات', Icons.settings_outlined),
     ];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),

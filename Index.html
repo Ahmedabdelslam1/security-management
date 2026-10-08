@@ -406,7 +406,7 @@ tr.locked select,tr.locked input{opacity:.7;cursor:not-allowed}
       <section id="sec-none" class="section" style="display:none"><div class="card" style="text-align:center;padding:30px"><h2 style="margin-bottom:8px">لا توجد صلاحيات لهذا الحساب</h2><p style="color:#64748b">تواصل مع المدير لتفعيل الشاشات المطلوبة، ثم اضغط ⟳ في الأعلى.</p></div></section>
       <section id="sec-users" class="section" style="display:none">
         <div class="card">
-          <div class="card-head"><h2>المستخدمين</h2><div class="head-actions"><button class="btn primary" onclick="openAddUser()">➕ إضافة مستخدم</button></div></div>
+          <div class="card-head"><h2>المستخدمين</h2><div class="head-actions"><button class="btn" style="background:#dbeafe;color:#1d4ed8" onclick="refreshFiles(this)">🔄 تحديث الملفات والإصدار</button> <button class="btn primary" onclick="openAddUser()">➕ إضافة مستخدم</button></div></div>
           <div class="table-wrap"><table><thead><tr>
             <th>الاسم</th><th>اسم المستخدم</th><th>الحالة</th><th>صلاحيات</th><th>إجراءات</th>
           </tr></thead><tbody id="usersBody"></tbody></table></div>
@@ -974,6 +974,9 @@ rows.map(function(r){return '<tr><td>'+fmtD(r.date)+'</td><td>'+r.status+'</td><
 var PERM_LBL={workers:'العاملين',attendance:'الحضور والتسوية',reports:'التقارير',gate:'دفتر البوابة',procs:'الإجراءات اليومية'};
 function permBoxes(cls,perms){return Object.keys(PERM_LBL).map(function(p){
 return '<label style="margin-left:10px;font-size:12.5px;white-space:nowrap"><input type="checkbox" class="'+cls+'" data-p="'+p+'"'+(perms&&perms[p]?' checked':'')+'> '+PERM_LBL[p]+'</label>';}).join('');}
+function refreshFiles(b){if(b)b.disabled=true;toast('جاري سحب أحدث الملفات...');
+api('refreshLive').then(function(r){toast('تم التحديث — واجهة الويب '+Math.round(r.web/1024)+'KB، إصدار التطبيق '+(r.appVersion||'—')+'، جاري إعادة التحميل');
+setTimeout(function(){try{window.top.location.reload();}catch(e){location.reload();}},1200);}).catch(function(e){if(b)b.disabled=false;toast(errMsg(e));});}
 function renderUsers(){document.getElementById('usersBody').innerHTML=USERS.map(function(u){
 var st=u.status==='approved'?'<span class="ok">معتمد</span>':u.status==='pending'?'<span class="warn">بانتظار الموافقة</span>':'<span class="mut">موقوف</span>';
 var perms=u.role==='admin'?'<b>مدير — كل الصلاحيات</b>':permBoxes('pchk',u.perms)+

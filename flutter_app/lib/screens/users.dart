@@ -4,6 +4,7 @@ import '../api.dart';
 import '../models.dart';
 import '../pdf_export.dart';
 import '../state.dart';
+import '../updater.dart';
 import '../widgets.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -28,6 +29,20 @@ class _UsersScreenState extends State<UsersScreen> {
   }
   bool _busy = false;
   String _q = '';
+
+  Future<void> _refreshAll() async {
+    setState(() => _busy = true);
+    try {
+      try { await Api.auth('refreshLive', []); } catch (_) {}
+      await App.I.bootstrap(silent: true);
+      final msg = await forceUpdate();
+      if (mounted) _done(msg);
+    } catch (e) {
+      if (mounted) _fail('تعذر التحديث');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   void _done(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green.shade700));
@@ -213,6 +228,12 @@ class _UsersScreenState extends State<UsersScreen> {
         children: [
           SearchBox(hint: 'بحث بالمستخدم أو الاسم...', value: _q, onChanged: (v) => setState(() => _q = v)),
           const SizedBox(width: 6),
+          IconButton.filledTonal(
+            tooltip: 'سحب وتحديث الملفات والإصدار',
+            style: IconButton.styleFrom(backgroundColor: const Color(0xFFDBEAFE)),
+            onPressed: _busy ? null : _refreshAll,
+            icon: const Icon(Icons.system_update_alt, size: 20, color: Color(0xFF1D4ED8)),
+          ),
           IconButton.filledTonal(
             tooltip: 'PDF للطباعة والإرسال',
             style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),

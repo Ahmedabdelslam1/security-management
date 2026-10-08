@@ -83,8 +83,23 @@ function apiMap_() {
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
-    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles
+    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive
   };
+}
+
+/* تحديث يدوي من زر المستخدمين: يمسح الذاكرة المؤقتة ويسحب أحدث واجهة من GitHub ويرجع إصدار التطبيق المتاح */
+function refreshLive(token) {
+  auth_(token, 'admin');
+  var c = CacheService.getScriptCache(), ks = ['WEBX_N', 'GS_FN', 'GS_SN'];
+  for (var i = 0; i < 30; i++) { ks.push('WEBX_' + i); ks.push('GS_F' + i); ks.push('GS_S' + i); }
+  try { c.removeAll(ks); } catch (e) {}
+  var html = _liveIndex();
+  var ver = '';
+  try {
+    var r = UrlFetchApp.fetch('https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json?t=' + Date.now(), { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) ver = String(JSON.parse(r.getContentText()).version || '');
+  } catch (e2) {}
+  return { web: html.length, appVersion: ver, at: now_() };
 }
 
 function doPost(e) {

@@ -169,7 +169,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Widget _drawer(BuildContext context, AppUser u, List<_Tab> tabs) {
     final items = <(String, String, IconData)>[
       ...tabs.map((t) => (t.id, t.label, t.icon)),
-      ('settings', 'الإعدادات', Icons.settings_outlined),
     ];
     return Drawer(
       child: Column(

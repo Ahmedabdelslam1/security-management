@@ -3,7 +3,7 @@
 var SRC_URL_ = 'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Code.gs';
 var FN_ = ['doGet','doPost','setup','resetAdminPassword','resetAll','rev','login','logout','register','changePassword','ping','addLog',
   'bootstrap','saveDay','settleWorkers','listPayroll','updatePayrollAdj','saveWorker','deleteWorkers','getImage','setUser','addUser',
-  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles'];
+  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive'];
 var LIB_ = null;
 
 function src_() {
@@ -80,3 +80,4 @@ function listProcs() { return call_('listProcs', [].slice.call(arguments)); }
 function saveProc() { return call_('saveProc', [].slice.call(arguments)); }
 function deleteProc() { return call_('deleteProc', [].slice.call(arguments)); }
 function getProcFiles() { return call_('getProcFiles', [].slice.call(arguments)); }
+function refreshLive() { return call_('refreshLive', [].slice.call(arguments)); }
