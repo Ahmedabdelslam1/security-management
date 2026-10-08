@@ -22,16 +22,21 @@ function src_() {
     return s;
   }
   var fresh = get('GS_F'); if (fresh) return fresh;
-  try {
-    var r = UrlFetchApp.fetch(SRC_URL_, { muteHttpExceptions: true });
-    if (r.getResponseCode() === 200) {
-      var t = r.getContentText();
-      if (t.indexOf('function apiMap_') > -1) { put('GS_F', t, 300); put('GS_S', t, 21600); return t; }
-    }
-  } catch (e) {}
+  var errs = [], urls = [SRC_URL_ + '?t=' + Date.now(), 'https://cdn.jsdelivr.net/gh/Ahmedabdelslam1/security-management@main/Code.gs'];
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var r = UrlFetchApp.fetch(urls[i], { muteHttpExceptions: true, followRedirects: true });
+      var code = r.getResponseCode(), t = r.getContentText();
+      if (code === 200 && t.indexOf('function apiMap_') > -1) { put('GS_F', t, 300); put('GS_S', t, 21600); return t; }
+      errs.push(code + ' ' + t.slice(0, 60));
+    } catch (e) { errs.push(String(e && e.message || e)); }
+  }
   var stale = get('GS_S'); if (stale) return stale;
-  throw new Error('تعذر تحميل الكود من GitHub');
+  throw new Error('تعذر تحميل الكود من GitHub: ' + errs.join(' | '));
 }
+
+// شغّل هذه الدالة مرة واحدة من المحرر (زر ▶ ثم "مراجعة الأذونات" ← السماح) لمنح صلاحية الاتصال بـ GitHub
+function authorize() { var n = src_().length; return 'تم: ' + n; }
 
 function lib_() {
   if (LIB_) return LIB_;
