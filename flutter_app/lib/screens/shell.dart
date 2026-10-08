@@ -46,8 +46,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (!App.I.loading) App.I.syncIfChanged().catchError((_) {});
     });
     // فحص التحديث عند البدء ثم كل 6 ساعات
-    Future.delayed(const Duration(seconds: 4), () { if (mounted) autoUpdate(context); });
-    _updateCheck = Timer.periodic(const Duration(hours: 6), (_) {
+    Future.delayed(const Duration(seconds: 2), () { if (mounted) autoUpdate(context); });
+    _updateCheck = Timer.periodic(const Duration(minutes: 20), (_) {
       if (mounted) autoUpdate(context);
     });
   }

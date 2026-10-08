@@ -83,9 +83,11 @@ function apiMap_() {
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
-    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive
+    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer
   };
 }
+
+function srvVer(token) { auth_(token); return '3'; }
 
 /* تحديث يدوي من زر المستخدمين: يمسح الذاكرة المؤقتة ويسحب أحدث واجهة من GitHub ويرجع إصدار التطبيق المتاح */
 function refreshLive(token) {
