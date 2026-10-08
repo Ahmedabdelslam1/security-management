@@ -118,7 +118,13 @@ function resetAdminPassword() {
 }
 
 /* ===================== أدوات الشيت ===================== */
+var SSOBJ_ = null, SHOBJ_ = {};
 function ss_() {
+  if (SSOBJ_) return SSOBJ_;
+  SSOBJ_ = ss0_();
+  return SSOBJ_;
+}
+function ss0_() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('SS_ID');
   if (id) return SpreadsheetApp.openById(id);
@@ -130,6 +136,12 @@ function ss_() {
 }
 
 function sh_(name) {
+  if (SHOBJ_[name]) return SHOBJ_[name];
+  var sheet0 = sh0_(name);
+  SHOBJ_[name] = sheet0;
+  return sheet0;
+}
+function sh0_(name) {
   var s = ss_();
   var h = SHEETS[name];
   var sheet = s.getSheetByName(name);
@@ -140,7 +152,7 @@ function sh_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name]) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH2_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -149,6 +161,7 @@ function sh_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
+    try { CacheService.getScriptCache().put('SCH2_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
@@ -228,6 +241,30 @@ function can_(u, perm) {
   return list.some(function (p) { return u.perms && u.perms[p]; });
 }
 
+function revNow_() { return PropertiesService.getScriptProperties().getProperty('REV') || '0'; }
+function userCached_(un) {
+  var cache = CacheService.getScriptCache(), key = 'UR_' + revNow_() + '_' + un;
+  try { var c = cache.get(key); if (c) return JSON.parse(c); } catch (e) {}
+  var u = readAll_('Users').filter(function (x) { return x.username === un; })[0];
+  if (u) { try { cache.put(key, JSON.stringify(u), 600); } catch (e) {} }
+  return u;
+}
+function cacheBigPut_(key, str, ttl) {
+  var CH = 30000, n = Math.ceil(str.length / CH);
+  if (n > 28) return;
+  var o = {};
+  for (var i = 0; i < n; i++) o[key + '_' + i] = str.substr(i * CH, CH);
+  o[key + '_N'] = String(n);
+  try { CacheService.getScriptCache().putAll(o, ttl); } catch (e) {}
+}
+function cacheBigGet_(key) {
+  var c = CacheService.getScriptCache(), n = Number(c.get(key + '_N') || 0);
+  if (!n) return null;
+  var ks = []; for (var i = 0; i < n; i++) ks.push(key + '_' + i);
+  var m = c.getAll(ks), s = '';
+  for (var j = 0; j < n; j++) { if (m[ks[j]] == null) return null; s += m[ks[j]]; }
+  return s;
+}
 function auth_(token, perm) {
   if (!token) throw new Error('SESSION');
   var cache = CacheService.getScriptCache();
@@ -238,7 +275,7 @@ function auth_(token, perm) {
     PropertiesService.getScriptProperties().setProperty('SS_' + token, un + '|' + Date.now());
     cache.put('T_' + token, '1', 120);
   }
-  var u = readAll_('Users').filter(function (x) { return x.username === un; })[0];
+  var u = userCached_(un);
   if (!u || u.status !== 'approved') throw new Error('SESSION');
   u.perms = parsePerms_(u.perms);
   cache.put('S_' + token, un, SESSION_TTL);
@@ -415,7 +452,10 @@ function migrate_() {
 function bootstrap(token) {
   var u = auth_(token);
   if (!PropertiesService.getScriptProperties().getProperty('MIG_PAIDAMT')) locked_(migrate_);
-  updateUser_(u.username, { lastActive: String(Date.now()) });
+  if (Date.now() - num_(u.lastActive) > 60000) updateUser_(u.username, { lastActive: String(Date.now()) });
+  var ck = 'BS_' + revNow_() + '_' + u.username;
+  var hit = cacheBigGet_(ck);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   var full = can_(u, 'workers');
   var ls = lastSetMap_();
   var workers = readAll_('Workers').map(function (w) { return workerOut_(w, full, ls); });
@@ -424,6 +464,7 @@ function bootstrap(token) {
   });
   var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att) };
   if (u.role === 'admin') out.users = readAll_('Users').map(publicUser_);
+  cacheBigPut_(ck, JSON.stringify(out), 900);
   return out;
 }
 
