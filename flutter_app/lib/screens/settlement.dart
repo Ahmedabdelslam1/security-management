@@ -298,9 +298,9 @@ class _SettlePaneState extends State<_SettlePane> {
                             subtitle: Text(
                               d.amount.abs() < 0.005
                                   ? 'لا مستحقات ضمن التحديد'
-                                  : 'مستحق: ${d.amount} ج (${d.label})\nأجر اليوم ${d.wage} • الإجمالي ${d.gross} • إضافي ${d.ot}',
+                                  : 'مستحق: ${d.amount} ج (${d.label})\nأجر اليوم ${d.wage} • الإجمالي ${d.gross}${d.ot > 0 ? ' • إضافي ${d.ot}' : ''}',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 10,
                                 color: d.amount.abs() < 0.005 ? const Color(0xFF64748B) : Colors.green.shade800,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -564,5 +564,5 @@ class _Due {
   int days = 0;
   double amount = 0, ot = 0, hrs = 0, wsum = 0, wage = 0;
   double get gross => r2(amount - ot);
-  String get label => '$days يوم${hrs > 0 ? ' + ${otText(hrs)} إضافي' : ''}';
+  String get label => '$days يوم${hrs > 0 ? ' + إضافي (${hrs == hrs.truncateToDouble() ? hrs.truncate() : r2(hrs)}) ساعة' : ''}';
 }
