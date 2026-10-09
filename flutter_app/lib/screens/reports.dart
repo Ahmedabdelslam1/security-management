@@ -156,7 +156,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         m.total += r.wage + r.xh * _hourlyR(r, m.w);
       }
     }
-    final rows = App.I.workers.map((w) => map[w.id]!).toList();
+    final rows = App.I.workers.map((w) => map[w.id]!).where((m) => m.days > 0).toList();
     for (final m in rows) {
       m.total = r2(m.total);
       m.gross = r2(m.gross);
