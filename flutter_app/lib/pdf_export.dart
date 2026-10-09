@@ -73,10 +73,7 @@ Future<void> exportTablePdf({
       maxPages: 100,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
-        pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
-          child: pw.Column(
-            children: [
+        ...[
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -115,9 +112,7 @@ Future<void> exportTablePdf({
                 alignment: pw.Alignment.centerLeft,
                 child: pw.Text('عدد السجلات: ${rows.length}', style: const pw.TextStyle(fontSize: 9.5, color: pw.PdfColor.fromInt(0xFF94A3B8))),
               ),
-            ],
-          ),
-        ),
+        ],
       ],
     ),
   );

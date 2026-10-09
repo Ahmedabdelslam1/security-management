@@ -43,15 +43,11 @@ Future<Uint8List> buildLetterPdf({
     pw.MultiPage(
       pageFormat: pw.PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(42, 40, 42, 40),
-      maxPages: 12,
+      maxPages: 30,
       textDirection: pw.TextDirection.rtl,
       build: (c) => [
         pw.SizedBox(height: 6),
-        pw.Directionality(
-          textDirection: pw.TextDirection.rtl,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+        ...[
               pw.Align(
                 alignment: pw.Alignment.topRight,
                 child: pw.Padding(
@@ -59,9 +55,10 @@ Future<Uint8List> buildLetterPdf({
                   child: pw.Text('السيد / مدير $addressee', style: pw.TextStyle(font: bold, fontSize: 14)),
                 ),
               ),
-              pw.Text('تحية طيبة وبعد ،،،', style: const pw.TextStyle(fontSize: 12.5)),
+              pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('تحية طيبة وبعد ،،،', style: const pw.TextStyle(fontSize: 12.5))),
               pw.SizedBox(height: 8),
               pw.RichText(
+                textAlign: pw.TextAlign.right,
                 text: pw.TextSpan(
                   text: 'برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( ',
                   style: const pw.TextStyle(fontSize: 12.5),
@@ -75,6 +72,7 @@ Future<Uint8List> buildLetterPdf({
               ),
               pw.SizedBox(height: 4),
               pw.RichText(
+                textAlign: pw.TextAlign.right,
                 text: pw.TextSpan(
                   text: 'وذلك قيمة أجور أيام حضور العمال اليوميه الاتى أسماؤهم خلال الفترة من ',
                   style: const pw.TextStyle(fontSize: 12.5),
@@ -105,9 +103,7 @@ Future<Uint8List> buildLetterPdf({
                   pw.Text('يعتمد ،،', style: pw.TextStyle(font: bold, fontSize: 12.5)),
                 ],
               ),
-            ],
-          ),
-        ),
+        ],
       ],
     ),
   );
