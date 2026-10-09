@@ -32,6 +32,11 @@ jobs:
           flutter create --platforms android --org eg.security --project-name security_management .
           rm -rf lib && mv /tmp/lib_backup lib
 
+      - name: توقيع ثابت للتطبيق (ليقبل أندرويد التحديث فوق النسخة القديمة)
+        run: |
+          mkdir -p ~/.android
+          cp signing/debug.keystore ~/.android/debug.keystore
+
       - run: flutter pub get
       - name: flutter build apk --debug
         run: |
