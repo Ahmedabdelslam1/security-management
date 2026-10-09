@@ -120,7 +120,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       map[w.id] = _Rec(w);
     }
     for (final r in App.I.att) {
-      if (r.status != '--' && _inPeriod(r) && r.loc == (_loc ?? '')) {
+      if (r.counts && _inPeriod(r) && r.loc == (_loc ?? '')) {
         final m = map[r.wid];
         if (m == null) continue;
         m.days++;
@@ -146,7 +146,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       map[w.id] = _Rec(w);
     }
     for (final r in App.I.att) {
-      if (r.status != '--' && _inPeriod(r)) {
+      if (r.counts && _inPeriod(r)) {
         final m = map[r.wid];
         if (m == null) continue;
         m.days++;
@@ -598,7 +598,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _detail(Worker w) {
-    final recs = App.I.att.where((r) => r.wid == w.id && r.status != '--' && _inPeriod(r)).toList()..sort((a, b) => a.date.compareTo(b.date));
+    final recs = App.I.att.where((r) => r.wid == w.id && r.counts && _inPeriod(r)).toList()..sort((a, b) => a.date.compareTo(b.date));
     showModalBottomSheet(
       context: context,
       showDragHandle: true,

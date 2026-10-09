@@ -512,6 +512,7 @@ function saveDay(token, date, recs, partial) {
       var w = workers[String(r.wid)];
       if (!w || seen[w.id]) return;
       touched[w.id] = 1;
+      if (STATUSES.indexOf(r.status) === -1 && clip_(r.loc, 80)) r.status = STATUSES[0]; /* كتابة مكان الحضور تحسب اليوم حتى لو الموقف -- */
       if (STATUSES.indexOf(r.status) === -1) return;
       seen[w.id] = 1;
       var extra = EXTRA_STATUSES.indexOf(r.status) !== -1;
@@ -562,7 +563,6 @@ function settleWorkers(token, ids, from, to, adj, loc, setDate) {
     att.forEach(function (r) {
       var w = workers[r.wid];
       if (!w || ids.indexOf(r.wid) === -1) return;
-      if (!r.status || r.status === '--') return;
       if (r.date < from || r.date > to) return;
       if (loc && String(r.loc) !== String(loc)) return;
       var counts = String(r.loc).trim() !== '';

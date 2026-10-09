@@ -67,7 +67,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     try {
       final recs = <Map<String, dynamic>>[];
       _ctl.forEach((wid, c) {
-        if (c.status == '--') return;
+        if (c.status == '--' && c.loc.trim().isEmpty) return;
         recs.add({
           'wid': wid,
           'status': c.status,
@@ -228,7 +228,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     final wgRaw = double.tryParse(c.wg) ?? 0;
     final wg = wgRaw > 0 ? wgRaw : w.wage;
-    final counts = c.status != '--' && c.loc.trim().isNotEmpty;
+    final counts = c.loc.trim().isNotEmpty;
     final xh = kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0.0;
     final liveOt = xh * (wg / hrs);
     final settled = saved != null && saved.settleId.isNotEmpty;
@@ -250,7 +250,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     for (final w in ws) {
       final c = _ctl[w.id];
       if (c == null) continue;
-      if (c.status != '--') present++;
+      if (c.status != '--' || c.loc.trim().isNotEmpty) present++;
       final xhN = double.tryParse(c.xh) ?? 0;
       final ex = (kExtraStatuses.contains(c.status) && xhN > 0) ? 'إضافي (${_numStr(xhN)}) ساعة' : '';
       rows.add([w.name, c.status == '--' ? '—' : c.status, c.loc.isEmpty ? '—' : c.loc, [ex, c.notes].where((x) => x.isNotEmpty).join(' — ')]);
@@ -358,7 +358,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     onChanged: (v) => setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; }),
                   ),
                 ),
-                if (active) ...[
+                ...[
                   const SizedBox(width: 6),
                   Expanded(
                     child: DropdownButtonFormField<String>(
@@ -439,7 +439,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       showDragHandle: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         final f = _ds(from), t = _ds(to);
-        final recs = App.I.att.where((r) => r.wid == w.id && r.date.compareTo(f) >= 0 && r.date.compareTo(t) <= 0 && r.status != '--').toList()
+        final recs = App.I.att.where((r) => r.wid == w.id && r.date.compareTo(f) >= 0 && r.date.compareTo(t) <= 0 && r.counts).toList()
           ..sort((a, b) => a.date.compareTo(b.date));
         final hrs = w.hours <= 0 ? 8.0 : w.hours;
         double val(AttRec r) => r.counts ? (r.wage > 0 ? r.wage : w.wage) + r.xh * ((r.wage > 0 ? r.wage : w.wage) / hrs) : 0.0;

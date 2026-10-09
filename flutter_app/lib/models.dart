@@ -53,7 +53,7 @@ class AttRec {
   final String settleId;
   final double paidAmt;
   AttRec({required this.date, required this.wid, required this.name, required this.status, required this.loc, required this.wage, required this.xh, required this.notes, this.settleId = '', this.paidAmt = 0});
-  bool get counts => status != '--' && loc.trim().isNotEmpty;
+  bool get counts => loc.trim().isNotEmpty;
   factory AttRec.fromJson(Map j) => AttRec(
         date: j['date'] ?? '',
         wid: j['wid'] ?? '',

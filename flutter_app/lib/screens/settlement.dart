@@ -72,7 +72,6 @@ class _SettlePaneState extends State<_SettlePane> {
     final toS = _d(_to);
     for (final r in App.I.att) {
       if (r.wid != w.id) continue;
-      if (r.status == '--' || r.status.isEmpty) continue;
       if (r.date.compareTo(fromS) < 0 || r.date.compareTo(toS) > 0) continue;
       if (_loc != null && r.loc != _loc) continue;
       final counts = r.loc.trim().isNotEmpty;
