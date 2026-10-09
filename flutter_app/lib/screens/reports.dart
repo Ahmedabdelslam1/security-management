@@ -523,8 +523,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         dense: true,
-                        leading: const Icon(Icons.person, size: 19, color: Color(0xFF1D4ED8)),
-                        title: Text(rows[i].w.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                        leading: workerAvatar(rows[i].w.id),
+                        title: Text(rows[i].w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: workerColor(rows[i].w.id))),
                         subtitle: Text('${rows[i].days} يوم × ${rows[i].wageAvg} = ${rows[i].gross} • إضافي ${rows[i].ot}${_bOf(rows[i].w.id) + _dOf(rows[i].w.id) + _tOf(rows[i].w.id) > 0 ? ' • صافي ${r2(rows[i].total + _bOf(rows[i].w.id) - _dOf(rows[i].w.id) - _tOf(rows[i].w.id))} ج' : ''}', style: const TextStyle(fontSize: 12)),
                         trailing: Text('${rows[i].total} ج', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFBE185D))),
                       ),
@@ -582,8 +582,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     dense: true,
-                    leading: CircleAvatar(radius: 10, backgroundColor: m.days > 0 ? Colors.green.shade400 : const Color(0xFFCBD5E1), child: Text('${m.days}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Colors.white))),
-                    title: Text(m.w.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                    leading: workerAvatar(m.w.id),
+                    title: Text(m.w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: workerColor(m.w.id))),
                     subtitle: Text('${m.days} يوم × ${m.wageAvg} = ${m.gross} • إضافي ${m.ot}${_bOf(m.w.id) + _dOf(m.w.id) + _tOf(m.w.id) > 0 ? ' • صافي ${r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id))} ج' : ''}', style: const TextStyle(fontSize: 12)),
                     trailing: Text(m.total > 0 ? '${m.total} ج' : '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFBE185D))),
                     onTap: () => _detail(m.w),
@@ -693,8 +693,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           dense: true,
-                          leading: const Icon(Icons.badge_outlined, size: 19, color: Color(0xFF6D28D9)),
-                          title: Text(m.w.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                          leading: workerAvatar(m.w.id),
+                          title: Text(m.w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: workerColor(m.w.id))),
                           subtitle: Text('أيام: ${m.days} • ${m.wageAvg} ج/يوم • الإجمالي ${m.gross} • إضافي ${m.ot}', style: const TextStyle(fontSize: 12)),
                           trailing: Text('${m.total} ج', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFBE185D))),
                         ),

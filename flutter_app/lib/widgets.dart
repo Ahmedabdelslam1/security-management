@@ -194,3 +194,13 @@ class _GlowCardState extends State<GlowCard> with SingleTickerProviderStateMixin
     );
   }
 }
+
+
+// ===== لون ثابت لكل عامل + أيقونة دائرية (تُستخدم في كل الشاشات) =====
+const List<Color> kWorkerPalette = [Color(0xFF2563EB), Color(0xFF16A34A), Color(0xFFEA580C), Color(0xFFDB2777), Color(0xFF7C3AED), Color(0xFF0D9488), Color(0xFFDC2626), Color(0xFF0369A1)];
+Color workerColor(String id) => kWorkerPalette[id.hashCode.abs() % kWorkerPalette.length];
+Widget workerAvatar(String id, {double size = 26}) => Container(
+      width: size, height: size,
+      decoration: BoxDecoration(color: workerColor(id), shape: BoxShape.circle),
+      child: Icon(Icons.person, size: size * .62, color: Colors.white),
+    );

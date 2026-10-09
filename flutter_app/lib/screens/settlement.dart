@@ -280,7 +280,7 @@ class _SettlePaneState extends State<_SettlePane> {
                     return SlideIn(
                       index: i,
                       child: GlowCard(
-                      glow: const Color(0xFF15803D),
+                      glow: workerColor(w.id),
                       margin: const EdgeInsets.only(bottom: 8),
                       elevation: 1.5,
                       color: sel ? cs.primary.withOpacity(.08) : null,
@@ -293,7 +293,7 @@ class _SettlePaneState extends State<_SettlePane> {
                           CheckboxListTile(
                             value: sel,
                             onChanged: (v) => setState(() { v == true ? _sel.add(w.id) : _sel.remove(w.id); }),
-                            title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                            title: Row(children: [workerAvatar(w.id, size: 24), const SizedBox(width: 8), Expanded(child: Text(w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor(w.id))))]),
                             subtitle: Text(
                               d.amount.abs() < 0.005
                                   ? 'لا مستحقات ضمن التحديد'
@@ -527,9 +527,11 @@ class _PayrollPaneState extends State<_PayrollPane> {
                                 children: [
                                   Row(
                                     children: [
+                                      workerAvatar('${r['wid'] ?? r['name'] ?? ''}', size: 24),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(r['name'] ?? '',
-                                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor('${r['wid'] ?? r['name'] ?? ''}'))),
                                       ),
                                       Text('${_n(r, 'net')} ج',
                                           style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF7C5CFC))),

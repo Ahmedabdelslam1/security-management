@@ -190,11 +190,13 @@ class _WorkersScreenState extends State<WorkersScreen> {
                         return SlideIn(
                           index: i,
                         child: GlowCard(
-                          glow: const Color(0xFFB45309),
+                          glow: workerColor(w.id),
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1.5,
                           child: ListTile(
-                            title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                            dense: true,
+                            leading: workerAvatar(w.id, size: 30),
+                            title: Text(w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor(w.id))),
                             subtitle: Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
@@ -202,7 +204,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
                                 '${w.card.isEmpty ? '' : ' • بطاقة ${w.card}'}'
                                 '${w.phone.isEmpty ? '' : ' • ${w.phone}'}'
                                 '${w.lastSet.isEmpty ? '' : ' • آخر تسوية ${fmtDate(w.lastSet)}'}\nالمستحق: ${workerDueText(w, App.I.att)}',
-                                style: const TextStyle(fontSize: 12.5),
+                                style: const TextStyle(fontSize: 11),
                               ),
                             ),
                             trailing: isAdmin
