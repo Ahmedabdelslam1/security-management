@@ -23,10 +23,12 @@ var SHEETS = {
   Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo'],
   Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes', 'settleId', 'paidAmt'],
   Locations:  ['name'],
-  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
+  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'phone'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
+  Chats:      ['id', 'kind', 'name', 'members', 'createdBy', 'createdAt'],
+  Msgs:       ['id', 'chat', 'from', 'fromName', 'text', 'file', 'ftype', 'fname', 'at', 'recv', 'read'],
   Log:        ['time', 'user', 'action', 'page', 'details']
 };
 var SCHEMA_CHECKED_ = {};
@@ -83,13 +85,174 @@ function apiMap_() {
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
-    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer
+    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer,
+    chatBoot: chatBoot, chatPoll: chatPoll, chatRead: chatRead, chatSend: chatSend, chatNew: chatNew, chatOpenPrivate: chatOpenPrivate, chatFile: chatFile, setMyPhone: setMyPhone
   };
 }
 
-function srvVer(token) { auth_(token); return '3'; }
+function srvVer(token) { auth_(token); return '4'; }
 
 /* تحديث يدوي من زر المستخدمين: يمسح الذاكرة المؤقتة ويسحب أحدث واجهة من GitHub ويرجع إصدار التطبيق المتاح */
+/* ===================== Chat Security (محادثات داخلية: جماعي وخاص + مرفقات + استلام وقراءة + حالة الاتصال) ===================== */
+var CHAT_ALL_ = 'c-all';
+var CHAT_MIME_ = /^(image\/(png|jpeg|webp|gif)|application\/pdf|application\/msword|application\/vnd\.ms-excel|application\/zip|text\/plain|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))$/;
+
+function chatLocked_(fn) {            // قفل بدون تغيير REV حتى لا تتحدث الشاشات الأخرى مع كل رسالة
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+function chatJ_(s) { try { var a = JSON.parse(s || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function chatTouch_(u) {
+  var c = CacheService.getScriptCache(), k = 'CT_' + u.username;
+  if (!c.get(k)) { updateUser_(u.username, { lastActive: String(Date.now()) }); c.put(k, '1', 40); }
+}
+function chatEnsure_() {
+  var c = CacheService.getScriptCache();
+  if (c.get('CHAT_OK')) return;
+  chatLocked_(function () {
+    var chats = readAll_('Chats');
+    if (!chats.some(function (x) { return x.id === CHAT_ALL_; })) {
+      sh_('Chats').appendRow([CHAT_ALL_, 'group', 'Chat Security', '*', 'system', now_()]);
+    }
+  });
+  c.put('CHAT_OK', '1', 21600);
+}
+function chatIn_(chat, username) { return chat.members === '*' || chatJ_(chat.members).indexOf(username) !== -1; }
+function chatGet_(id, username) {
+  var c = readAll_('Chats').filter(function (x) { return x.id === id; })[0];
+  if (!c || !chatIn_(c, username)) throw new Error('المحادثة غير موجودة');
+  return c;
+}
+// آخر n رسالة (قراءة ذيل الورقة فقط للسرعة)
+function chatTail_(n) {
+  var sheet = sh_('Msgs'), h = SHEETS.Msgs, last = sheet.getLastRow();
+  if (last < 2) return [];
+  var from = Math.max(2, last - n + 1);
+  var vals = sheet.getRange(from, 1, last - from + 1, h.length).getValues();
+  return vals.map(function (r, i) {
+    var o = { _row: from + i };
+    h.forEach(function (k, j) { o[k] = str_(r[j]); });
+    return o;
+  }).filter(function (o) { return o.id !== ''; });
+}
+function chatMsgOut_(m) {
+  return { id: m.id, chat: m.chat, from: m.from, fromName: m.fromName, text: m.text, hasFile: !!m.file, ftype: m.ftype, fname: m.fname,
+           at: num_(m.at), recv: chatJ_(m.recv), read: chatJ_(m.read) };
+}
+function chatUsers_() {
+  var now = Date.now();
+  return readAll_('Users').filter(function (u) { return u.status === 'approved'; }).map(function (u) {
+    var la = num_(u.lastActive);
+    return { username: u.username, name: u.name, phone: u.phone || '', online: now - la < 100000, lastSeen: la };
+  });
+}
+function chatBoot(token) {
+  var u = auth_(token);
+  chatTouch_(u);
+  chatEnsure_();
+  var chats = readAll_('Chats').filter(function (c) { return chatIn_(c, u.username); });
+  var tail = chatTail_(500), info = {};
+  tail.forEach(function (m) {
+    var d = info[m.chat] || (info[m.chat] = { unread: 0, last: null });
+    d.last = chatMsgOut_(m);
+    if (m.from !== u.username && chatJ_(m.read).indexOf(u.username) === -1) d.unread++;
+  });
+  return {
+    me: { username: u.username, name: u.name },
+    users: chatUsers_(),
+    chats: chats.map(function (c) {
+      var d = info[c.id] || { unread: 0, last: null };
+      return { id: c.id, kind: c.kind, name: c.name, members: c.members === '*' ? '*' : chatJ_(c.members), unread: d.unread, last: d.last };
+    })
+  };
+}
+function chatPoll(token, chatId) {
+  var u = auth_(token);
+  chatTouch_(u);
+  var chat = chatGet_(String(chatId), u.username);
+  var tail = chatTail_(400).filter(function (m) { return m.chat === chat.id; });
+  var sheet = sh_('Msgs'), h = SHEETS.Msgs, rc = h.indexOf('recv') + 1;
+  tail.forEach(function (m) {
+    if (m.from === u.username) return;
+    var r = chatJ_(m.recv);
+    if (r.indexOf(u.username) === -1) { r.push(u.username); m.recv = JSON.stringify(r); sheet.getRange(m._row, rc).setValue(m.recv); }
+  });
+  return { msgs: tail.slice(-200).map(chatMsgOut_), users: chatUsers_() };
+}
+function chatRead(token, chatId) {
+  var u = auth_(token);
+  var chat = chatGet_(String(chatId), u.username);
+  var sheet = sh_('Msgs'), h = SHEETS.Msgs, rc = h.indexOf('recv') + 1, dc = h.indexOf('read') + 1, n = 0;
+  chatTail_(400).forEach(function (m) {
+    if (m.chat !== chat.id || m.from === u.username) return;
+    var r = chatJ_(m.recv), d = chatJ_(m.read), ch = false;
+    if (r.indexOf(u.username) === -1) { r.push(u.username); sheet.getRange(m._row, rc).setValue(JSON.stringify(r)); }
+    if (d.indexOf(u.username) === -1) { d.push(u.username); sheet.getRange(m._row, dc).setValue(JSON.stringify(d)); n++; }
+  });
+  return n;
+}
+function chatSend(token, chatId, text, fileData, fileName) {
+  var u = auth_(token);
+  chatTouch_(u);
+  var chat = chatGet_(String(chatId), u.username);
+  text = clip_(text, 4000);
+  var fid = '', ftype = '', fname = '';
+  if (fileData) {
+    var m = /^data:([\w.+\-\/]+);base64,([A-Za-z0-9+\/=]+)$/.exec(String(fileData));
+    if (!m || !CHAT_MIME_.test(m[1])) throw new Error('نوع الملف غير مدعوم (صورة / PDF / Word / Excel / نص)');
+    if (m[2].length > 9000000) throw new Error('حجم الملف كبير (الحد 6 ميجا)');
+    fname = clip_(fileName, 80) || 'ملف';
+    fid = imgFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'chat-' + Date.now() + '-' + fname)).getId();
+    ftype = m[1];
+  }
+  if (!text && !fid) throw new Error('اكتب رسالة أو أرفق ملفًا');
+  var id = 'm' + Date.now() + Math.floor(Math.random() * 1000), at = Date.now();
+  chatLocked_(function () {
+    sh_('Msgs').appendRow([id, chat.id, u.username, u.name, text, fid, ftype, fname, String(at), '[]', JSON.stringify([u.username])]);
+  });
+  return { id: id, chat: chat.id, from: u.username, fromName: u.name, text: text, hasFile: !!fid, ftype: ftype, fname: fname, at: at, recv: [], read: [u.username] };
+}
+function chatNew(token, name, members) {
+  var u = auth_(token);
+  name = clip_(name, 60);
+  if (!name) throw new Error('اكتب اسم المجموعة');
+  var valid = chatUsers_().map(function (x) { return x.username; });
+  var mem = (Array.isArray(members) ? members : []).filter(function (x) { return valid.indexOf(x) !== -1; });
+  if (mem.indexOf(u.username) === -1) mem.push(u.username);
+  var id = 'g' + Date.now() + Math.floor(Math.random() * 1000);
+  chatLocked_(function () { sh_('Chats').appendRow([id, 'group', name, JSON.stringify(mem), u.username, now_()]); });
+  return { id: id, kind: 'group', name: name, members: mem, unread: 0, last: null };
+}
+function chatOpenPrivate(token, other) {
+  var u = auth_(token);
+  other = String(other || '');
+  if (other === u.username) throw new Error('لا يمكن محادثة نفسك');
+  if (!chatUsers_().some(function (x) { return x.username === other; })) throw new Error('المستخدم غير موجود');
+  var id = 'p-' + [u.username, other].sort().join('|');
+  return chatLocked_(function () {
+    var ex = readAll_('Chats').filter(function (c) { return c.id === id; })[0];
+    if (!ex) sh_('Chats').appendRow([id, 'private', '', JSON.stringify([u.username, other]), u.username, now_()]);
+    return { id: id, kind: 'private', name: '', members: [u.username, other], unread: 0, last: null };
+  });
+}
+function chatFile(token, msgId) {
+  var u = auth_(token);
+  var m = chatTail_(2000).filter(function (x) { return x.id === String(msgId); })[0];
+  if (!m || !m.file) return null;
+  chatGet_(m.chat, u.username);
+  try {
+    var blob = DriveApp.getFileById(m.file).getBlob();
+    return { data: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()), type: m.ftype, name: m.fname };
+  } catch (e) { return null; }
+}
+function setMyPhone(token, phone) {
+  var u = auth_(token);
+  phone = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
+  updateUser_(u.username, { phone: phone });
+  return phone;
+}
+
 function refreshLive(token) {
   auth_(token);
   var c = CacheService.getScriptCache(), ks = ['WEBX_N', 'GS_FN', 'GS_SN'];
@@ -172,7 +335,7 @@ function sh0_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH3_' + name)) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH4_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -181,7 +344,7 @@ function sh0_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
-    try { CacheService.getScriptCache().put('SCH3_' + name, '1', 21600); } catch (e) {}
+    try { CacheService.getScriptCache().put('SCH4_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
