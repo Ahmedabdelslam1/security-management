@@ -1,7 +1,7 @@
 name: security_management
 description: تطبيق إدارة الأمن — نسخة أندرويد (Flutter)
 publish_to: 'none'
-version: 1.10.18+31
+version: 1.10.19+32
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

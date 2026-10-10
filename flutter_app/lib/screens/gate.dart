@@ -12,6 +12,7 @@ import '../models.dart';
 import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
+import 'uni_report.dart';
 
 const List<String> kGateActions = ['--', 'دخول', 'خروج'];
 const Color _kGatePurple = Color(0xFF6D28D9);
@@ -299,7 +300,7 @@ class _GateScreenState extends State<GateScreen> {
     final style = TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: col);
     if (!links) return Text(v, style: style);
     return InkWell(
-      onTap: () => _report(kind, g),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UniReportScreen(initialQuery: v, kind: kind))),
       child: Text(v, style: style.copyWith(decoration: TextDecoration.underline, decorationColor: col.withOpacity(.4))),
     );
   }
@@ -450,6 +451,10 @@ class _GateScreenState extends State<GateScreen> {
                     Expanded(child: SearchBox(hint: 'بحث في كل الحقول...', value: _q, onChanged: (v) => setState(() => _q = v))),
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
+                      child: miniIconBtn(Icons.manage_search, const Color(0xFF0F766E), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UniReportScreen())), tip: 'تقرير شامل (البوابة + الإجراءات)'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, right: 4),
                       child: miniIconBtn(Icons.picture_as_pdf, _kGatePurple, _loaded ? _pdf : null, tip: 'طباعة / PDF'),
                     ),
                     Padding(
@@ -878,8 +883,6 @@ class _GateFormState extends State<_GateForm> {
     }
     setState(() { _busy = true; _err = null; });
     try {
-      final pg = int.tryParse(_page.text.trim());
-      final ln = int.tryParse(_line.text.trim());
       await Api.auth('saveGate', [
         {
           'id': widget.existing?['id'],
@@ -893,8 +896,6 @@ class _GateFormState extends State<_GateForm> {
           'notes': _notes.text.trim(),
           'managers': _managers.text.trim(),
           'host': _host.text.trim(),
-          'page': pg,
-          'line': ln,
           'newImages': _newAtts.map((a) => a.data).toList(),
           'removeIdx': _remove.toList(),
         }
@@ -1023,27 +1024,6 @@ class _GateFormState extends State<_GateForm> {
             const SizedBox(height: 8),
             TextField(controller: _host, decoration: _dec('اسم المضيف')),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _page,
-                    keyboardType: TextInputType.number,
-                    decoration: _dec('رقم الصفحة', hint: 'تلقائي'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _line,
-                    keyboardType: TextInputType.number,
-                    decoration: _dec('رقم السطر', hint: 'تلقائي'),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 8),
             TextField(controller: _notes, maxLines: 2, decoration: _dec('ملاحظات إضافية')),
             const SizedBox(height: 10),

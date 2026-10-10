@@ -26,7 +26,7 @@ var SHEETS = {
   Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes'],
-  Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt'],
+  Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
   Log:        ['time', 'user', 'action', 'page', 'details']
 };
 var SCHEMA_CHECKED_ = {};
@@ -172,7 +172,7 @@ function sh0_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH2_' + name)) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH3_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -181,7 +181,7 @@ function sh0_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
-    try { CacheService.getScriptCache().put('SCH2_' + name, '1', 21600); } catch (e) {}
+    try { CacheService.getScriptCache().put('SCH3_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
@@ -819,22 +819,40 @@ function gateTypes_(g) {
   var out = []; for (var i = 0; i < n; i++) out.push(t[i] === 'pdf' ? 'pdf' : 'image');
   return out;
 }
-// رقم القيد = سنة(2) شهر(2) يوم(2) + رقم الصفحة(رقمين) + رقم السطر   مثال 261008031
-function gateEntryNo_(g) {
-  var d = String(g.date || '').split('-'), seq = num_(g.seq);
-  var page = num_(g.page) || (Math.floor((seq - 1) / GATE_PER_PAGE_) + 1);
-  var line = num_(g.line) || (((seq - 1) % GATE_PER_PAGE_) + 1);
+// رقم القيد (10 أرقام) = سنة(2) شهر(2) يوم(2) + الصفحة(2) + السطر(2)   مثال 2610100101 — يُحسب تلقائياً عند الحفظ
+function p2_(n) { n = Math.floor(Number(n) || 0); return (n < 10 ? '0' : '') + n; }
+function entryStr_(date, page, line) {
+  var d = String(date || '').split('-');
   if (d.length !== 3) return '';
-  return d[0].slice(-2) + d[1] + d[2] + (page < 10 ? '0' + page : String(page)) + line;
+  return d[0].slice(-2) + d[1] + d[2] + p2_(page) + p2_(line);
 }
+function entryPos_(n) { return { page: Math.floor((n - 1) / GATE_PER_PAGE_) + 1, line: ((n - 1) % GATE_PER_PAGE_) + 1 }; }
+// يُكمل الصفحة والسطر للسجلات التي لا تملكها (يومياً بترتيب م) ويرجع أكبر موضع مستخدم لكل يوم
+function entryFill_(rows) {
+  var by = {};
+  rows.forEach(function (x) { (by[x.date] = by[x.date] || []).push(x); });
+  Object.keys(by).forEach(function (d) {
+    var g = by[d], mx = 0;
+    g.forEach(function (x) { if (num_(x.page) > 0 && num_(x.line) > 0) mx = Math.max(mx, (num_(x.page) - 1) * GATE_PER_PAGE_ + num_(x.line)); });
+    g.sort(function (a, b) { return num_(a.seq) - num_(b.seq); });
+    g.forEach(function (x) {
+      if (!(num_(x.page) > 0 && num_(x.line) > 0)) { var p = entryPos_(++mx); x.page = String(p.page); x.line = String(p.line); }
+    });
+  });
+}
+function entryNext_(rows, date, selfId) {
+  var mx = 0;
+  rows.forEach(function (x) { if (x.date === date && x.id !== selfId && num_(x.page) > 0 && num_(x.line) > 0) mx = Math.max(mx, (num_(x.page) - 1) * GATE_PER_PAGE_ + num_(x.line)); });
+  return entryPos_(mx + 1);
+}
+function gateEntryNo_(g) { return entryStr_(g.date, g.page, g.line); }
 function gateOut_(g) {
   var seq = num_(g.seq);
   return {
     id: g.id, seq: seq, weekday: g.weekday, date: g.date, plate: g.plate, time: g.time,
     action: g.action || '--', driver: g.driver, rep: g.rep || '', statement: g.statement, notes: g.notes,
     managers: g.managers, host: g.host,
-    page: num_(g.page) || (Math.floor((seq - 1) / GATE_PER_PAGE_) + 1),
-    line: num_(g.line) || (((seq - 1) % GATE_PER_PAGE_) + 1),
+    page: num_(g.page), line: num_(g.line),
     entryNo: gateEntryNo_(g),
     imgCount: gateImgs_(g).length, imgTypes: gateTypes_(g), createdBy: g.createdBy
   };
@@ -851,7 +869,8 @@ function saveGateFile_(dataUrl) {
 
 function listGate(token) {
   auth_(token, 'gate');
-  var rows = readAll_('Gate').map(gateOut_);
+  var raw = readAll_('Gate'); entryFill_(raw);
+  var rows = raw.map(gateOut_);
   rows.sort(function (a, b) { return a.date === b.date ? b.seq - a.seq : (a.date < b.date ? 1 : -1); });
   return rows.slice(0, 3000);
 }
@@ -872,13 +891,16 @@ function saveGate(token, e) {
   if (fresh.length > 10) throw new Error('الحد الأقصى 10 صور في المرة الواحدة');
   return locked_(function () {
     var rows = readAll_('Gate'), cur = null;
+    entryFill_(rows);
     if (e.id) {
       cur = rows.filter(function (x) { return x.id === String(e.id); })[0];
       if (!cur) throw new Error('السجل غير موجود');
+      if (cur.date !== date) { var np0 = entryNext_(rows, date, cur.id); cur.page = String(np0.page); cur.line = String(np0.line); }
     } else {
       var mx = 0;
       rows.forEach(function (x) { mx = Math.max(mx, num_(x.seq)); });
-      cur = { id: 'g' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, images: '[]', createdBy: u.name, createdAt: now_() };
+      var np = entryNext_(rows, date, '');
+      cur = { id: 'g' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, images: '[]', createdBy: u.name, createdAt: now_(), date: date, page: String(np.page), line: String(np.line) };
       rows.push(cur);
     }
     var imgs = gateImgs_(cur), types = gateTypes_(cur);
@@ -890,8 +912,6 @@ function saveGate(token, e) {
     fresh.forEach(function (d) { var f = saveGateFile_(d); keep.push(f.id); keepT.push(f.type); });
     cur.imgTypes = JSON.stringify(keepT);
     cur.action = action; cur.rep = rep0;
-    var pg = Math.floor(Number(e.page)), ln = Math.floor(Number(e.line));
-    cur.page = pg > 0 ? String(pg) : ''; cur.line = ln > 0 ? String(ln) : '';
     cur.date = date; cur.weekday = weekday_(date); cur.time = time; cur.plate = plate;
     cur.driver = driver0; cur.statement = clip_(e.statement, 600); cur.notes = clip_(e.notes, 300);
     cur.managers = clip_(e.managers, 200); cur.host = clip_(e.host, 80);
@@ -949,13 +969,14 @@ function procOut_(p) {
     statement: p.statement, ptype: p.ptype || '--', signed: p.signed || '--', signDate: p.signDate, signer: p.signer,
     bookPage: p.bookPage, supervisor: p.supervisor, notes: p.notes,
     docs: fileList_(p.docs).map(function (f) { return f.t; }), other: fileList_(p.other).map(function (f) { return f.t; }),
-    createdBy: p.createdBy
+    createdBy: p.createdBy, page: num_(p.page), line: num_(p.line), entryNo: entryStr_(p.date, p.page, p.line)
   };
 }
 
 function listProcs(token) {
   auth_(token, 'procs');
-  var rows = readAll_('Procs').map(procOut_);
+  var raw = readAll_('Procs'); entryFill_(raw);
+  var rows = raw.map(procOut_);
   rows.sort(function (a, b) { return a.date === b.date ? b.seq - a.seq : (a.date < b.date ? 1 : -1); });
   return rows.slice(0, 3000);
 }
@@ -975,13 +996,16 @@ function saveProc(token, e) {
   if (nd.length > 10 || no.length > 10) throw new Error('الحد الأقصى 10 ملفات في المرة الواحدة لكل بند');
   return locked_(function () {
     var rows = readAll_('Procs'), cur = null;
+    entryFill_(rows);
     if (e.id) {
       cur = rows.filter(function (x) { return x.id === String(e.id); })[0];
       if (!cur) throw new Error('السجل غير موجود');
+      if (cur.date !== date) { var np0 = entryNext_(rows, date, cur.id); cur.page = String(np0.page); cur.line = String(np0.line); }
     } else {
       var mx = 0;
       rows.forEach(function (x) { mx = Math.max(mx, num_(x.seq)); });
-      cur = { id: 'p' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, docs: '[]', other: '[]', createdBy: u.name, createdAt: now_() };
+      var np = entryNext_(rows, date, '');
+      cur = { id: 'p' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, docs: '[]', other: '[]', createdBy: u.name, createdAt: now_(), date: date, page: String(np.page), line: String(np.line) };
       rows.push(cur);
     }
     function apply(field, fresh, removeIdx) {

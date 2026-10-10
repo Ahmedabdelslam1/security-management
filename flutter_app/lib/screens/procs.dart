@@ -11,6 +11,7 @@ import '../models.dart';
 import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
+import 'uni_report.dart';
 
 const List<String> kProcTypes = ['--', 'دخول', 'خروج'];
 const List<String> kProcSign = ['--', 'تم الختم والتوقيع'];
@@ -267,7 +268,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
     final style = TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: col);
     if (!links) return Text(v, style: style);
     return InkWell(
-      onTap: () => _report(kind, p),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UniReportScreen(initialQuery: v, kind: kind))),
       child: Text(v, style: style.copyWith(decoration: TextDecoration.underline, decorationColor: col.withOpacity(.4))),
     );
   }
@@ -331,7 +332,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 3),
-                child: Text('م ${_s(p, 'seq')}  •  ${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
+                child: Text('قيد ${_s(p, 'entryNo')}  •  م ${_s(p, 'seq')}  •  ${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
               ),
               const SizedBox(height: 2),
               Wrap(
@@ -398,6 +399,10 @@ class _ProcsScreenState extends State<ProcsScreen> {
                     Expanded(child: SearchBox(hint: 'بحث في كل البنود...', value: _q, onChanged: (v) => setState(() => _q = v))),
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
+                      child: miniIconBtn(Icons.manage_search, const Color(0xFF0F766E), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UniReportScreen())), tip: 'تقرير شامل (البوابة + الإجراءات)'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, right: 4),
                       child: miniIconBtn(Icons.picture_as_pdf, const Color(0xFF6D28D9), _pdf, tip: 'طباعة / PDF'),
                     ),
                     Padding(
