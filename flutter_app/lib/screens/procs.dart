@@ -67,9 +67,9 @@ class _ProcsScreenState extends State<ProcsScreen> {
       await App.I.logout();
       if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } on ApiException catch (e) {
-      _msg(e.message, true);
+      _msg(e.message.contains('غير معروف') ? 'سكربت Google قديم — الصق Code.gs الجديد ثم Deploy ← New version' : e.message, true);
     } catch (_) {
-      _msg('تعذر تحميل الإجراءات', true);
+      _msg('تعذر تحميل الإجراءات — تأكد من الإنترنت', true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

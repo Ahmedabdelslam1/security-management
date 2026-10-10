@@ -35,7 +35,7 @@ Future<void> exportTablePdf({
   pw.Widget cell(String t, {bool head = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
-      padding: const pw.EdgeInsets.symmetric(vertical: 3.5, horizontal: 3),
+      padding: pw.EdgeInsets.symmetric(vertical: landscape ? 3.5 : 5.3, horizontal: 3), // ≈ 32 سطر في الصفحة الطولية
       alignment: pw.Alignment.center,
       child: pw.Text(
         t,

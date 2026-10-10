@@ -1044,10 +1044,6 @@ class _GateFormState extends State<_GateForm> {
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text('رقم القيد: $_entryPreview', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _kGatePurple)),
-            ),
             const SizedBox(height: 8),
             TextField(controller: _notes, maxLines: 2, decoration: _dec('ملاحظات إضافية')),
             const SizedBox(height: 10),
