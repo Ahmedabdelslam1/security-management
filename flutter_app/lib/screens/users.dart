@@ -135,7 +135,7 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  static const _permDefs = [('workers', 'العاملين'), ('attendance', 'الحضور'), ('reports', 'التقارير'), ('gate', 'دفتر البوابة'), ('procs', 'الإجراءات اليومية')];
+  static const _permDefs = [('workers', 'العاملين'), ('attendance', 'الحضور'), ('reports', 'التقارير'), ('gate', 'دفتر البوابة')];
 
   Future<void> _perms(AppUser u) async {
     final Map<String, bool> perms = {

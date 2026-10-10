@@ -64,7 +64,7 @@ class _UniReportScreenState extends State<UniReportScreen> {
           rethrow;
         } catch (_) {}
       }
-      if (App.I.user?.can('procs') ?? false) {
+      if (false) {
         try {
           final r = await Api.auth('listProcs') as List;
           out.addAll(r.map((x) => _Item(false, x as Map)));
