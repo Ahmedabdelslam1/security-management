@@ -108,12 +108,12 @@ class _ProcsScreenState extends State<ProcsScreen> {
         for (final p in rs)
           [
             _s(p, 'seq'), fmtDate(_s(p, 'date')), _s(p, 'weekday'), _s(p, 'plate'), _s(p, 'driver'), _s(p, 'rep'),
-            _s(p, 'statement'), _s(p, 'ptype'), _signText(p), _s(p, 'supervisor'), _s(p, 'notes'),
+            _s(p, 'statement'), _s(p, 'ptype'), _signText(p), _s(p, 'supervisor'), _s(p, 'notes'), _s(p, 'entryNo'),
           ]
       ];
 
-  static const _pdfHeaders = ['م', 'التاريخ', 'اليوم', 'رقم السيارة', 'اسم السائق', 'المندوب / الموظف', 'البيان', 'نوع الإجراء', 'توقيع المستند', 'مشرف الوردية', 'ملاحظات'];
-  static const _pdfWidths = <double>[0.6, 1.3, 1.1, 1.4, 1.8, 1.8, 2, 1, 2.6, 1.4, 1.6];
+  static const _pdfHeaders = ['م', 'التاريخ', 'اليوم', 'رقم السيارة', 'اسم السائق', 'المندوب / الموظف', 'البيان', 'نوع الإجراء', 'توقيع المستند', 'مشرف الوردية', 'ملاحظات', 'رقم القيد'];
+  static const _pdfWidths = <double>[0.6, 1.3, 1.1, 1.4, 1.8, 1.8, 2, 1, 2.6, 1.4, 1.6, 1.4];
 
   void _pdf() {
     final rs = _filtered.toList()..sort((a, b) => _s(a, 'date') == _s(b, 'date') ? _s(a, 'seq').compareTo(_s(b, 'seq')) : _s(a, 'date').compareTo(_s(b, 'date')));
@@ -333,7 +333,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 3),
-                child: Text('قيد ${_s(p, 'entryNo')}  •  م ${_s(p, 'seq')}  •  ${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
+                child: Text('م ${_s(p, 'seq')}  •  ${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
               ),
               const SizedBox(height: 2),
               Wrap(
@@ -362,6 +362,8 @@ class _ProcsScreenState extends State<ProcsScreen> {
                   ],
                   if (other > 0) MiniChipButton(icon: Icons.folder_open, label: 'أخرى $other', color: const Color(0xFF0369A1), onTap: () => _files(p, 'other')),
                   const Spacer(),
+                  Text('قيد ${_s(p, 'entryNo')}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: col)),
+                  const SizedBox(width: 8),
                   if (!compact) ...[
                     miniIconBtn(Icons.edit, const Color(0xFF1D4ED8), () => _edit(p), tip: signed ? 'تعديل' : 'تعديل / توقيع'),
                     const SizedBox(width: 6),

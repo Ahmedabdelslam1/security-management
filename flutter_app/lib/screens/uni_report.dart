@@ -122,12 +122,12 @@ class _UniReportScreenState extends State<UniReportScreen> {
         if (_from != null) 'من ${fmtDate(_ds(_from!))}',
         if (_to != null) 'إلى ${fmtDate(_ds(_to!))}',
       ].join('  '),
-      headers: const ['الشاشة', 'رقم القيد', 'م', 'التاريخ', 'اليوم', 'الوقت', 'الإجراء', 'رقم السيارة', 'السائق', 'المندوب / الموظف', 'البيان', 'ملاحظات'],
-      widths: const [1.5, 1.6, 0.6, 1.3, 1.1, 0.9, 0.9, 1.2, 1.6, 1.6, 3, 1.6],
+      headers: const ['م', 'التاريخ', 'اليوم', 'الوقت', 'الإجراء', 'رقم السيارة', 'السائق', 'المندوب / الموظف', 'البيان', 'ملاحظات', 'رقم القيد', 'الشاشة'],
+      widths: const [0.6, 1.3, 1.1, 0.9, 0.9, 1.2, 1.6, 1.6, 3, 1.6, 1.6, 1.5],
       landscape: true,
       rows: [
         for (final i in rs)
-          [i.screen, _s(i.r, 'entryNo'), '${i.seq}', fmtDate(i.date), _s(i.r, 'weekday'), i.gate ? _s(i.r, 'time') : '', i.act, _s(i.r, 'plate'), _s(i.r, 'driver'), _s(i.r, 'rep'), _s(i.r, 'statement'), _s(i.r, 'notes')]
+          ['${i.seq}', fmtDate(i.date), _s(i.r, 'weekday'), i.gate ? _s(i.r, 'time') : '', i.act, _s(i.r, 'plate'), _s(i.r, 'driver'), _s(i.r, 'rep'), _s(i.r, 'statement'), _s(i.r, 'notes'), _s(i.r, 'entryNo'), i.screen]
       ],
       total: '${rs.length}',
       totalLabel: 'عدد البنود',

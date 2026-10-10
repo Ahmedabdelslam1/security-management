@@ -99,14 +99,14 @@ class _GateScreenState extends State<GateScreen> {
     }).toList();
   }
 
-  static const _pdfHeaders = ['م', 'رقم القيد', 'اليوم', 'التاريخ', 'الوقت', 'الإجراء', 'رقم السيارة', 'السائق', 'المندوب / الموظف', 'البيان', 'حضور مديرين', 'المضيف', 'ملاحظات'];
-  static const _pdfWidths = <double>[0.5, 1.3, 1, 1.2, 0.8, 0.8, 1.3, 1.4, 1.4, 2.4, 1.2, 1.2, 1.4];
+  static const _pdfHeaders = ['م', 'اليوم', 'التاريخ', 'الوقت', 'الإجراء', 'رقم السيارة', 'السائق', 'المندوب / الموظف', 'البيان', 'حضور مديرين', 'المضيف', 'ملاحظات', 'رقم القيد'];
+  static const _pdfWidths = <double>[0.5, 1, 1.2, 0.8, 0.8, 1.3, 1.4, 1.4, 2.4, 1.2, 1.2, 1.4, 1.4];
 
   List<List<String>> _pdfRows(List<Map> rs) => [
         for (final g in rs)
           [
-            _s(g, 'seq'), _s(g, 'entryNo'), _s(g, 'weekday'), fmtDate(_s(g, 'date')), _s(g, 'time'), _s(g, 'action'), _s(g, 'plate'),
-            _s(g, 'driver'), _s(g, 'rep'), _s(g, 'statement'), _s(g, 'managers'), _s(g, 'host'), _s(g, 'notes'),
+            _s(g, 'seq'), _s(g, 'weekday'), fmtDate(_s(g, 'date')), _s(g, 'time'), _s(g, 'action'), _s(g, 'plate'),
+            _s(g, 'driver'), _s(g, 'rep'), _s(g, 'statement'), _s(g, 'managers'), _s(g, 'host'), _s(g, 'notes'), _s(g, 'entryNo'),
           ]
       ];
 
@@ -349,7 +349,7 @@ class _GateScreenState extends State<GateScreen> {
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text('قيد $entry  •  م ${_s(g, 'seq')}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: col)),
+                    child: Text('م ${_s(g, 'seq')}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: col)),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
@@ -409,6 +409,8 @@ class _GateScreenState extends State<GateScreen> {
                       ),
                     ),
                   const Spacer(),
+                  Text('قيد $entry', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: col)),
+                  const SizedBox(width: 8),
                   miniIconBtn(Icons.edit, const Color(0xFF1D4ED8), () async {
                     final ok = await _edit(g);
                     if (ok && onChanged != null) onChanged();
