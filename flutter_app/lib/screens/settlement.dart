@@ -192,8 +192,10 @@ class _SettlePaneState extends State<_SettlePane> {
     final cs = Theme.of(context).colorScheme;
     final locs = App.I.locs;
     final all = App.I.workers;
-    final workers = _q.isEmpty ? all : all.where((w) => txtMatch(_q, [w.name, w.card])).toList();
     final dues = {for (final w in all) w.id: _dueOf(w)};
+    var workers = _q.isEmpty ? all : all.where((w) => txtMatch(_q, [w.name, w.card])).toList();
+    // عند اختيار مكان حضور: لا يظهر إلا العمال الذين لهم حضور في هذا المكان ضمن الفترة
+    if (_loc != null) workers = workers.where((w) => dues[w.id]!.amount.abs() >= 0.005).toList();
 
     return Column(
       children: [
