@@ -126,6 +126,7 @@ const tabColors = <String, List<int>>{
   'procs': [0xFFFED7AA, 0xFFC2410C], // إجراءات يومية — برتقالي
   'users': [0xFF99F6E4, 0xFF0F766E], // مستخدمين — تركواز
   'monitor': [0xFFFECACA, 0xFFB91C1C], // متابعة — أحمر
+  'chat': [0xFFBBF7D0, 0xFF16A34A],
   'settings': [0xFFBAE6FD, 0xFF0369A1], // إعدادات — سماوي
 };
 

@@ -18,6 +18,7 @@ class HomeScreen extends StatelessWidget {
       if (u?.can('attendance') ?? false) ('settlement', 'التسوية', Icons.payments_outlined),
       if (u?.can('gate') ?? false) ('gate', 'دفتر البوابة', Icons.door_front_door),
       if (u?.can('reports') ?? false) ('reports', 'التقارير', Icons.bar_chart),
+      ('chat', 'Chat Security', Icons.forum_outlined),
       if (u?.isAdmin ?? false) ('users', 'المستخدمين', Icons.manage_accounts_outlined),
       if (u?.isAdmin ?? false) ('monitor', 'المتابعة', Icons.monitor_heart_outlined),
     ];
