@@ -86,7 +86,7 @@ function apiMap_() {
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
     listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer,
-    chatBoot: chatBoot, chatPoll: chatPoll, chatRead: chatRead, chatSend: chatSend, chatNew: chatNew, chatOpenPrivate: chatOpenPrivate, chatFile: chatFile, setMyPhone: setMyPhone
+    chatBoot: chatBoot, chatPoll: chatPoll, chatRead: chatRead, chatSend: chatSend, chatNew: chatNew, chatOpenPrivate: chatOpenPrivate, chatFile: chatFile, setMyPhone: setMyPhone, chatWaSet: chatWaSet, chatAddMembers: chatAddMembers, chatSetPhone: chatSetPhone
   };
 }
 
@@ -159,11 +159,12 @@ function chatBoot(token) {
     if (m.from !== u.username && chatJ_(m.read).indexOf(u.username) === -1) d.unread++;
   });
   return {
-    me: { username: u.username, name: u.name },
+    me: { username: u.username, name: u.name, admin: u.role === 'admin' },
+    wa: chatWa_(),
     users: chatUsers_(),
     chats: chats.map(function (c) {
       var d = info[c.id] || { unread: 0, last: null };
-      return { id: c.id, kind: c.kind, name: c.name, members: c.members === '*' ? '*' : chatJ_(c.members), unread: d.unread, last: d.last };
+      return { id: c.id, kind: c.kind, name: c.name, createdBy: c.createdBy, members: c.members === '*' ? '*' : chatJ_(c.members), unread: d.unread, last: d.last };
     })
   };
 }
@@ -222,7 +223,7 @@ function chatNew(token, name, members) {
   if (mem.indexOf(u.username) === -1) mem.push(u.username);
   var id = 'g' + Date.now() + Math.floor(Math.random() * 1000);
   chatLocked_(function () { sh_('Chats').appendRow([id, 'group', name, JSON.stringify(mem), u.username, now_()]); });
-  return { id: id, kind: 'group', name: name, members: mem, unread: 0, last: null };
+  return { id: id, kind: 'group', name: name, createdBy: u.username, members: mem, unread: 0, last: null };
 }
 function chatOpenPrivate(token, other) {
   var u = auth_(token);
@@ -251,6 +252,43 @@ function setMyPhone(token, phone) {
   phone = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
   updateUser_(u.username, { phone: phone });
   return phone;
+}
+
+function chatWa_() {
+  var p = PropertiesService.getScriptProperties();
+  return { link: p.getProperty('CHAT_WA_LINK') || '', name: p.getProperty('CHAT_WA_NAME') || 'Chat Security' };
+}
+function chatWaSet(token, link, name) {
+  var u = auth_(token);
+  if (u.role !== 'admin') throw new Error('للمدير فقط');
+  link = String(link || '').trim();
+  if (link && !/^https:\/\/(chat\.whatsapp\.com|whatsapp\.com\/channel|wa\.me)\//.test(link)) throw new Error('الرابط يجب أن يكون رابط دعوة واتساب (chat.whatsapp.com أو whatsapp.com/channel)');
+  var p = PropertiesService.getScriptProperties();
+  p.setProperty('CHAT_WA_LINK', link);
+  p.setProperty('CHAT_WA_NAME', clip_(name, 60) || 'Chat Security');
+  return chatWa_();
+}
+function chatSetPhone(token, username, phone) {
+  var u = auth_(token);
+  if (u.role !== 'admin') throw new Error('للمدير فقط');
+  phone = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
+  updateUser_(String(username), { phone: phone });
+  return phone;
+}
+function chatAddMembers(token, chatId, members) {
+  var u = auth_(token);
+  var c = chatGet_(String(chatId), u.username);
+  if (c.kind !== 'group' || c.members === '*') throw new Error('هذه المحادثة تضم الجميع تلقائيًا');
+  if (u.role !== 'admin' && c.createdBy !== u.username) throw new Error('إضافة الأعضاء لمنشئ المجموعة أو المدير');
+  var valid = chatUsers_().map(function (x) { return x.username; });
+  var cur = chatJ_(c.members);
+  (Array.isArray(members) ? members : []).forEach(function (x) { if (valid.indexOf(x) !== -1 && cur.indexOf(x) === -1) cur.push(x); });
+  chatLocked_(function () {
+    var h = SHEETS.Chats, col = h.indexOf('members') + 1, id = h.indexOf('id');
+    var rows = sh_('Chats').getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) if (String(rows[i][id]) === c.id) { sh_('Chats').getRange(i + 1, col).setValue(JSON.stringify(cur)); break; }
+  });
+  return cur;
 }
 
 function refreshLive(token) {

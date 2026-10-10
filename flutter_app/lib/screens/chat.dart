@@ -40,6 +40,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List users = [];
   List chats = [];
   String me = '';
+  bool admin = false;
+  Map wa = {};
   Map? cur;
   Timer? _t;
   bool loading = true;
@@ -68,6 +70,8 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         users = r['users'] as List;
         chats = r['chats'] as List;
+        admin = (r['me'] as Map)['admin'] == true;
+        wa = (r['wa'] as Map?) ?? {};
         loading = false;
         err = null;
       });
@@ -180,9 +184,78 @@ class _ChatScreenState extends State<ChatScreen> {
     await launchUrl(Uri.parse('https://wa.me/$p'), mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _invite() async {
-    await Share.share('انضم إلى Chat Security — إدارة الأمن. سجّل رقمك من داخل الشات ليتم إضافتك.');
+
+  Future<void> _settings() async {
+    final link = TextEditingController(text: (wa['link'] ?? '').toString());
+    final nm = TextEditingController(text: (wa['name'] ?? 'Chat Security').toString());
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SafeArea(
+          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(12), children: [
+            const Text('⚙️ إعدادات واتساب والأعضاء', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            const SizedBox(height: 8),
+            const Text('أنشئ المجموعة أو القناة في واتساب ثم الصق رابط الدعوة ليظهر زر الانضمام للجميع.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+            if (admin) ...[
+              TextField(controller: nm, decoration: const InputDecoration(labelText: 'اسم المجموعة')),
+              TextField(controller: link, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'رابط الدعوة https://chat.whatsapp.com/...')),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      final r = await Api.auth('chatWaSet', [link.text, nm.text]) as Map;
+                      setState(() => wa = r);
+                      _toast('تم الحفظ');
+                    } catch (e) {
+                      _toast(e.toString());
+                    }
+                  },
+                  child: const Text('حفظ الرابط'),
+                ),
+              ),
+            ],
+            if ((wa['link'] ?? '').toString().isNotEmpty)
+              Wrap(spacing: 8, children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.chat, color: Color(0xFF16A34A)),
+                  label: const Text('انضمام في واتساب'),
+                  onPressed: () => launchUrl(Uri.parse(wa['link'].toString()), mode: LaunchMode.externalApplication),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.share),
+                  label: const Text('إرسال الدعوة'),
+                  onPressed: () => Share.share('انضم إلى ${wa['name'] ?? 'Chat Security'} على واتساب\n${wa['link']}'),
+                ),
+              ])
+            else if (!admin)
+              const Text('لم يضف المدير رابطًا بعد.'),
+            const Divider(),
+            const Text('👥 الأعضاء وأرقامهم', style: TextStyle(fontWeight: FontWeight.w900)),
+            for (final u in users)
+              _PhoneRow(
+                u: u as Map,
+                editable: admin,
+                onSave: (v) async {
+                  try {
+                    final p = await Api.auth('chatSetPhone', [u['username'], v]);
+                    u['phone'] = p;
+                    _toast('تم حفظ الرقم');
+                  } catch (e) {
+                    _toast(e.toString());
+                  }
+                },
+                onWa: () => _wa(u),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +275,7 @@ class _ChatScreenState extends State<ChatScreen> {
           me: me,
           nameOf: (n) => (_u(n)?['name'] ?? n).toString(),
           users: users,
+          admin: admin,
           onBack: () {
             setState(() => cur = null);
             _boot();
@@ -227,7 +301,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(child: Text('🟢 $online متصل من ${users.length}', style: const TextStyle(fontWeight: FontWeight.w800))),
           IconButton(tooltip: 'رقمي', icon: const Icon(Icons.phone_android, color: Color(0xFF0369A1)), onPressed: _phone),
           IconButton(tooltip: 'مجموعة جديدة', icon: const Icon(Icons.group_add, color: Color(0xFF16A34A)), onPressed: _newGroup),
-          IconButton(tooltip: 'دعوة', icon: const Icon(Icons.share, color: Color(0xFFC2410C)), onPressed: _invite),
+          IconButton(tooltip: 'واتساب والأعضاء', icon: const Icon(Icons.settings, color: Color(0xFFC2410C)), onPressed: _settings),
         ]),
         const SizedBox(height: 4),
         for (final c in chats)
@@ -288,7 +362,8 @@ class _Room extends StatefulWidget {
   final String Function(String) nameOf;
   final List users;
   final VoidCallback onBack;
-  const _Room({super.key, required this.chat, required this.title, required this.me, required this.nameOf, required this.users, required this.onBack});
+  final bool admin;
+  const _Room({super.key, this.admin = false, required this.chat, required this.title, required this.me, required this.nameOf, required this.users, required this.onBack});
   @override
   State<_Room> createState() => _RoomState();
 }
@@ -335,6 +410,47 @@ class _RoomState extends State<_Room> {
         Api.auth('chatRead', [widget.chat['id']]).catchError((_) {});
       }
     } catch (_) {}
+  }
+
+
+  bool _canAdd() => widget.chat['kind'] == 'group' && widget.chat['members'] != '*' && (widget.admin || widget.chat['createdBy'] == widget.me);
+
+  Future<void> _addMem() async {
+    final cur = (widget.chat['members'] as List).map((e) => e.toString()).toList();
+    final sel = <String>{};
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, st) => AlertDialog(
+          title: const Text('إضافة أعضاء'),
+          content: SizedBox(
+            width: 320,
+            child: ListView(shrinkWrap: true, children: [
+              for (final u in users)
+                if (!cur.contains(u['username']))
+                  CheckboxListTile(
+                    dense: true,
+                    value: sel.contains(u['username']),
+                    title: Text(u['name'].toString()),
+                    onChanged: (v) => st(() => v == true ? sel.add(u['username']) : sel.remove(u['username'])),
+                  ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إضافة')),
+          ],
+        ),
+      ),
+    );
+    if (ok == true && sel.isNotEmpty) {
+      try {
+        final m = await Api.auth('chatAddMembers', [widget.chat['id'], sel.toList()]) as List;
+        setState(() => widget.chat['members'] = m);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
   }
 
   List _others() {
@@ -443,6 +559,7 @@ class _RoomState extends State<_Room> {
           dense: true,
           leading: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: widget.onBack),
           title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          trailing: _canAdd() ? IconButton(icon: const Icon(Icons.person_add, color: Color(0xFF16A34A)), onPressed: _addMem) : null,
           subtitle: Text('${_others().where((x) => users.any((u) => u['username'] == x && u['online'] == true)).length} متصل'),
         ),
       ),
@@ -508,6 +625,38 @@ class _RoomState extends State<_Room> {
           ),
         ]),
       ),
+    ]);
+  }
+}
+
+class _PhoneRow extends StatelessWidget {
+  final Map u;
+  final bool editable;
+  final Future<void> Function(String) onSave;
+  final VoidCallback onWa;
+  const _PhoneRow({required this.u, required this.editable, required this.onSave, required this.onWa});
+  @override
+  Widget build(BuildContext context) {
+    final c = TextEditingController(text: (u['phone'] ?? '').toString());
+    return Row(children: [
+      CircleAvatar(radius: 5, backgroundColor: u['online'] == true ? Colors.green : Colors.grey),
+      const SizedBox(width: 8),
+      Expanded(child: Text(u['name'].toString())),
+      if (editable)
+        SizedBox(
+          width: 130,
+          child: TextField(
+            controller: c,
+            keyboardType: TextInputType.phone,
+            textDirection: TextDirection.ltr,
+            decoration: const InputDecoration(isDense: true, hintText: 'رقم'),
+            onSubmitted: onSave,
+            onTapOutside: (_) => onSave(c.text),
+          ),
+        )
+      else
+        Text((u['phone'] ?? '—').toString(), textDirection: TextDirection.ltr),
+      if ((u['phone'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.chat, color: Color(0xFF16A34A)), onPressed: onWa),
     ]);
   }
 }

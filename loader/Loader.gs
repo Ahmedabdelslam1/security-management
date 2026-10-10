@@ -3,7 +3,7 @@
 var SRC_URL_ = 'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Code.gs';
 var FN_ = ['doGet','doPost','setup','resetAdminPassword','resetAll','rev','login','logout','register','changePassword','ping','addLog',
   'bootstrap','saveDay','settleWorkers','listPayroll','updatePayrollAdj','saveWorker','deleteWorkers','getImage','setUser','addUser',
-  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive','srvVer','chatBoot','chatPoll','chatRead','chatSend','chatNew','chatOpenPrivate','chatFile','setMyPhone'];
+  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive','srvVer','chatBoot','chatPoll','chatRead','chatSend','chatNew','chatOpenPrivate','chatFile','setMyPhone','chatWaSet','chatAddMembers','chatSetPhone'];
 var LIB_ = null;
 
 function src_() {
@@ -87,6 +87,9 @@ function chatPoll() { return call_('chatPoll', [].slice.call(arguments)); }
 function chatRead() { return call_('chatRead', [].slice.call(arguments)); }
 function chatSend() { return call_('chatSend', [].slice.call(arguments)); }
 function chatNew() { return call_('chatNew', [].slice.call(arguments)); }
+function chatWaSet() { return call_('chatWaSet', [].slice.call(arguments)); }
+function chatAddMembers() { return call_('chatAddMembers', [].slice.call(arguments)); }
+function chatSetPhone() { return call_('chatSetPhone', [].slice.call(arguments)); }
 function chatOpenPrivate() { return call_('chatOpenPrivate', [].slice.call(arguments)); }
 function chatFile() { return call_('chatFile', [].slice.call(arguments)); }
 function setMyPhone() { return call_('setMyPhone', [].slice.call(arguments)); }
