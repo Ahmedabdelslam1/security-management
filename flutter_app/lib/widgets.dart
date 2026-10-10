@@ -12,29 +12,35 @@ class SearchBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 2),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
       child: TextField(
         onChanged: onChanged,
+        style: const TextStyle(fontSize: 12.5),
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           isDense: true,
           hintText: hint,
-          prefixIcon: const Icon(Icons.search, size: 20),
+          hintStyle: const TextStyle(fontSize: 12),
+          prefixIcon: const Icon(Icons.search, size: 17),
+          prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 28),
+          suffixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 28),
           suffixIcon: value.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.close, size: 18),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 16),
                   onPressed: () => onChanged(''),
                 ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: cs.outlineVariant.withOpacity(.6)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: cs.primary, width: 1.6),
           ),
         ),
@@ -203,4 +209,82 @@ Widget workerAvatar(String id, {double size = 26}) => Container(
       width: size, height: size,
       decoration: BoxDecoration(color: workerColor(id), shape: BoxShape.circle),
       child: Icon(Icons.person, size: size * .62, color: Colors.white),
+    );
+
+
+// ===== تطبيع النص العربي للبحث: حذف التشكيل، توحيد الهمزات والياء والتاء المربوطة، الأرقام العربية → لاتينية =====
+String normAr(String x) {
+  var s = x.toLowerCase();
+  s = s.replaceAll(RegExp('[\u064B-\u0652\u0640]'), '');
+  s = s.replaceAll(RegExp('[أإآ]'), 'ا').replaceAll('ى', 'ي').replaceAll('ة', 'ه');
+  const ar = '٠١٢٣٤٥٦٧٨٩';
+  const fa = '۰۱۲۳۴۵۶۷۸۹';
+  final b = StringBuffer();
+  for (final r in s.runes) {
+    final ch = String.fromCharCode(r);
+    final i = ar.indexOf(ch);
+    final j = fa.indexOf(ch);
+    if (i >= 0) {
+      b.write(i);
+    } else if (j >= 0) {
+      b.write(j);
+    } else {
+      b.write(ch);
+    }
+  }
+  return b.toString();
+}
+
+// بحث عربي مُطبَّع في عدة حقول
+bool txtMatchAr(String query, Iterable<String?> fields) {
+  final q = normAr(query.trim());
+  if (q.isEmpty) return true;
+  for (final f in fields) {
+    if (f != null && normAr(f).contains(q)) return true;
+  }
+  return false;
+}
+
+// ===== أزرار صغيرة مشتركة للشرائح العلوية =====
+class MiniChipButton extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color color;
+  final bool filled;
+  const MiniChipButton({super.key, required this.label, this.icon, this.onTap, this.color = const Color(0xFF6D28D9), this.filled = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: filled ? color.withOpacity(.14) : Colors.white,
+          border: Border.all(color: color.withOpacity(.5)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[Icon(icon, size: 13, color: color), const SizedBox(width: 3)],
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// أيقونة صغيرة ملونة (تعديل / حذف / ...)
+Widget miniIconBtn(IconData icon, Color color, VoidCallback? onTap, {String? tip}) => IconButton(
+      tooltip: tip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      style: IconButton.styleFrom(backgroundColor: color.withOpacity(.12)),
+      onPressed: onTap,
+      icon: Icon(icon, size: 15, color: color),
     );

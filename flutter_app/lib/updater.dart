@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-const String appVersion = '1.10.15';
+const String appVersion = '1.10.16';
 const String _versionUrl =
     'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json';
 const String _apkUrl =
@@ -38,6 +38,42 @@ Future<String?> fetchNewerVersion() async {
   }
 }
 
+const String _runsUrl =
+    'https://api.github.com/repos/Ahmedabdelslam1/security-management/actions/workflows/build-apk.yml/runs?status=success&branch=main&per_page=1';
+
+/// يبحث في GitHub Actions عن آخر بناء ناجح للتطبيق ويقرأ رقم إصداره من pubspec.yaml الخاص بنفس الـ commit.
+/// يرجع نص الإصدار (مثل 1.10.16) أو null لو تعذر الاتصال بـ Actions.
+Future<String?> latestFromActions() async {
+  try {
+    final r = await http
+        .get(Uri.parse(_runsUrl), headers: {'Accept': 'application/vnd.github+json'})
+        .timeout(const Duration(seconds: 12));
+    if (r.statusCode != 200) return null;
+    final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map;
+    final runs = (j['workflow_runs'] as List?) ?? const [];
+    if (runs.isEmpty) return null;
+    final sha = (runs.first as Map)['head_sha']?.toString() ?? '';
+    if (sha.isEmpty) return null;
+    final p = await http
+        .get(Uri.parse('https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/$sha/flutter_app/pubspec.yaml'))
+        .timeout(const Duration(seconds: 12));
+    if (p.statusCode != 200) return null;
+    final m = RegExp(r'^version:\s*([0-9.]+)', multiLine: true).firstMatch(utf8.decode(p.bodyBytes));
+    return m?.group(1);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// آخر إصدار متاح: من GitHub Actions أولًا، ثم من app-version.json كاحتياطي. يرجع الإصدار لو كان أحدث من المثبّت.
+Future<String?> _findNewer() async {
+  final fromRuns = await latestFromActions();
+  if (fromRuns != null) {
+    return _verNum(fromRuns) > _verNum(appVersion) ? fromRuns : null;
+  }
+  return fetchNewerVersion();
+}
+
 /// تحديث تلقائي كامل وصامت: بدون أي نافذة تأكيد أو شريط تقدم أو إشعار خطأ.
 /// يفحص الإصدار، يحمّل الملف في الخلفية، ثم يفتح المثبّت مباشرة.
 /// لا يستخدم BuildContext نهائيًا — يعمل حتى لو المستخدم غيّر الشاشة.
@@ -53,8 +89,8 @@ Future<String> _runUpdate() async {
   if (_updating) return 'التحديث قيد التنفيذ';
   _updating = true;
   try {
-    final newer = await fetchNewerVersion();
-    if (newer == null) return 'أنت على آخر إصدار ($appVersion)';
+    final newer = await _findNewer();
+    if (newer == null) return 'أنت على آخر إصدار ($appVersion) — تم الفحص في GitHub Actions';
 
     final client = http.Client();
     final res = await client.send(http.Request('GET', Uri.parse(_apkUrl))).timeout(const Duration(minutes: 5));

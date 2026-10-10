@@ -140,7 +140,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             tooltip: 'مزامنة الآن',
             onPressed: () async {
               final m = ScaffoldMessenger.of(context);
-              m.showSnackBar(const SnackBar(content: Text('جاري تحديث البيانات والإصدار...'), duration: Duration(seconds: 2)));
+              m.showSnackBar(const SnackBar(content: Text('جاري البحث في GitHub Actions عن آخر إصدار وتحديث البيانات...'), duration: Duration(seconds: 2)));
               try { await Api.auth('refreshLive', []); } catch (_) {}
               try { await App.I.bootstrap(); } catch (_) {}
               final msg = await forceUpdate();

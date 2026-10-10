@@ -345,13 +345,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
             child: SegmentedButton<int>(
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6, vertical: 0)),
+              ),
               segments: const [
-                ButtonSegment(value: 1, label: Text('حسب العامل', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 2, label: Text('حسب المكان', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 3, label: Text('مجمع', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 4, label: Text('خطاب اعتماد', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800))),
+                ButtonSegment(value: 1, label: Text('حسب العامل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+                ButtonSegment(value: 2, label: Text('حسب المكان', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+                ButtonSegment(value: 3, label: Text('مجمع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+                ButtonSegment(value: 4, label: Text('خطاب اعتماد', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
               ],
               selected: {_sub},
               onSelectionChanged: (s) => setState(() => _sub = s.first),
@@ -383,18 +387,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Column(
               children: [
                 SearchBox(hint: 'بحث عن عامل للعرض...', value: _q, onChanged: (v) => setState(() { _q = v; if (_wid != null && !workers.any((x) => x.id == _wid)) _wid = workers.isNotEmpty ? workers.first.id : null; })),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _wid,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), labelText: 'العامل'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'العامل'),
                   items: workers.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name))).toList(),
                   onChanged: (v) => setState(() => _wid = v),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _dateRow(),
               ],
             ),
@@ -470,16 +474,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
                   value: _loc,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), labelText: 'مكان الحضور'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'مكان الحضور'),
                   items: App.I.locs.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
                   onChanged: (v) => setState(() => _loc = v),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _dateRow(),
               ],
             ),
@@ -543,7 +547,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final total = r2(rows.fold<double>(0, (s, m) => s + m.total));
     return Column(
       children: [
-        Material(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 10), child: _dateRow())),
+        Material(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), child: _dateRow())),
         Builder(builder: (_) {
           var tb = 0.0, td = 0.0, tt = 0.0, tnet = 0.0;
           for (final m in rows) {
@@ -630,16 +634,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
                   value: _locFilter,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), labelText: 'المكان (اختياري)'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'المكان (اختياري)'),
                   items: [const DropdownMenuItem(value: '', child: Text('كل الأماكن'))]..addAll(App.I.locs.map((l) => DropdownMenuItem(value: l, child: Text(l)))),
                   onChanged: (v) => setState(() => _locFilter = v ?? ''),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _dateRow(),
               ],
             ),
@@ -652,8 +656,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6D28D9)),
-              icon: const Icon(Icons.picture_as_pdf, size: 19),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6D28D9), visualDensity: VisualDensity.compact, textStyle: const TextStyle(fontSize: 12.5)),
+              icon: const Icon(Icons.picture_as_pdf, size: 16),
               label: const Text('PDF — للطباعة والإرسال'),
               onPressed: _letterPdf,
             ),
@@ -715,18 +719,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: InkWell(
             onTap: () => _pick(true),
             child: InputDecorator(
-              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), labelText: 'من'),
-              child: Text(fmtDate(_d(_from)), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'من'),
+              child: Text(fmtDate(_d(_from)), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),
         ),
-        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_left)),
+        const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Icon(Icons.arrow_left, size: 18)),
         Expanded(
           child: InkWell(
             onTap: () => _pick(false),
             child: InputDecorator(
-              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), labelText: 'إلى'),
-              child: Text(fmtDate(_d(_to)), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'إلى'),
+              child: Text(fmtDate(_d(_to)), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),
         ),
@@ -738,7 +742,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       child: Row(
         children: [
           const Icon(Icons.summarize_outlined, size: 17, color: Color(0xFF7C5CFC)),
@@ -747,8 +751,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const Spacer(),
           Text('$total ج', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF7C5CFC))),
           const SizedBox(width: 4),
-          if (onShare != null) IconButton(onPressed: onShare, icon: const Icon(Icons.share), tooltip: 'مشاركة كنص'),
-          if (onPdf != null) IconButton(onPressed: onPdf, icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF6D28D9)), tooltip: 'PDF للطباعة والإرسال'),
+          if (onShare != null) IconButton(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 30, minHeight: 30), onPressed: onShare, icon: const Icon(Icons.share, size: 17), tooltip: 'مشاركة كنص'),
+          if (onPdf != null) IconButton(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 30, minHeight: 30), onPressed: onPdf, icon: const Icon(Icons.picture_as_pdf, size: 18, color: Color(0xFF6D28D9)), tooltip: 'PDF للطباعة والإرسال'),
         ],
       ),
     );

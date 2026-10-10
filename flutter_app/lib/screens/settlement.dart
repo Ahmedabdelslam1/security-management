@@ -24,11 +24,16 @@ class _SettlementScreenState extends State<SettlementScreen> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: SegmentedButton<int>(
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+                padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8, vertical: 0)),
+              ),
               segments: const [
-                ButtonSegment(value: 0, label: Text('تسوية'), icon: Icon(Icons.payments_outlined, size: 17)),
-                ButtonSegment(value: 1, label: Text('سجل المرتبات'), icon: Icon(Icons.receipt_long_outlined, size: 17)),
+                ButtonSegment(value: 0, label: Text('تسوية'), icon: Icon(Icons.payments_outlined, size: 15)),
+                ButtonSegment(value: 1, label: Text('سجل المرتبات'), icon: Icon(Icons.receipt_long_outlined, size: 15)),
               ],
               selected: {_tab},
               onSelectionChanged: (s) => setState(() => _tab = s.first),
@@ -197,7 +202,7 @@ class _SettlePaneState extends State<_SettlePane> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Column(
               children: [
                 Row(
@@ -210,10 +215,11 @@ class _SettlePaneState extends State<_SettlePane> {
                           decoration: InputDecoration(
                             isDense: true,
                             border: const OutlineInputBorder(),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            labelStyle: const TextStyle(fontSize: 11),
                             labelText: _from == null ? 'من تاريخ (الكل)' : fmtDate(_d(_from!)),
                           ),
-                          child: _from == null ? const Text('اضغط للاختيار') : const Icon(Icons.event, size: 18),
+                          child: _from == null ? const Text('اضغط للاختيار', style: TextStyle(fontSize: 12)) : const Icon(Icons.event, size: 16),
                         ),
                       ),
                     ),
@@ -226,38 +232,45 @@ class _SettlePaneState extends State<_SettlePane> {
                           decoration: InputDecoration(
                             isDense: true,
                             border: const OutlineInputBorder(),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            labelStyle: const TextStyle(fontSize: 11),
                             labelText: 'حتى تاريخ',
                           ),
-                          child: Text(fmtDate(_d(_to)), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          child: Text(fmtDate(_d(_to)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Expanded(child: SearchBox(hint: 'بحث عن عامل...', value: _q, onChanged: (v) => setState(() => _q = v))),
-                const SizedBox(width: 6),
-                IconButton.filledTonal(
-                  tooltip: 'PDF للطباعة والإرسال',
-                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
-                  onPressed: _pdf,
-                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
-                ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _loc,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    labelText: 'المكان (اختياري)',
-                  ),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('كل الأماكن')),
-                    ...locs.map((l) => DropdownMenuItem(value: l, child: Text(l))),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _loc,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          labelText: 'المكان (اختياري)',
+                          labelStyle: TextStyle(fontSize: 11),
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('كل الأماكن', style: TextStyle(fontSize: 12))),
+                          ...locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
+                        ],
+                        onChanged: (v) => setState(() => _loc = v),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    miniIconBtn(Icons.picture_as_pdf, const Color(0xFF6D28D9), _pdf, tip: 'PDF للطباعة والإرسال'),
                   ],
-                  onChanged: (v) => setState(() => _loc = v),
+                ),
+                Row(
+                  children: [
+                    Expanded(child: SearchBox(hint: 'بحث عن عامل...', value: _q, onChanged: (v) => setState(() => _q = v))),
+                  ],
                 ),
               ],
             ),
@@ -443,7 +456,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
           color: Colors.white,
           elevation: 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Row(
               children: [
                 Expanded(
@@ -452,10 +465,11 @@ class _PayrollPaneState extends State<_PayrollPane> {
                     child: InputDecorator(
                       decoration: InputDecoration(
                         isDense: true, border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        labelStyle: const TextStyle(fontSize: 11),
                         labelText: 'من',
                       ),
-                      child: Text(_from == null ? 'الكل' : fmtDate(_d(_from)), style: const TextStyle(fontSize: 13)),
+                      child: Text(_from == null ? 'الكل' : fmtDate(_d(_from)), style: const TextStyle(fontSize: 12)),
                     ),
                   ),
                 ),
@@ -466,30 +480,29 @@ class _PayrollPaneState extends State<_PayrollPane> {
                     child: InputDecorator(
                       decoration: InputDecoration(
                         isDense: true, border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        labelStyle: const TextStyle(fontSize: 11),
                         labelText: 'إلى',
                       ),
-                      child: Text(_to == null ? 'اليوم' : fmtDate(_d(_to)), style: const TextStyle(fontSize: 13)),
+                      child: Text(_to == null ? 'اليوم' : fmtDate(_d(_to)), style: const TextStyle(fontSize: 12)),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(onPressed: _busy ? null : _load, child: const Icon(Icons.refresh)),
+                miniIconBtn(Icons.refresh, const Color(0xFF0369A1), _busy ? null : _load, tip: 'تحديث'),
               ],
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.fromLTRB(2, 0, 8, 0),
           child: Row(
             children: [
               Expanded(child: SearchBox(hint: 'بحث باسم العامل أو من صرف...', value: _q, onChanged: (v) => setState(() => _q = v))),
-              const SizedBox(width: 6),
-              IconButton.filledTonal(
-                tooltip: 'PDF للطباعة والإرسال',
-                style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
-                onPressed: _pdf,
-                icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: miniIconBtn(Icons.picture_as_pdf, const Color(0xFF6D28D9), _pdf, tip: 'PDF للطباعة والإرسال'),
               ),
             ],
           ),

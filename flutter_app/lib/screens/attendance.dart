@@ -124,7 +124,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             color: Colors.white,
             elevation: 1,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               child: Row(
                 children: [
                   Expanded(
@@ -132,18 +132,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       onTap: _pickDate,
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
                           border: Border.all(color: cs.outlineVariant),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_month, color: cs.primary),
-                            const SizedBox(width: 8),
-                            Text(fmtDate(_dstr), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                            Icon(Icons.calendar_month, size: 16, color: cs.primary),
+                            const SizedBox(width: 6),
+                            Text(fmtDate(_dstr), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
                             const Spacer(),
-                            const Icon(Icons.arrow_drop_down),
+                            const Icon(Icons.arrow_drop_down, size: 18),
                           ],
                         ),
                       ),
@@ -151,10 +151,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: const Size(0, 30),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
                     onPressed: _saving ? null : _save,
                     icon: _saving
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.save, size: 18),
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.save, size: 15),
                     label: const Text('حفظ اليوم'),
                   ),
                 ],
@@ -169,16 +175,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               child: Text(_err!, style: TextStyle(color: cs.onErrorContainer, fontSize: 12.5)),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+            padding: const EdgeInsets.fromLTRB(2, 0, 8, 0),
             child: Row(
               children: [
                 Expanded(child: SearchBox(hint: 'بحث عن عامل بالاسم أو البطاقة...', value: _q, onChanged: (v) => setState(() => _q = v))),
-                const SizedBox(width: 6),
-                IconButton.filledTonal(
-                  tooltip: 'PDF للطباعة والإرسال',
-                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
-                  onPressed: _pdf,
-                  icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: miniIconBtn(Icons.picture_as_pdf, const Color(0xFF6D28D9), _pdf, tip: 'PDF للطباعة والإرسال'),
                 ),
               ],
             ),
@@ -462,6 +466,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     Expanded(child: Text(w.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15))),
                     IconButton.filledTonal(
                       tooltip: 'طباعة / حفظ PDF',
+                      visualDensity: VisualDensity.compact,
                       style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
                       onPressed: () {
                         exportTablePdf(
@@ -475,13 +480,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           total: total.toStringAsFixed(2),
                         );
                       },
-                      icon: const Icon(Icons.picture_as_pdf, size: 19, color: Color(0xFF6D28D9)),
+                      icon: const Icon(Icons.picture_as_pdf, size: 16, color: Color(0xFF6D28D9)),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    Expanded(child: OutlinedButton.icon(onPressed: () => pick(true), icon: const Icon(Icons.date_range, size: 15), label: Text('من ${fmtDate(f)}', style: const TextStyle(fontSize: 11.5)))),
+                    Expanded(child: OutlinedButton.icon(onPressed: () => pick(true), icon: const Icon(Icons.date_range, size: 14), label: Text('من ${fmtDate(f)}', style: const TextStyle(fontSize: 11)))),
                     const SizedBox(width: 6),
                     Expanded(child: OutlinedButton.icon(onPressed: () => pick(false), icon: const Icon(Icons.date_range, size: 15), label: Text('إلى ${fmtDate(t)}', style: const TextStyle(fontSize: 11.5)))),
                   ],

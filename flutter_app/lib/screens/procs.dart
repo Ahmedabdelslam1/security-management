@@ -18,7 +18,25 @@ const List<String> _wd = ['الأحد', 'الاثنين', 'الثلاثاء', '�
 
 String _ds(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 String _s(Map r, String k) => '${r[k] ?? ''}';
-String _norm(String x) => x.trim().toLowerCase();
+String _norm(String x) => normAr(x.trim());
+int _num(dynamic v) {
+  if (v is num) return v.toInt();
+  return int.tryParse('${v ?? ''}') ?? 0;
+}
+
+Color _typeColor(String t) {
+  if (t == 'دخول') return const Color(0xFF15803D);
+  if (t == 'خروج') return const Color(0xFFEA580C);
+  return const Color(0xFF64748B);
+}
+
+IconData _typeIcon(String t) {
+  if (t == 'دخول') return Icons.login;
+  if (t == 'خروج') return Icons.logout;
+  return Icons.directions_car;
+}
+
+const Color _kProcOrange = Color(0xFFC2410C);
 
 class ProcsScreen extends StatefulWidget {
   const ProcsScreen({super.key});
@@ -50,6 +68,8 @@ class _ProcsScreenState extends State<ProcsScreen> {
       if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } on ApiException catch (e) {
       _msg(e.message, true);
+    } catch (_) {
+      _msg('تعذر تحميل الإجراءات', true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,7 +89,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
       if (t.isNotEmpty && d.compareTo(t) > 0) return false;
       if (_type.isNotEmpty && _s(p, 'ptype') != _type) return false;
       if (_q.isEmpty) return true;
-      return txtMatch(_q, [
+      return txtMatchAr(_q, [
         _s(p, 'seq'), fmtDate(d), d, _s(p, 'weekday'), _s(p, 'plate'), _s(p, 'driver'), _s(p, 'rep'), _s(p, 'statement'),
         _s(p, 'ptype'), _s(p, 'signed'), _s(p, 'signDate'), _s(p, 'signer'), _s(p, 'bookPage'), _s(p, 'supervisor'), _s(p, 'notes'),
       ]);
@@ -125,7 +145,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
     setState(() {
       final i = _rows.indexWhere((x) => x['id'] == saved['id']);
       if (i == -1) { _rows.insert(0, saved); } else { _rows[i] = saved; }
-      _rows.sort((a, b) => _s(a, 'date') == _s(b, 'date') ? ((b['seq'] ?? 0) as num).compareTo((a['seq'] ?? 0) as num) : _s(b, 'date').compareTo(_s(a, 'date')));
+      _rows.sort((a, b) => _s(a, 'date') == _s(b, 'date') ? _num(b['seq']).compareTo(_num(a['seq'])) : _s(b, 'date').compareTo(_s(a, 'date')));
     });
     _msg('تم الحفظ');
   }
@@ -138,7 +158,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
         content: Text('حذف هذا الإجراء (${_s(p, 'plate').isNotEmpty ? _s(p, 'plate') : _s(p, 'rep')}) نهائيًا؟'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
         ],
       ),
     );
@@ -147,8 +167,13 @@ class _ProcsScreenState extends State<ProcsScreen> {
       await Api.auth('deleteProc', [p['id']]);
       setState(() => _rows.removeWhere((x) => x['id'] == p['id']));
       _msg('تم الحذف');
+    } on SessionExpired {
+      await App.I.logout();
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } on ApiException catch (e) {
       _msg(e.message, true);
+    } catch (_) {
+      _msg('تعذر الحذف', true);
     }
   }
 
@@ -184,20 +209,16 @@ class _ProcsScreenState extends State<ProcsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: OutlinedButton(onPressed: () => pickD(true), child: Text(fromN == null ? 'من: الكل' : 'من ${fmtDate(f)}', style: const TextStyle(fontSize: 12.5)))),
-                    const SizedBox(width: 6),
-                    Expanded(child: OutlinedButton(onPressed: () => pickD(false), child: Text(to == null ? 'إلى: الكل' : 'إلى ${fmtDate(t)}', style: const TextStyle(fontSize: 12.5)))),
-                    IconButton(tooltip: 'كل الأيام', onPressed: () => setS(() { fromN = null; to = null; }), icon: const Icon(Icons.all_inclusive)),
-                    IconButton(
-                      tooltip: 'طباعة',
-                      onPressed: rs.isEmpty
+                    Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: _kProcOrange))),
+                    miniIconBtn(
+                      Icons.picture_as_pdf,
+                      const Color(0xFF6D28D9),
+                      rs.isEmpty
                           ? null
                           : () => exportTablePdf(
-                                context: context,
+                                context: ctx,
                                 title: title,
                                 subtitle: '${fromN == null ? '' : 'من ${fmtDate(f)} '}${to == null ? '' : 'إلى ${fmtDate(t)}'}',
                                 headers: _pdfHeaders,
@@ -207,16 +228,30 @@ class _ProcsScreenState extends State<ProcsScreen> {
                                 total: '${rs.length}',
                                 totalLabel: 'عدد الإجراءات',
                               ),
-                      icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF6D28D9)),
+                      tip: 'طباعة',
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      MiniChipButton(icon: Icons.date_range, label: fromN == null ? 'من: الكل' : 'من ${fmtDate(f)}', onTap: () => pickD(true), filled: fromN != null, color: _kProcOrange),
+                      const SizedBox(width: 6),
+                      MiniChipButton(icon: Icons.date_range, label: to == null ? 'إلى: الكل' : 'إلى ${fmtDate(t)}', onTap: () => pickD(false), filled: to != null, color: _kProcOrange),
+                      const SizedBox(width: 6),
+                      MiniChipButton(icon: Icons.all_inclusive, label: 'كل الأيام', color: const Color(0xFF64748B), onTap: () => setS(() { fromN = null; to = null; })),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Text('عدد الإجراءات: ${rs.length}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
                 const SizedBox(height: 4),
                 Expanded(
                   child: rs.isEmpty
                       ? const Center(child: Text('لا توجد إجراءات في الفترة'))
-                      : ListView(children: [for (final p in rs) _card(p, compact: true)]),
+                      : ListView(children: [for (final x in rs) _card(x, compact: true)]),
                 ),
               ],
             ),
@@ -226,66 +261,114 @@ class _ProcsScreenState extends State<ProcsScreen> {
     );
   }
 
-  Widget _link(String kind, Map p, {TextStyle? style}) {
-    final v = _s(p, kind);
-    if (v.isEmpty) return const Text('—');
+  Widget _link(String kind, Map p, Color col, {bool links = true, double size = 12}) {
+    final v = _s(p, kind).trim();
+    if (v.isEmpty) return const SizedBox.shrink();
+    final style = TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: col);
+    if (!links) return Text(v, style: style);
     return InkWell(
       onTap: () => _report(kind, p),
-      child: Text(v, style: (style ?? const TextStyle(fontSize: 12.5)).copyWith(color: const Color(0xFF1D4ED8), decoration: TextDecoration.underline)),
+      child: Text(v, style: style.copyWith(decoration: TextDecoration.underline, decorationColor: col.withOpacity(.4))),
     );
   }
 
+  Widget _labeled(String label, Widget w) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label ', style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+          w,
+        ],
+      );
+
+  Widget _chip(String t, Color c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        decoration: BoxDecoration(color: c.withOpacity(.14), borderRadius: BorderRadius.circular(20), border: Border.all(color: c.withOpacity(.5))),
+        child: Text(t, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: c)),
+      );
+
   Widget _card(Map p, {bool compact = false}) {
-    final docs = (p['docs'] as List? ?? []).length;
-    final other = (p['other'] as List? ?? []).length;
+    final docs = (p['docs'] is List ? (p['docs'] as List).length : 0);
+    final other = (p['other'] is List ? (p['other'] as List).length : 0);
     final tp = _s(p, 'ptype');
-    return GlowCard(
-      glow: const Color(0xFFEA580C),
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1.5,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: _link('plate', p, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15))),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: tp == 'دخول' ? Colors.green.shade100 : tp == 'خروج' ? Colors.orange.shade100 : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(20),
+    final plate = _s(p, 'plate').trim();
+    final signed = _s(p, 'signed') == 'تم الختم والتوقيع';
+    final col = workerColor(plate.isNotEmpty ? plate : '${_s(p, 'rep')}${_s(p, 'driver')}');
+    final tc = _typeColor(tp);
+    final statement = _s(p, 'statement');
+    final notes = _s(p, 'notes');
+    final sup = _s(p, 'supervisor');
+    return SlideIn(
+      child: GlowCard(
+        glow: col,
+        margin: const EdgeInsets.only(bottom: 6),
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: col.withOpacity(.3)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 24, height: 24,
+                    decoration: BoxDecoration(color: col, shape: BoxShape.circle),
+                    child: Icon(_typeIcon(tp), size: 14, color: Colors.white),
                   ),
-                  child: Text(tp, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                ),
-                const SizedBox(width: 6),
-                Text('م ${_s(p, 'seq')}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text('${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-            Wrap(spacing: 14, children: [
-              Row(mainAxisSize: MainAxisSize.min, children: [const Text('السائق: ', style: TextStyle(fontSize: 12)), _link('driver', p)]),
-              Row(mainAxisSize: MainAxisSize.min, children: [const Text('المندوب: ', style: TextStyle(fontSize: 12)), _link('rep', p)]),
-            ]),
-            if (_s(p, 'statement').isNotEmpty) Text('البيان: ${_s(p, 'statement')}', style: const TextStyle(fontSize: 12.5)),
-            Text('التوقيع: ${_signText(p)}', style: TextStyle(fontSize: 12, color: _s(p, 'signed') == 'تم الختم والتوقيع' ? Colors.green.shade800 : const Color(0xFF64748B))),
-            if (_s(p, 'supervisor').isNotEmpty) Text('مشرف الوردية: ${_s(p, 'supervisor')}', style: const TextStyle(fontSize: 12)),
-            if (_s(p, 'notes').isNotEmpty) Text('ملاحظات: ${_s(p, 'notes')}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (docs > 0) TextButton.icon(onPressed: () => _files(p, 'docs'), icon: const Icon(Icons.attach_file, size: 16), label: Text('المستندات ($docs)', style: const TextStyle(fontSize: 12))),
-                if (other > 0) TextButton.icon(onPressed: () => _files(p, 'other'), icon: const Icon(Icons.folder_open, size: 16), label: Text('أخرى ($other)', style: const TextStyle(fontSize: 12))),
-                const Spacer(),
-                if (!compact) ...[
-                  IconButton(visualDensity: VisualDensity.compact, onPressed: () => _edit(p), icon: const Icon(Icons.edit, size: 19)),
-                  IconButton(visualDensity: VisualDensity.compact, onPressed: () => _delete(p), icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade700)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: plate.isNotEmpty
+                        ? _link('plate', p, col, links: !compact, size: 13.5)
+                        : Text(_s(p, 'rep').isNotEmpty ? _s(p, 'rep') : _s(p, 'driver'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: col)),
+                  ),
+                  _chip(tp.isEmpty ? '--' : tp, tc),
+                  const SizedBox(width: 6),
+                  _chip(signed ? 'تم التوقيع' : 'بدون توقيع', signed ? const Color(0xFF15803D) : const Color(0xFF94A3B8)),
                 ],
-              ],
-            ),
-          ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text('م ${_s(p, 'seq')}  •  ${_s(p, 'weekday')} ${fmtDate(_s(p, 'date'))}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 2),
+              Wrap(
+                spacing: 12,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (_s(p, 'driver').isNotEmpty) _labeled('السائق', _link('driver', p, const Color(0xFF1D4ED8), links: !compact)),
+                  if (_s(p, 'rep').isNotEmpty) _labeled('المندوب', _link('rep', p, const Color(0xFF0F766E), links: !compact)),
+                ],
+              ),
+              if (statement.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 3), child: Text('البيان: $statement', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+              if (signed)
+                Padding(padding: const EdgeInsets.only(top: 2), child: Text(_signText(p), style: TextStyle(fontSize: 10.5, color: Colors.green.shade800))),
+              if (sup.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 2), child: Text('مشرف الوردية: $sup', style: const TextStyle(fontSize: 11, color: Color(0xFFB45309)))),
+              if (notes.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 2), child: Text('ملاحظات: $notes', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  if (docs > 0) ...[
+                    MiniChipButton(icon: Icons.attach_file, label: 'مستندات $docs', color: _kProcOrange, onTap: () => _files(p, 'docs')),
+                    const SizedBox(width: 5),
+                  ],
+                  if (other > 0) MiniChipButton(icon: Icons.folder_open, label: 'أخرى $other', color: const Color(0xFF0369A1), onTap: () => _files(p, 'other')),
+                  const Spacer(),
+                  if (!compact) ...[
+                    miniIconBtn(Icons.edit, const Color(0xFF1D4ED8), () => _edit(p), tip: signed ? 'تعديل' : 'تعديل / توقيع'),
+                    const SizedBox(width: 6),
+                    miniIconBtn(Icons.delete_outline, Colors.red.shade700, () => _delete(p), tip: 'حذف'),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -294,9 +377,15 @@ class _ProcsScreenState extends State<ProcsScreen> {
   @override
   Widget build(BuildContext context) {
     final rs = _filtered;
+    final inN = rs.where((p) => _s(p, 'ptype') == 'دخول').length;
+    final outN = rs.where((p) => _s(p, 'ptype') == 'خروج').length;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5FB),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => _edit(), icon: const Icon(Icons.add), label: const Text('إجراء جديد')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _edit(),
+        icon: const Icon(Icons.add, size: 20),
+        label: const Text('إجراء جديد', style: TextStyle(fontSize: 13)),
+      ),
       body: Column(
         children: [
           Material(
@@ -307,29 +396,42 @@ class _ProcsScreenState extends State<ProcsScreen> {
                 Row(
                   children: [
                     Expanded(child: SearchBox(hint: 'بحث في كل البنود...', value: _q, onChanged: (v) => setState(() => _q = v))),
-                    IconButton.filledTonal(
-                      tooltip: 'طباعة / PDF',
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFEDE9FE)),
-                      onPressed: _pdf,
-                      icon: const Icon(Icons.picture_as_pdf, size: 20, color: Color(0xFF6D28D9)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: miniIconBtn(Icons.picture_as_pdf, const Color(0xFF6D28D9), _pdf, tip: 'طباعة / PDF'),
                     ),
-                    IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
+                      child: miniIconBtn(Icons.refresh, const Color(0xFF0369A1), _busy ? null : _load, tip: 'تحديث'),
+                    ),
                   ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                  child: Row(
-                    children: [
-                      for (final t in const ['', 'دخول', 'خروج', '--'])
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 6),
-                          child: ChoiceChip(label: Text(t.isEmpty ? 'الكل' : t, style: const TextStyle(fontSize: 12)), selected: _type == t, onSelected: (_) => setState(() => _type = t)),
-                        ),
-                      const Spacer(),
-                      TextButton(onPressed: () => _pick(true), child: Text(_from == null ? 'من' : fmtDate(_ds(_from!)), style: const TextStyle(fontSize: 12))),
-                      TextButton(onPressed: () => _pick(false), child: Text(_to == null ? 'إلى' : fmtDate(_ds(_to!)), style: const TextStyle(fontSize: 12))),
-                      if (_from != null || _to != null) IconButton(visualDensity: VisualDensity.compact, onPressed: () => setState(() { _from = null; _to = null; }), icon: const Icon(Icons.close, size: 18)),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        MiniChipButton(icon: Icons.date_range, label: _from == null ? 'من' : fmtDate(_ds(_from!)), onTap: () => _pick(true), filled: _from != null, color: _kProcOrange),
+                        const SizedBox(width: 5),
+                        MiniChipButton(icon: Icons.date_range, label: _to == null ? 'إلى' : fmtDate(_ds(_to!)), onTap: () => _pick(false), filled: _to != null, color: _kProcOrange),
+                        if (_from != null || _to != null) ...[
+                          const SizedBox(width: 5),
+                          MiniChipButton(icon: Icons.close, label: 'مسح', color: Colors.red.shade700, onTap: () => setState(() { _from = null; _to = null; })),
+                        ],
+                        const SizedBox(width: 10),
+                        for (final t in const ['', 'دخول', 'خروج', '--'])
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 5),
+                            child: MiniChipButton(
+                              label: t.isEmpty ? 'الكل' : t,
+                              color: t.isEmpty ? _kProcOrange : _typeColor(t),
+                              filled: _type == t,
+                              onTap: () => setState(() => _type = t),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -338,23 +440,23 @@ class _ProcsScreenState extends State<ProcsScreen> {
           Container(
             width: double.infinity,
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            child: Text('عدد الإجراءات: ${rs.length} • دخول ${rs.where((p) => _s(p, 'ptype') == 'دخول').length} • خروج ${rs.where((p) => _s(p, 'ptype') == 'خروج').length}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            child: Text('عدد الإجراءات: ${rs.length} • دخول $inN • خروج $outN', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5, color: Color(0xFF475569))),
           ),
           Expanded(
             child: _busy && _rows.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : rs.isEmpty
-                    ? const Center(child: Text('لا توجد إجراءات'))
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 90),
-                          itemCount: rs.length,
-                          itemBuilder: (_, i) => _card(rs[i]),
-                        ),
-                      ),
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: rs.isEmpty
+                        ? ListView(children: const [Padding(padding: EdgeInsets.all(30), child: Center(child: Text('لا توجد إجراءات')))])
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
+                            itemCount: rs.length,
+                            itemBuilder: (_, i) => _card(rs[i]),
+                          ),
+                  ),
           ),
         ],
       ),
@@ -386,6 +488,8 @@ class _FilesPageState extends State<_FilesPage> {
       if (mounted) setState(() => _files = ((r[widget.field] ?? []) as List).map((x) => x as Map).toList());
     } on ApiException catch (e) {
       if (mounted) setState(() => _err = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _err = 'تعذر تحميل الملفات');
     }
   }
 
@@ -499,6 +603,19 @@ class _ProcFormState extends State<_ProcForm> {
     }
   }
 
+  @override
+  void dispose() {
+    _plate.dispose();
+    _driver.dispose();
+    _rep.dispose();
+    _statement.dispose();
+    _signer.dispose();
+    _bookPage.dispose();
+    _supervisor.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadOld(String id) async {
     try {
       final r = await Api.auth('getProcFiles', [id]) as Map;
@@ -508,7 +625,9 @@ class _ProcFormState extends State<_ProcForm> {
           _oldOther = ((r['other'] ?? []) as List).map((x) => x as Map).toList();
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _err = 'تعذر تحميل المرفقات الحالية');
+    }
   }
 
   Future<void> _pickDate(bool sign) async {
@@ -547,7 +666,7 @@ class _ProcFormState extends State<_ProcForm> {
         }
       }
     } catch (e) {
-      setState(() => _err = 'تعذر إضافة الملف');
+      if (mounted) setState(() => _err = 'تعذر إضافة الملف');
     }
   }
 
@@ -580,8 +699,13 @@ class _ProcFormState extends State<_ProcForm> {
         }
       ]) as Map;
       if (mounted) Navigator.of(context).pop(res);
+    } on SessionExpired {
+      await App.I.logout();
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } on ApiException catch (e) {
-      setState(() => _err = e.message);
+      if (mounted) setState(() => _err = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _err = 'تعذر الحفظ');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

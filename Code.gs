@@ -25,7 +25,7 @@ var SHEETS = {
   Locations:  ['name'],
   Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
-  Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt'],
+  Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt'],
   Log:        ['time', 'user', 'action', 'page', 'details']
 };
@@ -812,12 +812,41 @@ function gateImgs_(g) {
   try { var a = JSON.parse(g.images || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
 }
 
+var GATE_PER_PAGE_ = 25;
+function gateTypes_(g) {
+  var n = gateImgs_(g).length, t = [];
+  try { t = JSON.parse(g.imgTypes || '[]'); } catch (e) { t = []; }
+  var out = []; for (var i = 0; i < n; i++) out.push(t[i] === 'pdf' ? 'pdf' : 'image');
+  return out;
+}
+// رقم القيد = سنة(2) شهر(2) يوم(2) + رقم الصفحة(رقمين) + رقم السطر   مثال 261008031
+function gateEntryNo_(g) {
+  var d = String(g.date || '').split('-'), seq = num_(g.seq);
+  var page = num_(g.page) || (Math.floor((seq - 1) / GATE_PER_PAGE_) + 1);
+  var line = num_(g.line) || (((seq - 1) % GATE_PER_PAGE_) + 1);
+  if (d.length !== 3) return '';
+  return d[0].slice(-2) + d[1] + d[2] + (page < 10 ? '0' + page : String(page)) + line;
+}
 function gateOut_(g) {
+  var seq = num_(g.seq);
   return {
-    id: g.id, seq: num_(g.seq), weekday: g.weekday, date: g.date, plate: g.plate, time: g.time,
-    driver: g.driver, statement: g.statement, notes: g.notes, managers: g.managers, host: g.host,
-    imgCount: gateImgs_(g).length, createdBy: g.createdBy
+    id: g.id, seq: seq, weekday: g.weekday, date: g.date, plate: g.plate, time: g.time,
+    action: g.action || '--', driver: g.driver, rep: g.rep || '', statement: g.statement, notes: g.notes,
+    managers: g.managers, host: g.host,
+    page: num_(g.page) || (Math.floor((seq - 1) / GATE_PER_PAGE_) + 1),
+    line: num_(g.line) || (((seq - 1) % GATE_PER_PAGE_) + 1),
+    entryNo: gateEntryNo_(g),
+    imgCount: gateImgs_(g).length, imgTypes: gateTypes_(g), createdBy: g.createdBy
   };
+}
+
+function saveGateFile_(dataUrl) {
+  var m = /^data:(application\/pdf|image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+\/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('صيغة الملف غير مدعومة (صورة أو PDF)');
+  if (m[2].length > 9000000) throw new Error('حجم الملف كبير (الحد 6 ميجا)');
+  var isPdf = m[1] === 'application/pdf';
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'gate-' + Date.now() + (isPdf ? '.pdf' : ''));
+  return { id: imgFolder_().createFile(blob).getId(), type: isPdf ? 'pdf' : 'image' };
 }
 
 function listGate(token) {
@@ -835,7 +864,10 @@ function saveGate(token, e) {
   var time = clip_(e.time, 5);
   if (time && !/^\d{2}:\d{2}$/.test(time)) throw new Error('الوقت غير صحيح');
   var plate = clip_(e.plate, 40);
-  if (!plate) throw new Error('اكتب رقم السيارة');
+  var rep0 = clip_(e.rep, 80), driver0 = clip_(e.driver, 80);
+  if (!plate && !driver0 && !rep0) throw new Error('اكتب رقم السيارة أو اسم السائق أو المندوب');
+  var action = String(e.action || '--');
+  if (['--', 'دخول', 'خروج'].indexOf(action) === -1) action = '--';
   var fresh = Array.isArray(e.newImages) ? e.newImages : [];
   if (fresh.length > 10) throw new Error('الحد الأقصى 10 صور في المرة الواحدة');
   return locked_(function () {
@@ -849,18 +881,23 @@ function saveGate(token, e) {
       cur = { id: 'g' + Date.now() + Math.floor(Math.random() * 1000), seq: mx + 1, images: '[]', createdBy: u.name, createdAt: now_() };
       rows.push(cur);
     }
-    var imgs = gateImgs_(cur);
+    var imgs = gateImgs_(cur), types = gateTypes_(cur);
     var rm = (Array.isArray(e.removeIdx) ? e.removeIdx : []).map(Number);
-    var keep = imgs.filter(function (id, i) { return rm.indexOf(i) === -1; });
-    if (keep.length + fresh.length > 20) throw new Error('الحد الأقصى 20 صورة للتسجيل الواحد');
+    var keep = [], keepT = [];
+    imgs.forEach(function (id, i) { if (rm.indexOf(i) === -1) { keep.push(id); keepT.push(types[i]); } });
+    if (keep.length + fresh.length > 20) throw new Error('الحد الأقصى 20 ملفاً للتسجيل الواحد');
     imgs.forEach(function (id, i) { if (rm.indexOf(i) !== -1) trashImg_(id); });
-    fresh.forEach(function (d) { keep.push(saveImg_(d, 'gate')); });
+    fresh.forEach(function (d) { var f = saveGateFile_(d); keep.push(f.id); keepT.push(f.type); });
+    cur.imgTypes = JSON.stringify(keepT);
+    cur.action = action; cur.rep = rep0;
+    var pg = Math.floor(Number(e.page)), ln = Math.floor(Number(e.line));
+    cur.page = pg > 0 ? String(pg) : ''; cur.line = ln > 0 ? String(ln) : '';
     cur.date = date; cur.weekday = weekday_(date); cur.time = time; cur.plate = plate;
-    cur.driver = clip_(e.driver, 80); cur.statement = clip_(e.statement, 200); cur.notes = clip_(e.notes, 300);
+    cur.driver = driver0; cur.statement = clip_(e.statement, 600); cur.notes = clip_(e.notes, 300);
     cur.managers = clip_(e.managers, 200); cur.host = clip_(e.host, 80);
     cur.images = JSON.stringify(keep);
     writeAll_('Gate', rows);
-    log_(u.name, e.id ? 'تعديل دخول بوابة' : 'تسجيل دخول بوابة', 'دفتر البوابة', plate + ' — ' + date);
+    log_(u.name, e.id ? 'تعديل دخول بوابة' : 'تسجيل دخول بوابة', 'دفتر البوابة', (plate || driver0 || rep0) + ' — ' + date);
     return gateOut_(cur);
   });
 }
