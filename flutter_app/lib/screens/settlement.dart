@@ -20,7 +20,7 @@ class _SettlementScreenState extends State<SettlementScreen> {
     return Column(
       children: [
         // تبويبات
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -198,7 +198,7 @@ class _SettlePaneState extends State<_SettlePane> {
     return Column(
       children: [
         // أدوات التحديد
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -215,7 +215,7 @@ class _SettlePaneState extends State<_SettlePane> {
                           decoration: InputDecoration(
                             isDense: true,
                             border: const OutlineInputBorder(),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             labelStyle: const TextStyle(fontSize: 11),
                             labelText: _from == null ? 'من تاريخ (الكل)' : fmtDate(_d(_from!)),
                           ),
@@ -232,7 +232,7 @@ class _SettlePaneState extends State<_SettlePane> {
                           decoration: InputDecoration(
                             isDense: true,
                             border: const OutlineInputBorder(),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             labelStyle: const TextStyle(fontSize: 11),
                             labelText: 'حتى تاريخ',
                           ),
@@ -252,7 +252,7 @@ class _SettlePaneState extends State<_SettlePane> {
                         decoration: const InputDecoration(
                           isDense: true,
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           labelText: 'المكان (اختياري)',
                           labelStyle: TextStyle(fontSize: 11),
                         ),
@@ -452,7 +452,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
     final total = rows.fold<double>(0, (s, r) => s + _n(r, 'net'));
     return Column(
       children: [
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -465,7 +465,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
                     child: InputDecorator(
                       decoration: InputDecoration(
                         isDense: true, border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         labelStyle: const TextStyle(fontSize: 11),
                         labelText: 'من',
                       ),
@@ -480,7 +480,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
                     child: InputDecorator(
                       decoration: InputDecoration(
                         isDense: true, border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         labelStyle: const TextStyle(fontSize: 11),
                         labelText: 'إلى',
                       ),

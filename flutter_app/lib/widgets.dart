@@ -34,7 +34,7 @@ class SearchBox extends StatelessWidget {
                 ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: cs.outlineVariant.withOpacity(.6)),
@@ -288,3 +288,21 @@ Widget miniIconBtn(IconData icon, Color color, VoidCallback? onTap, {String? tip
       onPressed: onTap,
       icon: Icon(icon, size: 15, color: color),
     );
+
+// ===== شريط علوي مصغّر: خط وحقول أصغر لكل أدوات الفلترة (التاريخ/البحث/الأماكن/التبويبات) =====
+Widget compactMaterial({Color? color, double elevation = 0, Widget? child}) => Builder(builder: (context) {
+      final th = Theme.of(context);
+      return MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.82)),
+        child: Theme(
+          data: th.copyWith(
+            visualDensity: VisualDensity.compact,
+            inputDecorationTheme: th.inputDecorationTheme.copyWith(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            ),
+          ),
+          child: Material(color: color, elevation: elevation, child: child),
+        ),
+      );
+    });

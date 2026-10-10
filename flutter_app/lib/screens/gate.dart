@@ -380,7 +380,7 @@ class _GateScreenState extends State<GateScreen> {
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(color: col.withOpacity(.07), borderRadius: BorderRadius.circular(8)),
-                  child: Text(statement, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, height: 1.35, color: Color(0xFF1E293B))),
+                  child: Text(statement, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.4, color: Color(0xFF1E293B))),
                 ),
               if (managers.isNotEmpty)
                 Padding(padding: const EdgeInsets.only(top: 3), child: Text('حضور مديرين: $managers', style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C3AED), fontWeight: FontWeight.w700))),
@@ -440,7 +440,7 @@ class _GateScreenState extends State<GateScreen> {
       ),
       body: Column(
         children: [
-          Material(
+          compactMaterial(
             color: Colors.white,
             elevation: 1,
             child: Column(

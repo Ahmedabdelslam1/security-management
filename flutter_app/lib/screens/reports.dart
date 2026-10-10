@@ -341,7 +341,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       children: [
         // بنود التقارير — مثل الويب
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -383,7 +383,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     total = r2(total);
     return Column(
       children: [
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -394,7 +394,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _wid,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'العامل'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3), labelStyle: TextStyle(fontSize: 11), labelText: 'العامل'),
                   items: workers.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name))).toList(),
                   onChanged: (v) => setState(() => _wid = v),
                 ),
@@ -470,7 +470,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final total = r2(rows.fold<double>(0, (s, m) => s + m.total));
     return Column(
       children: [
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -479,7 +479,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   value: _loc,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'مكان الحضور'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3), labelStyle: TextStyle(fontSize: 11), labelText: 'مكان الحضور'),
                   items: App.I.locs.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
                   onChanged: (v) => setState(() => _loc = v),
                 ),
@@ -547,7 +547,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final total = r2(rows.fold<double>(0, (s, m) => s + m.total));
     return Column(
       children: [
-        Material(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), child: _dateRow())),
+        compactMaterial(color: Colors.white, elevation: 1, child: Padding(padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), child: _dateRow())),
         Builder(builder: (_) {
           var tb = 0.0, td = 0.0, tt = 0.0, tnet = 0.0;
           for (final m in rows) {
@@ -630,7 +630,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final total = r2(rows.fold<double>(0, (s, m) => s + m.total));
     return Column(
       children: [
-        Material(
+        compactMaterial(
           color: Colors.white,
           elevation: 1,
           child: Padding(
@@ -639,7 +639,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   value: _locFilter,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'المكان (اختياري)'),
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3), labelStyle: TextStyle(fontSize: 11), labelText: 'المكان (اختياري)'),
                   items: [const DropdownMenuItem(value: '', child: Text('كل الأماكن'))]..addAll(App.I.locs.map((l) => DropdownMenuItem(value: l, child: Text(l)))),
                   onChanged: (v) => setState(() => _locFilter = v ?? ''),
                 ),
@@ -719,7 +719,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: InkWell(
             onTap: () => _pick(true),
             child: InputDecorator(
-              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'من'),
+              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3), labelStyle: TextStyle(fontSize: 11), labelText: 'من'),
               child: Text(fmtDate(_d(_from)), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),
@@ -729,7 +729,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: InkWell(
             onTap: () => _pick(false),
             child: InputDecorator(
-              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), labelStyle: TextStyle(fontSize: 11), labelText: 'إلى'),
+              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 3), labelStyle: TextStyle(fontSize: 11), labelText: 'إلى'),
               child: Text(fmtDate(_d(_to)), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           ),

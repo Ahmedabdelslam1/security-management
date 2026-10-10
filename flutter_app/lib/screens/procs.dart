@@ -344,7 +344,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
                 ],
               ),
               if (statement.isNotEmpty)
-                Padding(padding: const EdgeInsets.only(top: 3), child: Text('البيان: $statement', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                Container(margin: const EdgeInsets.only(top: 4), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: col.withOpacity(.07), borderRadius: BorderRadius.circular(8)), child: Text(statement, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.4, color: Color(0xFF1E293B)))),
               if (signed)
                 Padding(padding: const EdgeInsets.only(top: 2), child: Text(_signText(p), style: TextStyle(fontSize: 10.5, color: Colors.green.shade800))),
               if (sup.isNotEmpty)
@@ -388,7 +388,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
       ),
       body: Column(
         children: [
-          Material(
+          compactMaterial(
             color: Colors.white,
             elevation: 1,
             child: Column(

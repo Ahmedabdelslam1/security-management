@@ -120,7 +120,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       body: Column(
         children: [
           // شريط التاريخ + الحفظ
-          Material(
+          compactMaterial(
             color: Colors.white,
             elevation: 1,
             child: Padding(
@@ -275,7 +275,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   InputDecoration _dec(String? label, {String? hint, Widget? suffix}) => InputDecoration(
         isDense: true,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         labelText: label,
         hintText: hint,
         labelStyle: const TextStyle(fontSize: 11),
