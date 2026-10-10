@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import '../api.dart';
 import '../models.dart';
 import '../pdf_export.dart';
+import '../procs_store.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'uni_report.dart';
@@ -62,13 +63,13 @@ class _ProcsScreenState extends State<ProcsScreen> {
   Future<void> _load() async {
     setState(() => _busy = true);
     try {
-      final r = await Api.auth('listProcs');
-      if (mounted) setState(() => _rows = (r as List).map((x) => x as Map).toList());
+      final r = await ProcsStore.list();
+      if (mounted) setState(() => _rows = r);
     } on SessionExpired {
       await App.I.logout();
       if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
     } on ApiException catch (e) {
-      _msg(e.message.contains('غير معروف') ? 'سكربت Google قديم — الصق Code.gs الجديد ثم Deploy ← New version' : e.message, true);
+      _msg(e.message, true);
     } catch (_) {
       _msg('تعذر تحميل الإجراءات — تأكد من الإنترنت', true);
     } finally {
@@ -165,7 +166,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
     );
     if (ok != true) return;
     try {
-      await Api.auth('deleteProc', [p['id']]);
+      await ProcsStore.delete('${p['id']}');
       setState(() => _rows.removeWhere((x) => x['id'] == p['id']));
       _msg('تم الحذف');
     } on SessionExpired {
@@ -301,23 +302,23 @@ class _ProcsScreenState extends State<ProcsScreen> {
     return SlideIn(
       child: GlowCard(
         glow: col,
-        margin: const EdgeInsets.only(bottom: 6),
+        margin: const EdgeInsets.only(bottom: 4),
         elevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: col.withOpacity(.3)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+          padding: const EdgeInsets.fromLTRB(7, 4, 7, 3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 24, height: 24,
+                    width: 20, height: 20,
                     decoration: BoxDecoration(color: col, shape: BoxShape.circle),
-                    child: Icon(_typeIcon(tp), size: 14, color: Colors.white),
+                    child: Icon(_typeIcon(tp), size: 12, color: Colors.white),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -345,7 +346,7 @@ class _ProcsScreenState extends State<ProcsScreen> {
                 ],
               ),
               if (statement.isNotEmpty)
-                Container(margin: const EdgeInsets.only(top: 4), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: col.withOpacity(.07), borderRadius: BorderRadius.circular(8)), child: Text(statement, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.4, color: Color(0xFF1E293B)))),
+                Container(margin: const EdgeInsets.only(top: 3), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), decoration: BoxDecoration(color: col.withOpacity(.07), borderRadius: BorderRadius.circular(8)), child: Text(statement, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.3, color: Color(0xFF1E293B)))),
               if (signed)
                 Padding(padding: const EdgeInsets.only(top: 2), child: Text(_signText(p), style: TextStyle(fontSize: 10.5, color: Colors.green.shade800))),
               if (sup.isNotEmpty)
@@ -489,7 +490,7 @@ class _FilesPageState extends State<_FilesPage> {
 
   Future<void> _load() async {
     try {
-      final r = await Api.auth('getProcFiles', [widget.id]) as Map;
+      final r = await ProcsStore.files(widget.id);
       if (mounted) setState(() => _files = ((r[widget.field] ?? []) as List).map((x) => x as Map).toList());
     } on ApiException catch (e) {
       if (mounted) setState(() => _err = e.message);
@@ -623,7 +624,7 @@ class _ProcFormState extends State<_ProcForm> {
 
   Future<void> _loadOld(String id) async {
     try {
-      final r = await Api.auth('getProcFiles', [id]) as Map;
+      final r = await ProcsStore.files(id);
       if (mounted) {
         setState(() {
           _oldDocs = ((r['docs'] ?? []) as List).map((x) => x as Map).toList();
@@ -682,7 +683,7 @@ class _ProcFormState extends State<_ProcForm> {
     }
     setState(() { _busy = true; _err = null; });
     try {
-      final res = await Api.auth('saveProc', [
+      final res = await ProcsStore.save(
         {
           'id': widget.rec?['id'],
           'date': _date,
@@ -702,7 +703,7 @@ class _ProcFormState extends State<_ProcForm> {
           'removeDocs': _rmDocs.toList(),
           'removeOther': _rmOther.toList(),
         }
-      ]) as Map;
+      );
       if (mounted) Navigator.of(context).pop(res);
     } on SessionExpired {
       await App.I.logout();

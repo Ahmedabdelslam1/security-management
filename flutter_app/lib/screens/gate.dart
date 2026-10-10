@@ -329,23 +329,23 @@ class _GateScreenState extends State<GateScreen> {
     return SlideIn(
       child: GlowCard(
         glow: col,
-        margin: const EdgeInsets.only(bottom: 6),
+        margin: const EdgeInsets.only(bottom: 4),
         elevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: col.withOpacity(.3)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+          padding: const EdgeInsets.fromLTRB(7, 4, 7, 3),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 24, height: 24,
+                    width: 20, height: 20,
                     decoration: BoxDecoration(color: col, shape: BoxShape.circle),
-                    child: const Icon(Icons.directions_car, size: 14, color: Colors.white),
+                    child: const Icon(Icons.directions_car, size: 12, color: Colors.white),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -359,7 +359,7 @@ class _GateScreenState extends State<GateScreen> {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 3),
+                padding: const EdgeInsets.only(top: 1),
                 child: Text(
                   '${wd.isEmpty ? '' : '$wd  '}${fmtDate(_s(g, 'date'))}${time.isEmpty ? '' : '  •  $time'}',
                   style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
@@ -378,10 +378,10 @@ class _GateScreenState extends State<GateScreen> {
               ),
               if (statement.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  margin: const EdgeInsets.only(top: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(color: col.withOpacity(.07), borderRadius: BorderRadius.circular(8)),
-                  child: Text(statement, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.4, color: Color(0xFF1E293B))),
+                  child: Text(statement, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.3, color: Color(0xFF1E293B))),
                 ),
               if (managers.isNotEmpty)
                 Padding(padding: const EdgeInsets.only(top: 3), child: Text('حضور مديرين: $managers', style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C3AED), fontWeight: FontWeight.w700))),
@@ -389,7 +389,7 @@ class _GateScreenState extends State<GateScreen> {
                 Padding(padding: const EdgeInsets.only(top: 2), child: Text('المضيف: $host', style: const TextStyle(fontSize: 11.5, color: Color(0xFFB45309), fontWeight: FontWeight.w700))),
               if (notes.isNotEmpty)
                 Padding(padding: const EdgeInsets.only(top: 2), child: Text('ملاحظات: $notes', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1),
               Row(
                 children: [
                   if (imgs > 0)
