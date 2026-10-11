@@ -11,7 +11,6 @@ import 'workers.dart';
 import 'settlement.dart';
 import 'reports.dart';
 import 'gate.dart';
-import 'chat.dart';
 import 'procs.dart';
 import 'home.dart';
 import 'users.dart';
@@ -83,7 +82,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (u.can('workers')) const _Tab('workers', 'العاملين', Icons.groups_outlined),
       if (u.can('reports')) const _Tab('reports', 'التقارير', Icons.bar_chart),
       if (u.can('gate')) const _Tab('gate', 'دفتر البوابة', Icons.door_front_door),
-      const _Tab('chat', 'Chat Security', Icons.forum_outlined),
       if (u.isAdmin) const _Tab('users', 'المستخدمين', Icons.manage_accounts_outlined),
       if (u.isAdmin) const _Tab('monitor', 'المتابعة', Icons.monitor_heart_outlined),
     ];
@@ -287,8 +285,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         return const ReportsScreen();
       case 'gate':
         return const GateScreen();
-      case 'chat':
-        return const ChatScreen();
       case 'procs':
         return const ProcsScreen();
       case 'users':
@@ -310,7 +306,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       'workers': 'العاملين',
       'reports': 'التقارير',
       'gate': 'دفتر البوابة',
-      'chat': 'Chat Security',
       'procs': 'الإجراءات اليومية',
       'users': 'المستخدمين',
       'monitor': 'المتابعة',
