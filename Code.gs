@@ -25,7 +25,7 @@ var SHEETS = {
   Locations:  ['name'],
   Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
-  Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes'],
+  Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes', 'move'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
   Log:        ['time', 'user', 'action', 'page', 'details']
 };
@@ -172,7 +172,7 @@ function sh0_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH3_' + name)) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH4_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -181,7 +181,7 @@ function sh0_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
-    try { CacheService.getScriptCache().put('SCH3_' + name, '1', 21600); } catch (e) {}
+    try { CacheService.getScriptCache().put('SCH4_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
@@ -850,7 +850,7 @@ function gateOut_(g) {
   var seq = num_(g.seq);
   return {
     id: g.id, seq: seq, weekday: g.weekday, date: g.date, plate: g.plate, time: g.time,
-    action: g.action || '--', driver: g.driver, rep: g.rep || '', statement: g.statement, notes: g.notes,
+    action: g.action || '--', move: g.move || '', driver: g.driver, rep: g.rep || '', statement: g.statement, notes: g.notes,
     managers: g.managers, host: g.host,
     page: num_(g.page), line: num_(g.line),
     entryNo: gateEntryNo_(g),
@@ -913,7 +913,7 @@ function saveGate(token, e) {
     cur.imgTypes = JSON.stringify(keepT);
     cur.action = action; cur.rep = rep0;
     cur.date = date; cur.weekday = weekday_(date); cur.time = time; cur.plate = plate;
-    cur.driver = driver0; cur.statement = clip_(e.statement, 600); cur.notes = clip_(e.notes, 300);
+    cur.driver = driver0; cur.move = clip_(e.move, 40); cur.statement = clip_(e.statement, 600); cur.notes = clip_(e.notes, 300);
     cur.managers = clip_(e.managers, 200); cur.host = clip_(e.host, 80);
     cur.images = JSON.stringify(keep);
     writeAll_('Gate', rows);
