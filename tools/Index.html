@@ -738,7 +738,7 @@ var names=LOCS.slice();Object.keys(cnt).forEach(function(l){if(names.indexOf(l)=
 var tp=0;Object.keys(pres).forEach(function(k){tp+=pres[k];});
 var icons=['📍','🏭','🏢','🚐','🛠️','🏗️','🌟','🧭','🚦','🛡️','🚪','🏬'],palettes=[['#2563eb','#06b6d4','#67e8f9'],['#7c3aed','#c026d3','#e879f9'],['#059669','#10b981','#6ee7b7'],['#ea580c','#f59e0b','#fcd34d'],['#db2777','#f43f5e','#fda4af'],['#4f46e5','#818cf8','#c4b5fd'],['#0891b2','#22d3ee','#67e8f9'],['#9333ea','#d946ef','#f0abfc']];
 function card(l,n,p,lab,i){var c=palettes[i%palettes.length],ico=icons[i%icons.length];return '<div class="card home-place" style="--place-a:'+c[0]+';--place-b:'+c[1]+';--place-glow:'+c[2]+';animation-delay:'+(i*0.13)+'s;text-align:center" onclick="openAttLoc('+(l===null?"''":JSON.stringify(l).replace(/"/g,'&quot;'))+')"><span class="place-icon">'+ico+'</span><b>'+esc(lab)+'</b><div class="mut" style="margin-top:5px">'+n+' عامل</div><div class="mut">حضور مسجل: <b>'+p+'</b></div></div>';}
-box.innerHTML=card(null,total,attCount,'كل الأماكن',0)+names.map(function(l,i){return card(l,cnt[l]||0,pres[l]||0,l,i+1);}).join('');}
+box.innerHTML=card(null,WORKERS.length,attCount,'كل الأماكن',0)+names.map(function(l,i){return card(l,cnt[l]||0,pres[l]||0,l,i+1);}).join('');}
 function openAttLoc(l){document.getElementById('attDate').value=document.getElementById('homeDate').value||todayStr();switchTab('attendance');attFiltFill();document.getElementById('attLocFilt').value=l;renderDay();}
 function renderDay(){var date=document.getElementById('attDate').value||todayStr();attFiltFill();var lf=document.getElementById('attLocFilt').value;
 document.getElementById('attBody').innerHTML=WORKERS.filter(function(w){
