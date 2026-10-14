@@ -20,7 +20,7 @@ var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
 var MAX_LOG_ROWS = 5000;
 
 var SHEETS = {
-  Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo'],
+  Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo', 'loc'],
   Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes', 'settleId', 'paidAmt'],
   Locations:  ['name'],
   Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
@@ -172,7 +172,7 @@ function sh0_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH4_' + name)) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH5_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -181,7 +181,7 @@ function sh0_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
-    try { CacheService.getScriptCache().put('SCH4_' + name, '1', 21600); } catch (e) {}
+    try { CacheService.getScriptCache().put('SCH5_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
@@ -441,7 +441,7 @@ function workerOut_(w, full, ls) {
   return {
     id: w.id, name: w.name,
     card: full ? w.card : '', phone: full ? w.phone : '',
-    wage: num_(w.wage), hours: num_(w.hours, 8) || 8, lastSet: legacy > led ? legacy : led,
+    loc: String(w.loc || ''), wage: num_(w.wage), hours: num_(w.hours, 8) || 8, lastSet: legacy > led ? legacy : led,
     hasCard: !!w.cardImg, hasPhoto: !!w.photo
   };
 }
@@ -672,6 +672,7 @@ function saveWorker(token, w) {
     cur.phone = clip_(w.phone, 20);
     cur.wage = Math.max(0, num_(w.wage));
     cur.hours = Math.max(1, num_(w.hours, 8)) || 8;
+    cur.loc = clip_(w.loc, 60);
     if (w.cardImgData) { trashImg_(cur.cardImg); cur.cardImg = saveImg_(w.cardImgData, 'card'); }
     if (w.photoData) { trashImg_(cur.photo); cur.photo = saveImg_(w.photoData, 'photo'); }
     writeAll_('Workers', workers);
