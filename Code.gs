@@ -78,7 +78,7 @@ function _liveIndex() {
  * ملاحظة: بعد أي تعديل لا بد من نشر نسخة جديدة (Deploy > Manage deployments > Edit > New version). */
 function apiMap_() {
   return {
-    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, rev: rev, addLog: addLog,
+    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, appUrl: appUrl, rev: rev, addLog: addLog,
     bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
@@ -408,6 +408,11 @@ function changePassword(token, oldPass, newPass) {
   updateUser_(u.username, { salt: salt, hash: hash_(salt, newPass) });
   log_(u.name, 'تغيير كلمة المرور', 'النظام', u.username);
   return true;
+}
+
+function appUrl(token) {
+  auth_(token);
+  try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; }
 }
 
 function ping(token) {
