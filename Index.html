@@ -759,12 +759,12 @@ var lk=!!rec.settleId,dis=lk?' disabled':'';
 return '<tr data-wid="'+w.id+'" data-name="'+esc(w.name)+'"'+(lk?' class="locked" data-locked="1"':'')+'>'+
 '<td style="min-width:170px"><span class="wlink" onclick="openWorkerStatus(\''+w.id+'\')" title="عرض موقف العامل حسب الفترة">'+esc(w.name)+'</span></td>'+
 '<td><select class="st" onchange="toggleExtra(this)"'+dis+'><option value="--">--</option>'+STS.map(function(s){return '<option'+(st===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></td>'+
-'<td><input class="loc" list="locList" value="'+esc(rec.loc||'')+'" onchange="locAuto(this.closest(\'tr\'),1)" data-def="'+esc(w.loc||'')+'" placeholder="'+esc(w.loc?'ثابت: '+w.loc:'مكان الحضور')+'" style="width:130px" oninput="locChanged(this)"'+dis+'></td>'+
+'<td><input class="loc" list="locList" value="'+esc(rec.loc||'')+'" data-def="'+esc(w.loc||'')+'" placeholder="'+esc(w.loc?'ثابت: '+w.loc:'مكان الحضور')+'" style="width:130px" oninput="locChanged(this)"'+dis+'></td>'+
 '<td><input class="wg wgfix" type="number" min="0" step="0.01" inputmode="decimal" value="'+wgv+'" readonly title="اضغط لتعديل أجر اليوم" onclick="wgEdit(this)" onblur="wgDone(this)" oninput="refreshDue(this.closest(\'tr\'))" onkeydown="if(event.key===\'Enter\')this.blur()"'+dis+'></td>'+
 
 '<td class="'+dueCls(c)+'" style="white-space:normal;word-break:break-word">'+dueText(c)+paidMark(w,date,st,rec.xh||0,rec.loc||'',wgv)+'</td>'+
 '<td style="min-width:135px"><span class="xhw" style="display:'+(need?'flex':'none')+';align-items:center;gap:4px;font-size:11px;color:#64748b;margin-bottom:2px">إضافي (ساعة) <input class="xh" type="number" min="0" step="0.5" value="'+(rec.xh||'')+'" oninput="refreshDue(this.closest(\'tr\'))" style="width:56px;padding:3px 6px;font-size:12px"'+dis+'></span>'+
-'<div style="display:flex;gap:4px;align-items:center"><input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="flex:1;min-width:0"'+dis+'>'+(lk?'':'<button class="btn small primary noprint" title="حفظ" onclick="saveRow(this.closest(\'tr\'))" style="padding:2px 6px;font-size:12px">💾</button>')+'</div></td>'+
+'<div style="display:flex;gap:4px;align-items:center"><input class="note" value="'+esc(rec.notes||'')+'" placeholder="ملاحظات" style="flex:1;min-width:0"'+dis+'></div></td>'+
 '</tr>';}).join('');
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){refreshDue(tr);});attCounts();}
 function wgEdit(i){if(i.disabled)return;i.readOnly=false;i.classList.add('wgedit');i.select();}
@@ -773,31 +773,25 @@ function refreshDue(tr){var date=document.getElementById('attDate').value||today
 st=tr.querySelector('.st').value,li=tr.querySelector('.loc'),xh=tr.querySelector('.xh').value,wg=tr.querySelector('.wg').value,c=dueCalc(w,date,st,xh,li.value,wg),td=tr.querySelector('.unset');
 td.className=dueCls(c);td.innerHTML=dueText(c)+paidMark(w,date,st,xh,li.value,wg);
 li.classList.toggle('need',st!=='--'&&!li.value.trim());}
-function toggleExtra(sel){var tr=sel.parentElement.parentElement,wrap=tr.querySelector('.xhw'),xh=tr.querySelector('.xh');var li=tr.querySelector('.loc');if(sel.value!=='--'&&li&&!li.value.trim()&&li.getAttribute('data-def')){li.value=li.getAttribute('data-def');locAuto(tr);}
+function toggleExtra(sel){var tr=sel.parentElement.parentElement,wrap=tr.querySelector('.xhw'),xh=tr.querySelector('.xh');var li=tr.querySelector('.loc');if(sel.value!=='--'&&li&&!li.value.trim()&&li.getAttribute('data-def'))li.value=li.getAttribute('data-def');
 if(EXTRA_STS.indexOf(sel.value)!==-1){wrap.style.display='flex';if(!xh.value)xh.value=0;}else{wrap.style.display='none';xh.value='';}
 refreshDue(tr);attCounts();}
-function locAuto(tr,now){clearTimeout(tr._lt);tr._lt=setTimeout(function(){if(!tr.isConnected||tr.getAttribute('data-locked'))return;saveRow(tr,true);},now?50:1400);}
 function locChanged(inp){var tr=inp.closest('tr'),st=tr.querySelector('.st');
-if(inp.value.trim()&&st.value==='--'){st.value='حضور';toggleExtra(st);}else refreshDue(tr);locAuto(tr);}
+if(inp.value.trim()&&st.value==='--'){st.value='حضور';toggleExtra(st);}else refreshDue(tr);}
 function notesX(x){var n=String((x&&x.notes)||''),e=Number((x&&x.xh)||0);return (e?'إضافي ('+e+') ساعة. ':'')+n;}
 function saveDay(){var date=document.getElementById('attDate').value;if(!date)return toast('حدد التاريخ');
-var recs=[];
+var daily=Object.create(null);
+ATT.forEach(function(r){if(r.date===date)daily[r.wid]={wid:r.wid,status:r.status,loc:r.loc||'',wage:r.wage||0,xh:r.xh||0,notes:r.notes||''};});
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){
 if(tr.getAttribute('data-locked'))return;
-var st=tr.querySelector('.st').value;if(st==='--')return;
-recs.push({wid:tr.getAttribute('data-wid'),status:st,loc:tr.querySelector('.loc').value,wage:Number(tr.querySelector('.wg').value)||0,
-xh:EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.xh').value)||0):0,notes:tr.querySelector('.note').value});});
+var wid=tr.getAttribute('data-wid'),st=tr.querySelector('.st').value;if(st==='--'){delete daily[wid];return;}
+daily[wid]={wid:wid,status:st,loc:tr.querySelector('.loc').value,wage:Number(tr.querySelector('.wg').value)||0,
+xh:EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.xh').value)||0):0,notes:tr.querySelector('.note').value};});
+var recs=Object.keys(daily).map(function(wid){return daily[wid];});
 toast('جاري الحفظ...');
 api('saveDay',date,recs).then(function(r){ATT=ATT.filter(function(x){return x.date!==date;}).concat(r.att);LOCS=r.locs||LOCS;
 refreshLists();var nol=recs.filter(function(x){return !String(x.loc).trim();}).length;
 toast((r.locked&&r.locked.length)?'تم الحفظ — أيام مغلقة لم تتغير: '+r.locked.join('، '):(nol?'تم الحفظ — تنبيه: '+nol+' عامل بدون مكان حضور لن يُحتسب يومهم':'تم حفظ تسجيل اليوم بالكامل'));renderDay();}).catch(fail);}
-function saveRow(tr,auto){var date=document.getElementById('attDate').value;if(!date)return toast('حدد التاريخ');
-var st=tr.querySelector('.st').value,wid=tr.getAttribute('data-wid');
-var rec={wid:wid,status:st,loc:tr.querySelector('.loc').value,wage:Number(tr.querySelector('.wg').value)||0,xh:EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.xh').value)||0):0,notes:tr.querySelector('.note').value};
-var btn=auto?null:tr.querySelector('.btn.primary');if(btn)btn.disabled=true;
-api('saveDay',date,[rec],true).then(function(r){ATT=ATT.filter(function(x){return x.date!==date;}).concat(r.att);LOCS=r.locs||LOCS;if(auto){toast('تم الحفظ تلقائيًا — '+esc(W(wid).name));return;}refreshLists();
-toast(st==='--'?'تم مسح التسجيل':(String(rec.loc).trim()?'تم حفظ '+esc(W(wid).name):'تم الحفظ — تنبيه: بدون مكان حضور لن يُحتسب'));
-var y=window.scrollY;renderDay();window.scrollTo(0,y);}).catch(function(e){if(btn)btn.disabled=false;fail(e);});}
 function showAttSub(s){document.getElementById('attDayWrap').style.display=s==='day'?'block':'none';
 document.getElementById('attPeriodWrap').style.display=s==='period'?'block':'none';
 document.getElementById('stab-day').classList.toggle('active',s==='day');
@@ -876,8 +870,14 @@ if(rec&&oSt===st&&(rec.loc||'')===loc&&Number(rec.wage||w.wage)===wg&&Number(rec
 jobs.push({date:date,rec:{wid:id,status:st,loc:loc,wage:wg,xh:xh,notes:nt}});});
 if(!jobs.length){toast('لا توجد تعديلات');return wsToggle(false);}
 var b=document.getElementById('wsSaveAll');if(b){b.disabled=true;b.textContent='جاري الحفظ...';}
+var byDate=Object.create(null);
+jobs.forEach(function(j){
+if(!byDate[j.date])byDate[j.date]=ATT.filter(function(x){return x.date===j.date;}).map(function(x){return {wid:x.wid,status:x.status,loc:x.loc||'',wage:x.wage||0,xh:x.xh||0,notes:x.notes||''};});
+var list=byDate[j.date],idx=list.findIndex(function(x){return x.wid===j.rec.wid;});
+if(idx===-1)list.push(j.rec);else list[idx]=j.rec;
+});
 var p=Promise.resolve();
-jobs.forEach(function(j){p=p.then(function(){return api('saveDay',j.date,[j.rec],true).then(function(res){ATT=ATT.filter(function(x){return x.date!==j.date;}).concat(res.att);LOCS=res.locs||LOCS;});});});
+Object.keys(byDate).forEach(function(date){p=p.then(function(){return api('saveDay',date,byDate[date]).then(function(res){ATT=ATT.filter(function(x){return x.date!==date;}).concat(res.att);LOCS=res.locs||LOCS;});});});
 p.then(function(){refreshLists();toast('تم حفظ '+jobs.length+' تعديل');WS_EDIT=false;renderWS();try{renderDay();}catch(e){}}).catch(function(e){if(b){b.disabled=false;b.textContent='💾 حفظ الكل';}fail(e);});}
 function printWS(){var r=wsData();if(!r.rows.length)return toast('حدد فترة صحيحة');var a=r.all;
 paper('موقف عامل','<h2>موقف العامل: '+esc(r.w.name)+'</h2><div class="meta">من '+fmtD(r.f)+' إلى '+fmtD(r.t)+'</div>'+

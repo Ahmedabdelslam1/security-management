@@ -421,16 +421,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           onTapOutside: (_) => setState(() { if ((double.tryParse(c.wg) ?? 0) <= 0) c.wg = _numStr(w.wage); c.wgLocked = true; }),
                         ),
                       ),
-                if (!isSettled)
-                  IconButton(
-                    tooltip: 'حفظ',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                    style: IconButton.styleFrom(backgroundColor: col.withOpacity(.12)),
-                    onPressed: () => _saveOne(w),
-                    icon: Icon(Icons.save, size: 15, color: col),
-                  ),
               ],
             ),
             Builder(builder: (_) {
@@ -457,7 +447,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; });
                       if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
                         setState(() => c.loc = w.loc);
-                        _saveOne(w);
                       }
                     },
                   ),
@@ -469,11 +458,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       isExpanded: true,
                       value: locs.contains(c.loc) ? c.loc : null,
                       decoration: _dec(null, hint: c.loc.isNotEmpty && !locs.contains(c.loc) ? c.loc : 'المكان',
-                          suffix: InkWell(onTap: () => _newLoc(c, w), child: const Icon(Icons.add_location_alt_outlined, size: 15))),
+                          suffix: InkWell(onTap: () => _newLoc(c), child: const Icon(Icons.add_location_alt_outlined, size: 15))),
                       items: locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (v) {
                         setState(() => c.loc = v ?? '');
-                        _saveOne(w);
                       },
                     ),
                   ),
@@ -517,29 +505,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // ===== تقرير أيام العامل: عرض وتعديل وطباعة/حفظ =====
   String _ds(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  Future<bool> _saveRec(String date, Map<String, dynamic> rec) async {
-    try {
-      final res = await Api.auth('saveDay', [date, [rec], true]) as Map;
-      final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
-      final app = App.I;
-      final kept = app.att.where((r) => r.date != date).toList()..addAll(fresh);
-      final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();
-      app.att..clear()..addAll(kept);
-      app.locs.addAll(newLocs);
-      app.notifyListeners();
-      return true;
-    } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red.shade700));
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<void> _showDays(Worker w) async {
     final now = DateTime.now();
     var from = DateTime(now.year, now.month, 1);
     var to = now;
+    final pending = <String, Map<String, dynamic>>{};
+    var savingPosition = false;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -607,11 +578,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           itemBuilder: (_, i) {
                             final r = recs[i];
                             final settled = r.settleId.isNotEmpty;
+                            final edit = pending[r.date];
+                            final shownStatus = edit?['status'] as String? ?? r.status;
+                            final shownLoc = edit?['loc'] as String? ?? r.loc;
+                            final shownXh = (edit?['xh'] as num?)?.toDouble() ?? r.xh;
+                            final shownNotes = edit?['notes'] as String? ?? r.notes;
                             return ListTile(
                               dense: true,
                               visualDensity: VisualDensity.compact,
-                              title: Text('${fmtDate(r.date)} • ${r.status} • ${r.loc.isEmpty ? '—' : r.loc}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              subtitle: Text([exTxt(r.xh), r.notes].where((x) => x.isNotEmpty).join(' — '), style: const TextStyle(fontSize: 11)),
+                              title: Text('${fmtDate(r.date)} • $shownStatus • ${shownLoc.isEmpty ? '—' : shownLoc}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              subtitle: Text([exTxt(shownXh), shownNotes, if (edit != null) 'تعديل غير محفوظ'].where((x) => x.isNotEmpty).join(' — '), style: const TextStyle(fontSize: 11)),
                               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                 Text(val(r).toStringAsFixed(2), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                                 if (settled) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.lock, size: 14, color: Colors.green))
@@ -619,7 +595,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   visualDensity: VisualDensity.compact,
                                   icon: const Icon(Icons.edit, size: 16, color: Color(0xFF1D4ED8)),
                                   onPressed: () async {
-                                    if (await _editDay(ctx, w, r)) setS(() {});
+                                    final change = await _editDay(ctx, w, r, edit);
+                                    if (change != null) setS(() => pending[r.date] = change);
                                   },
                                 ),
                               ]),
@@ -627,6 +604,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           },
                         ),
                 ),
+                if (pending.isNotEmpty)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: savingPosition ? null : () async {
+                        final changeCount = pending.length;
+                        setS(() => savingPosition = true);
+                        try {
+                          await _saveSituation(pending);
+                          pending.clear();
+                          setS(() {});
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('تم حفظ الموقف ($changeCount تعديل)'), backgroundColor: Colors.green.shade700),
+                            );
+                          }
+                        } on SessionExpired {
+                          await _relogin();
+                        } on ApiException catch (e) {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red.shade700));
+                        } finally {
+                          if (mounted) setS(() => savingPosition = false);
+                        }
+                      },
+                      icon: savingPosition
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.save, size: 16),
+                      label: Text(savingPosition ? 'جاري حفظ الموقف...' : 'حفظ الموقف (${pending.length})'),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -636,11 +643,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<bool> _editDay(BuildContext ctx, Worker w, AttRec r) async {
-    var status = r.status;
-    var loc = r.loc;
-    final xh = TextEditingController(text: r.xh > 0 ? _numStr(r.xh) : '');
-    final notes = TextEditingController(text: r.notes);
+  Future<Map<String, dynamic>?> _editDay(BuildContext ctx, Worker w, AttRec r, Map<String, dynamic>? previous) async {
+    var status = previous?['status'] as String? ?? r.status;
+    var loc = previous?['loc'] as String? ?? r.loc;
+    final savedXh = (previous?['xh'] as num?)?.toDouble() ?? r.xh;
+    final xh = TextEditingController(text: savedXh > 0 ? _numStr(savedXh) : '');
+    final notes = TextEditingController(text: previous?['notes'] as String? ?? r.notes);
     final locs = App.I.locs.toList();
     if (loc.isNotEmpty && !locs.contains(loc)) locs.add(loc);
     final ok = await showDialog<bool>(
@@ -672,53 +680,50 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('حفظ')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('إضافة للموقف')),
         ],
       )),
     );
-    if (ok != true) return false;
-    return _saveRec(r.date, {
+    if (ok != true) return null;
+    return {
       'wid': w.id,
       'status': status,
       'loc': loc.trim(),
       'xh': kExtraStatuses.contains(status) ? (double.tryParse(xh.text) ?? 0) : 0,
       'wage': r.wage > 0 ? r.wage : w.wage,
       'notes': notes.text.trim(),
-    });
+    };
   }
 
-  Future<void> _saveOne(Worker w) async {
-    final c = _ctl[w.id]!;
-    try {
-      final rec = {
-        'wid': w.id,
-        'status': c.status,
-        'loc': c.loc.trim(),
-        'xh': kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
-        'wage': double.tryParse(c.wg) ?? 0,
-        'notes': c.notes.trim(),
-      };
-      final res = await Api.auth('saveDay', [_dstr, [rec], true]) as Map;
+  Future<void> _saveSituation(Map<String, Map<String, dynamic>> changes) async {
+    final app = App.I;
+    for (final entry in changes.entries) {
+      final date = entry.key;
+      final records = app.att.where((r) => r.date == date).map((r) => <String, dynamic>{
+        'wid': r.wid,
+        'status': r.status,
+        'loc': r.loc,
+        'wage': r.wage,
+        'xh': r.xh,
+        'notes': r.notes,
+      }).toList();
+      final index = records.indexWhere((r) => r['wid'] == entry.value['wid']);
+      if (index == -1) {
+        records.add(entry.value);
+      } else {
+        records[index] = entry.value;
+      }
+      final res = await Api.auth('saveDay', [date, records]) as Map;
       final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
-      final app = App.I;
-      final kept = app.att.where((r) => r.date != _dstr).toList()..addAll(fresh);
+      final kept = app.att.where((r) => r.date != date).toList()..addAll(fresh);
       final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();
       app.att..clear()..addAll(kept);
       app.locs.addAll(newLocs);
-      c.wgLocked = true;
-      app.notifyListeners();
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ ${w.name}'), backgroundColor: Colors.green.shade700, duration: const Duration(seconds: 1)));
-      }
-    } on SessionExpired {
-      await _relogin();
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _err = e.message);
     }
+    app.notifyListeners();
   }
 
-  Future<void> _newLoc(_RowCtl c, Worker w) async {
+  Future<void> _newLoc(_RowCtl c) async {
     final t = TextEditingController();
     final v = await showDialog<String>(
       context: context,
@@ -734,7 +739,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (v != null && v.isNotEmpty) {
       setState(() => c.loc = v);
       if (!App.I.locs.contains(v)) App.I.locs.add(v);
-      _saveOne(w);
     }
   }
 }
