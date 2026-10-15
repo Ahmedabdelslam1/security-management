@@ -180,6 +180,7 @@ input.wgfix{width:46px;min-width:0;max-width:46px;height:24px;padding:0 2px;marg
 .hc>div:first-child{display:block;width:fit-content;margin:0 auto 4px;animation:hcFloat 2.6s ease-in-out infinite;animation-delay:var(--d,0s);filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
 .hc:hover{transform:translateY(-6px) scale(1.06)}
 .hc:active{transform:scale(.96)}
+.hc-meta{color:#000!important;font-weight:900!important;opacity:1!important}
 @keyframes hcIn{from{opacity:0;transform:translateY(24px) scale(.7)}to{opacity:1;transform:none}}
 @keyframes hcGlow{0%,100%{box-shadow:0 0 4px var(--c),0 0 10px color-mix(in srgb,var(--c) 40%,transparent)}50%{box-shadow:0 0 14px var(--c),0 0 28px color-mix(in srgb,var(--c) 70%,transparent)}}
 @keyframes hcFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
@@ -740,7 +741,7 @@ function renderHome(){var hd=document.getElementById('homeDate');if(!hd.value)hd
 var ls={};LOCS.forEach(function(l){ls[l]=locSet(l);});WORKERS.forEach(function(w){var r=ATT.filter(function(x){return x.date===date&&x.wid===w.id;})[0];if(w.loc&&!ls[w.loc])ls[w.loc]=locSet(w.loc);if(r&&r.loc){pres[r.loc]=(pres[r.loc]||0)+1;}});Object.keys(ls).forEach(function(l){cnt[l]=Object.keys(ls[l]).length;});
 var names=LOCS.slice();Object.keys(cnt).forEach(function(l){if(names.indexOf(l)===-1)names.push(l);});
 var CC=[['#2563eb','#dbeafe'],['#16a34a','#dcfce7'],['#ea580c','#ffedd5'],['#9333ea','#f3e8ff'],['#db2777','#fce7f3'],['#0891b2','#cffafe'],['#ca8a04','#fef9c3'],['#dc2626','#fee2e2'],['#4f46e5','#e0e7ff'],['#0d9488','#ccfbf1']],CI=['\uD83C\uDFED','\uD83C\uDFE2','\uD83C\uDFEA','\uD83D\uDE9A','\uD83C\uDFD7','\uD83C\uDFE5','\uD83C\uDFEB','\uD83D\uDEE1','\uD83C\uDFE0','\u26FA'],ci=0;
-function card(l,n,p,lab){var k=l===null?-1:ci++,c=k<0?['#475569','#e2e8f0']:CC[k%CC.length],ic=k<0?'\uD83D\uDCCD':CI[k%CI.length];return '<div class="card hc" data-open="tab=attendance&loc='+encodeURIComponent(l===null?'':l)+'" style="--c:'+c[0]+';--d:'+(ci*0.08)+'s;cursor:pointer;text-align:center;padding:14px 8px;border:2px solid '+c[0]+';background:'+c[1]+';color:'+c[0]+'" onclick="openAttLoc('+(l===null?"''":JSON.stringify(l).replace(/"/g,'&quot;'))+')"><div style="font-size:30px">'+ic+'</div><b>'+esc(lab)+'</b><div class="mut" style="font-size:12px;margin-top:4px">'+n+' عامل — حضر اليوم '+p+'</div></div>';}
+function card(l,n,p,lab){var k=l===null?-1:ci++,c=k<0?['#475569','#e2e8f0']:CC[k%CC.length],ic=k<0?'\uD83D\uDCCD':CI[k%CI.length];return '<div class="card hc" data-open="tab=attendance&loc='+encodeURIComponent(l===null?'':l)+'" style="--c:'+c[0]+';--d:'+(ci*0.08)+'s;cursor:pointer;text-align:center;padding:14px 8px;border:2px solid '+c[0]+';background:'+c[1]+';color:'+c[0]+'" onclick="openAttLoc('+(l===null?"''":JSON.stringify(l).replace(/"/g,'&quot;'))+')"><div style="font-size:30px">'+ic+'</div><b>'+esc(lab)+'</b><div class="mut hc-meta" style="font-size:12px;margin-top:4px">'+n+' عامل — حضور '+p+'</div></div>';}
 var tp=0;Object.keys(pres).forEach(function(k){tp+=pres[k];});
 box.innerHTML=card(null,WORKERS.length,tp,'كل الأماكن')+names.map(function(l){return card(l,cnt[l]||0,pres[l]||0,l);}).join('');}
 function attHome(){var f=document.getElementById('attLocFilt');if(f)f.value='';switchTab('home');}
@@ -784,7 +785,7 @@ var daily=Object.create(null);
 ATT.forEach(function(r){if(r.date===date)daily[r.wid]={wid:r.wid,status:r.status,loc:r.loc||'',wage:r.wage||0,xh:r.xh||0,notes:r.notes||''};});
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){
 if(tr.getAttribute('data-locked'))return;
-var wid=tr.getAttribute('data-wid'),st=tr.querySelector('.st').value;if(st==='--'){delete daily[wid];return;}
+var wid=tr.getAttribute('data-wid'),st=tr.querySelector('.st').value;
 daily[wid]={wid:wid,status:st,loc:tr.querySelector('.loc').value,wage:Number(tr.querySelector('.wg').value)||0,
 xh:EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.xh').value)||0):0,notes:tr.querySelector('.note').value};});
 var recs=Object.keys(daily).map(function(wid){return daily[wid];});
