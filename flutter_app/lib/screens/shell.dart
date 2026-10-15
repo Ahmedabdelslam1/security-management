@@ -276,7 +276,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       case 'home':
         return HomeScreen(onOpen: (id) => setState(() => _tab = id));
       case 'attendance':
-        return const AttendanceScreen();
+        return AttendanceScreen(onHome: () => setState(() => _tab = 'home'));
       case 'workers':
         return const WorkersScreen();
       case 'settlement':

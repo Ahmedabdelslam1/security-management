@@ -47,6 +47,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
     final phone = TextEditingController(text: w?.phone ?? '');
     final wage = TextEditingController(text: w == null ? '' : w.wage.toString());
     final hours = TextEditingController(text: w == null ? '8' : w.hours.toString());
+    final wloc = TextEditingController(text: w?.loc ?? '');
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -73,6 +74,8 @@ class _WorkersScreenState extends State<WorkersScreen> {
               TextField(controller: wage, keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'أجر اليوم (جنيه)', isDense: true)),
               const SizedBox(height: 8),
+              TextField(controller: wloc, decoration: const InputDecoration(labelText: 'مكان الحضور الثابت (اختياري)', isDense: true)),
+              const SizedBox(height: 8),
               TextField(controller: hours, keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'ساعات اليوم الافتراضية', isDense: true)),
               const SizedBox(height: 14),
@@ -95,6 +98,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
           'phone': phone.text.trim(),
           'wage': double.tryParse(wage.text) ?? 0,
           'hours': double.tryParse(hours.text) ?? 8,
+          'loc': wloc.text.trim(),
         }
       ]);
       await App.I.bootstrap(silent: true);

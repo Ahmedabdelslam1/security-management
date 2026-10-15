@@ -27,7 +27,8 @@ class Worker {
   final String lastSet;
   final bool hasCard;
   final bool hasPhoto;
-  Worker({required this.id, required this.name, required this.card, required this.phone, required this.wage, required this.hours, required this.lastSet, required this.hasCard, required this.hasPhoto});
+  final String loc; // مكان الحضور الثابت
+  Worker({this.loc = '', required this.id, required this.name, required this.card, required this.phone, required this.wage, required this.hours, required this.lastSet, required this.hasCard, required this.hasPhoto});
   factory Worker.fromJson(Map j) => Worker(
         id: j['id'] ?? '',
         name: j['name'] ?? '',
@@ -38,6 +39,7 @@ class Worker {
         lastSet: j['lastSet'] ?? '',
         hasCard: j['hasCard'] == true,
         hasPhoto: j['hasPhoto'] == true,
+        loc: (j['loc'] ?? '').toString(),
       );
 }
 

@@ -7,13 +7,16 @@ import '../state.dart';
 import '../widgets.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final String? openWorkerId; // فتح موقف عامل مباشرة (من التسوية)
+  final VoidCallback? onHome;
+  const AttendanceScreen({super.key, this.openWorkerId, this.onHome});
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   String _q = '';
+  String _locF = ''; // فلتر مكان الحضور
   DateTime _date = DateTime.now();
   late Map<String, _RowCtl> _ctl; // wid -> عناصر التحكم
   bool _saving = false;
@@ -26,7 +29,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void initState() {
     super.initState();
     _ctl = {};
+    _locF = App.I.attLoc;
+    App.I.attLoc = '';
     _build();
+    if (widget.openWorkerId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final w = App.I.workers.where((x) => x.id == widget.openWorkerId).toList();
+        if (w.isNotEmpty && mounted) _showDays(w.first);
+      });
+    }
   }
 
   void _build() {
@@ -112,8 +123,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final app = App.I;
     final cs = Theme.of(context).colorScheme;
     final all = app.workers;
-    final workers = _q.isEmpty ? all : all.where((w) => txtMatch(_q, [w.name, w.card])).toList();
-    final locs = app.locs;
+    final locIds = _locF.isEmpty
+        ? <String>{}
+        : <String>{
+            for (final w in all) if (w.loc == _locF) w.id,
+            for (final r in app.att) if (r.loc == _locF) r.wid,
+          };
+    final workers = all
+        .where((w) => (_locF.isEmpty || locIds.contains(w.id)) && (_q.isEmpty || txtMatch(_q, [w.name, w.card])))
+        .toList();
+    final nPresent = workers.where((w) => (_ctl[w.id]?.status ?? '--') != '--').length;
+    final locs = <String>{...app.locs, ...app.workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5FB),
@@ -165,6 +185,45 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+            child: Row(
+              children: [
+                if (widget.onHome != null)
+                  IconButton(
+                    tooltip: 'رجوع للرئيسية',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () { App.I.attLoc = ''; widget.onHome!(); },
+                    icon: const Icon(Icons.home_outlined, size: 20, color: Color(0xFF6D28D9)),
+                  ),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: (_locF.isEmpty || locs.contains(_locF)) ? (_locF.isEmpty ? '' : _locF) : '',
+                    decoration: _dec('فرز بمكان الحضور'),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('كل الأماكن', style: TextStyle(fontSize: 12))),
+                      ...locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
+                    ],
+                    onChanged: (v) => setState(() => _locF = v ?? ''),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text.rich(TextSpan(style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12), children: [
+                TextSpan(text: 'عدد الكل = ${workers.length}', style: const TextStyle(color: Color(0xFF1D4ED8))),
+                const TextSpan(text: '  /  '),
+                TextSpan(text: 'عدد الحضور = $nPresent', style: const TextStyle(color: Color(0xFF15803D))),
+                const TextSpan(text: '  /  '),
+                TextSpan(text: 'بدون موقف = ${workers.length - nPresent}', style: const TextStyle(color: Color(0xFFDC2626))),
+              ])),
             ),
           ),
           if (_err != null)
@@ -326,7 +385,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     child: Text('مسوّى', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.green.shade800)),
                   ),
                 const SizedBox(width: 6),
-                Text('${w.wage}', style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B), fontSize: 11)),
+                c.wgLocked
+                    ? InkWell(
+                        onTap: isSettled ? null : () => setState(() => c.wgLocked = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(6)),
+                          child: Text(c.wg, style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF92400E), fontSize: 11.5)),
+                        ),
+                      )
+                    : SizedBox(
+                        width: 62,
+                        child: TextField(
+                          autofocus: true,
+                          controller: TextEditingController(text: c.wg)..selection = TextSelection(baseOffset: 0, extentOffset: c.wg.length),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: _dec(null),
+                          style: const TextStyle(fontSize: 12),
+                          onChanged: (v) => setState(() => c.wg = v),
+                          onSubmitted: (_) => setState(() { if ((double.tryParse(c.wg) ?? 0) <= 0) c.wg = _numStr(w.wage); c.wgLocked = true; }),
+                          onTapOutside: (_) => setState(() { if ((double.tryParse(c.wg) ?? 0) <= 0) c.wg = _numStr(w.wage); c.wgLocked = true; }),
+                        ),
+                      ),
                 if (!isSettled)
                   IconButton(
                     tooltip: 'حفظ',
@@ -359,7 +439,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     value: kStatuses.contains(c.status) ? c.status : '--',
                     decoration: _dec(null),
                     items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-                    onChanged: (v) => setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; }),
+                    onChanged: (v) {
+                      setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; });
+                      if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
+                        setState(() => c.loc = w.loc);
+                        _saveOne(w);
+                      }
+                    },
                   ),
                 ),
                 ...[
@@ -369,9 +455,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       isExpanded: true,
                       value: locs.contains(c.loc) ? c.loc : null,
                       decoration: _dec(null, hint: c.loc.isNotEmpty && !locs.contains(c.loc) ? c.loc : 'المكان',
-                          suffix: InkWell(onTap: () => _newLoc(c), child: const Icon(Icons.add_location_alt_outlined, size: 15))),
+                          suffix: InkWell(onTap: () => _newLoc(c, w), child: const Icon(Icons.add_location_alt_outlined, size: 15))),
                       items: locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-                      onChanged: (v) => setState(() => c.loc = v ?? ''),
+                      onChanged: (v) {
+                        setState(() => c.loc = v ?? '');
+                        _saveOne(w);
+                      },
                     ),
                   ),
                 ],
@@ -615,7 +704,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  Future<void> _newLoc(_RowCtl c) async {
+  Future<void> _newLoc(_RowCtl c, Worker w) async {
     final t = TextEditingController();
     final v = await showDialog<String>(
       context: context,
@@ -631,6 +720,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (v != null && v.isNotEmpty) {
       setState(() => c.loc = v);
       if (!App.I.locs.contains(v)) App.I.locs.add(v);
+      _saveOne(w);
     }
   }
 }

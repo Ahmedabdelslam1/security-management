@@ -1,5 +1,6 @@
 // شاشة التسوية: صرف مستحقات العاملين + سجل المرتبات
 import 'package:flutter/material.dart';
+import 'attendance.dart';
 import '../api.dart';
 import '../models.dart';
 import '../pdf_export.dart';
@@ -308,7 +309,7 @@ class _SettlePaneState extends State<_SettlePane> {
                           CheckboxListTile(
                             value: sel,
                             onChanged: (v) => setState(() { v == true ? _sel.add(w.id) : _sel.remove(w.id); }),
-                            title: Row(children: [workerAvatar(w.id, size: 24), const SizedBox(width: 8), Expanded(child: Text(w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor(w.id))))]),
+                            title: Row(children: [workerAvatar(w.id, size: 24), const SizedBox(width: 8), Expanded(child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(openWorkerId: w.id))), child: Text(w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor(w.id), decoration: TextDecoration.underline))))]),
                             subtitle: Text(
                               d.amount.abs() < 0.005
                                   ? 'لا مستحقات ضمن التحديد'

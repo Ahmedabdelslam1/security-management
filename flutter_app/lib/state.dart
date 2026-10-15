@@ -8,6 +8,7 @@ class App extends ChangeNotifier {
   App._();
 
   BootData? data;
+  String attLoc = ''; // فلتر مكان الحضور عند الفتح من الرئيسية
   bool loading = false;
 
   AppUser? get user => data?.user;
@@ -16,6 +17,8 @@ class App extends ChangeNotifier {
   List<Worker> get workers => data?.workers ?? [];
   List<AttRec> get att => data?.att ?? [];
   List<String> get locs => data?.locs ?? [];
+  /// كل أماكن الحضور: المسجلة سابقًا + الثابتة للعاملين
+  List<String> get allLocs => <String>{...locs, ...workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
 
   Worker worker(String id) => workers.firstWhere((w) => w.id == id, orElse: () => Worker(id: id, name: '؟', card: '', phone: '', wage: 0, hours: 8, lastSet: '', hasCard: false, hasPhoto: false));
 

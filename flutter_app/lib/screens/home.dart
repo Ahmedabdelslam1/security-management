@@ -9,6 +9,9 @@ class HomeScreen extends StatelessWidget {
   final void Function(String tab) onOpen;
   const HomeScreen({super.key, required this.onOpen});
 
+  static const _lc = [0xFF2563EB, 0xFF16A34A, 0xFFEA580C, 0xFF9333EA, 0xFFDB2777, 0xFF0891B2, 0xFFCA8A04, 0xFFDC2626, 0xFF4F46E5, 0xFF0D9488];
+  static const _li = [Icons.factory, Icons.apartment, Icons.store, Icons.local_shipping, Icons.construction, Icons.local_hospital, Icons.school, Icons.shield, Icons.home_work, Icons.holiday_village];
+
   @override
   Widget build(BuildContext context) {
     final u = App.I.user;
@@ -61,6 +64,47 @@ class HomeScreen extends StatelessWidget {
                 ),
             ],
           ),
+          if ((u?.can('attendance') ?? false) && App.I.allLocs.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            SlideIn(
+              index: 8,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 10),
+                child: Text('أماكن الحضور', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6))),
+              ),
+            ),
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.06,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (var i = 0; i < App.I.allLocs.length; i++)
+                  SlideIn(
+                    index: i,
+                    child: Builder(builder: (_) {
+                      final l = App.I.allLocs[i];
+                      final ids = <String>{
+                        for (final w in App.I.workers) if (w.loc == l) w.id,
+                        for (final r in App.I.att) if (r.loc == l) r.wid,
+                      };
+                      final c = _lc[i % _lc.length];
+                      return _HomeCard(
+                        icon: _li[i % _li.length],
+                        label: '$l\n${ids.length} عامل',
+                        colors: [Color(c).withOpacity(.15).value, c],
+                        onTap: () {
+                          App.I.attLoc = l;
+                          onOpen('attendance');
+                        },
+                      );
+                    }),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           SlideIn(
             index: 9,
