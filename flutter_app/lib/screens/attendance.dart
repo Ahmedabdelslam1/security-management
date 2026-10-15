@@ -17,6 +17,7 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   String _q = '';
   String _locF = ''; // فلتر مكان الحضور
+  String _wkF = ''; // عامل محدد
   DateTime _date = DateTime.now();
   late Map<String, _RowCtl> _ctl; // wid -> عناصر التحكم
   bool _saving = false;
@@ -130,7 +131,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             for (final r in app.att) if (r.loc == _locF) r.wid,
           };
     final workers = all
-        .where((w) => (_locF.isEmpty || locIds.contains(w.id)) && (_q.isEmpty || txtMatch(_q, [w.name, w.card])))
+        .where((w) => (_locF.isEmpty || locIds.contains(w.id)) && (_wkF.isEmpty || w.id == _wkF) && (_q.isEmpty || txtMatch(_q, [w.name, w.card])))
         .toList();
     final nPresent = workers.where((w) => (_ctl[w.id]?.status ?? '--') != '--').length;
     final locs = <String>{...app.locs, ...app.workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
@@ -208,6 +209,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ...locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
                     ],
                     onChanged: (v) => setState(() => _locF = v ?? ''),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: all.any((w) => w.id == _wkF) ? _wkF : '',
+                    decoration: _dec('عامل محدد'),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('كل العاملين', style: TextStyle(fontSize: 12))),
+                      ...all.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
+                    ],
+                    onChanged: (v) => setState(() => _wkF = v ?? ''),
                   ),
                 ),
               ],
