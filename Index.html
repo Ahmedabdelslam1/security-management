@@ -774,7 +774,7 @@ function refreshDue(tr){var date=document.getElementById('attDate').value||today
 st=tr.querySelector('.st').value,li=tr.querySelector('.loc'),xh=tr.querySelector('.xh').value,wg=tr.querySelector('.wg').value,c=dueCalc(w,date,st,xh,li.value,wg),td=tr.querySelector('.unset');
 td.className=dueCls(c);td.innerHTML=dueText(c)+paidMark(w,date,st,xh,li.value,wg);
 li.classList.toggle('need',st!=='--'&&!li.value.trim());}
-function toggleExtra(sel){var tr=sel.parentElement.parentElement,wrap=tr.querySelector('.xhw'),xh=tr.querySelector('.xh');var li=tr.querySelector('.loc');if(sel.value!=='--'&&li&&!li.value.trim()&&li.getAttribute('data-def'))li.value=li.getAttribute('data-def');
+function toggleExtra(sel){var tr=sel.parentElement.parentElement,wrap=tr.querySelector('.xhw'),xh=tr.querySelector('.xh');var li=tr.querySelector('.loc');if(sel.value==='--'&&li)li.value='';else if(sel.value!=='--'&&li&&!li.value.trim()&&li.getAttribute('data-def'))li.value=li.getAttribute('data-def');
 if(EXTRA_STS.indexOf(sel.value)!==-1){wrap.style.display='flex';if(!xh.value)xh.value=0;}else{wrap.style.display='none';xh.value='';}
 refreshDue(tr);attCounts();}
 function locChanged(inp){var tr=inp.closest('tr'),st=tr.querySelector('.st');
@@ -785,7 +785,7 @@ var daily=Object.create(null);
 ATT.forEach(function(r){if(r.date===date)daily[r.wid]={wid:r.wid,status:r.status,loc:r.loc||'',wage:r.wage||0,xh:r.xh||0,notes:r.notes||''};});
 document.querySelectorAll('#attBody tr[data-wid]').forEach(function(tr){
 if(tr.getAttribute('data-locked'))return;
-var wid=tr.getAttribute('data-wid'),st=tr.querySelector('.st').value;
+var wid=tr.getAttribute('data-wid'),st=tr.querySelector('.st').value;if(st==='--'){delete daily[wid];return;}
 daily[wid]={wid:wid,status:st,loc:tr.querySelector('.loc').value,wage:Number(tr.querySelector('.wg').value)||0,
 xh:EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.xh').value)||0):0,notes:tr.querySelector('.note').value};});
 var recs=Object.keys(daily).map(function(wid){return daily[wid];});
@@ -861,7 +861,7 @@ return '<tr data-date="'+x.date+'" data-wid="'+x.wid+'">'+nm+'<td>'+fmtD(x.date)
 return '<tr>'+nm+'<td>'+fmtD(x.date)+'</td><td class="'+(x.cnt?'ok':'mut')+'">'+x.status+'</td><td>'+esc(x.loc)+'</td><td>'+(rec&&rec.status!=='--'?wg:'')+'</td><td>'+(x.cnt?x.val:'')+'</td><td>'+esc(x.notes)+(x.settled?' <span title="تمت التسوية — لا يمكن التعديل">🔒</span>':'')+'</td></tr>';}).join('')+(WS_EDIT?'<tr><td colspan="'+nc+'" style="border:0">'+dl+'</td></tr>':'')
 ||'<tr><td colspan="'+nc+'" class="mut" style="text-align:center">حدد فترة صحيحة</td></tr>';
 if(!r.rows.length)document.getElementById('wsBody').innerHTML='<tr><td colspan="'+nc+'" class="mut" style="text-align:center">'+(all?'لا توجد تسجيلات في هذه الفترة':'حدد فترة صحيحة')+'</td></tr>';}
-function wsStChg(sel){var tr=sel.closest('tr'),x=tr.querySelector('.ws-xw');if(EXTRA_STS.indexOf(sel.value)!==-1){x.style.display='inline-flex';if(!tr.querySelector('.ws-xh').value)tr.querySelector('.ws-xh').value=0;}else{x.style.display='none';tr.querySelector('.ws-xh').value='';}}
+function wsStChg(sel){var tr=sel.closest('tr'),x=tr.querySelector('.ws-xw'),loc=tr.querySelector('.ws-loc');if(sel.value==='--'&&loc)loc.value='';if(EXTRA_STS.indexOf(sel.value)!==-1){x.style.display='inline-flex';if(!tr.querySelector('.ws-xh').value)tr.querySelector('.ws-xh').value=0;}else{x.style.display='none';tr.querySelector('.ws-xh').value='';}}
 function wsSaveAll(){var jobs=[];
 document.querySelectorAll('#wsBody tr[data-date]').forEach(function(tr){var id=tr.getAttribute('data-wid'),w=W(id),date=tr.getAttribute('data-date'),rec=wsRec(date,id),st=tr.querySelector('.ws-st').value,loc=tr.querySelector('.ws-loc').value.trim(),
 wg=Number(tr.querySelector('.ws-wg').value)||w.wage,xh=EXTRA_STS.indexOf(st)!==-1?(Number(tr.querySelector('.ws-xh').value)||0):0,nt=tr.querySelector('.ws-nt').value;
