@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       await Api.getUrl();
-      final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text]);
+      final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text, 'android']);
       await Api.saveToken((r as Map)['token'] as String);
       await App.I.bootstrap();
       if (!mounted) return;

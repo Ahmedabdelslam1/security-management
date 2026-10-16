@@ -28,6 +28,8 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String _tab = 'home';
+  String _presTab = '';
+  int _presTick = 0;
   Timer? _clock;
   Timer? _sync;
   Timer? _updateCheck;
@@ -44,6 +46,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     // مزامنة فورية مع الويب: سحب أي إضافة/تعديل كل 15 ثانية
     _sync = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!App.I.loading) App.I.syncIfChanged().catchError((_) {});
+      // نبضة حضور كل 3 دقائق (تبقي المستخدم "متصل" وتحدّث الشاشة الحالية)
+      if (++_presTick % 12 == 0) App.I.presence(_presName(_tab));
     });
     // فحص التحديث عند البدء ثم كل 6 ساعات
     Future.delayed(const Duration(seconds: 2), () { if (mounted) autoUpdate(context); });
@@ -56,6 +60,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.resumed) {
       App.I.bootstrap(silent: true).catchError((_) {});
+      App.I.presence(_presName(_tab));
       autoUpdate(context);
     }
   }
@@ -86,6 +91,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (u.isAdmin) const _Tab('monitor', 'المتابعة', Icons.monitor_heart_outlined),
     ];
     if (!tabs.any((t) => t.id == _tab) && tabs.isNotEmpty) _tab = tabs.first.id;
+    if (_presTab != _tab) {
+      _presTab = _tab;
+      App.I.presence(_presName(_tab), opened: true); // تسجيل فتح الشاشة وتحديث الشاشة الحالية
+    }
 
     return PopScope(
       canPop: false,
@@ -297,6 +306,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         return Center(child: Text(appTitle(tab)));
     }
   }
+
+  static String _presName(String tab) => tab == 'home' ? 'الرئيسية' : appTitle(tab);
 
   static String appTitle(String tab) {
     const m = {

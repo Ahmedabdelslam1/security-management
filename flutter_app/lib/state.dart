@@ -42,6 +42,11 @@ class App extends ChangeNotifier {
     await bootstrap(silent: true);
   }
 
+  /// الحضور الحي للمتابعة: المنصة (أندرويد) والشاشة المفتوحة الآن؛ opened=true يسجّل فتح الشاشة
+  Future<void> presence(String page, {bool opened = false}) async {
+    try { await Api.auth('presence', ['android', page, opened]); } catch (_) {}
+  }
+
   Future<void> logout() async {
     try { await Api.auth('logout'); } catch (_) {}
     await Api.clear();

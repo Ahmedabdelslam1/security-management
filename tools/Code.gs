@@ -24,13 +24,15 @@ var SHEETS = {
   Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo', 'loc'],
   Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes', 'settleId', 'paidAmt'],
   Locations:  ['name'],
-  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive'],
+  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'platform', 'curPage', 'curPageAt'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes', 'move'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
-  Log:        ['time', 'user', 'action', 'page', 'details']
+  Log:        ['time', 'user', 'action', 'page', 'details', 'platform']
 };
 var SCHEMA_CHECKED_ = {};
+var CUR_PLAT_ = ''; /* منصة الجلسة الحالية (web / android) تُضبط في auth_ وتُكتب في السجل */
+function normPlat_(p) { p = String(p || '').toLowerCase(); return p === 'android' ? 'android' : (p === 'web' ? 'web' : ''); }
 
 /* ===================== الصفحة ===================== */
 // ===== تحديث تلقائي: الصفحة تُسحب مباشرة من GitHub (آخر نسخة) كل 5 دقائق =====
@@ -79,7 +81,7 @@ function _liveIndex() {
  * ملاحظة: بعد أي تعديل لا بد من نشر نسخة جديدة (Deploy > Manage deployments > Edit > New version). */
 function apiMap_() {
   return {
-    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, appUrl: appUrl, rev: rev, addLog: addLog,
+    login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, presence: presence, appUrl: appUrl, rev: rev, addLog: addLog,
     bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
@@ -173,7 +175,7 @@ function sh0_(name) {
     sheet.setFrozenRows(1);
     sheet.setRightToLeft(true);
     SCHEMA_CHECKED_[name] = 1;
-  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH5_' + name)) {
+  } else if (!SCHEMA_CHECKED_[name] && !CacheService.getScriptCache().get('SCH6_' + name)) {
     SCHEMA_CHECKED_[name] = 1;
     if (sheet.getMaxColumns() < h.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), h.length - sheet.getMaxColumns());
     var cur = sheet.getRange(1, 1, 1, h.length).getValues()[0];
@@ -182,7 +184,7 @@ function sh0_(name) {
       sheet.getRange(1, 1, sheet.getMaxRows(), h.length).setNumberFormat('@');
       sheet.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold');
     }
-    try { CacheService.getScriptCache().put('SCH5_' + name, '1', 21600); } catch (e) {}
+    try { CacheService.getScriptCache().put('SCH6_' + name, '1', 21600); } catch (e) {}
   }
   return sheet;
 }
@@ -296,6 +298,7 @@ function auth_(token, perm) {
     PropertiesService.getScriptProperties().setProperty('SS_' + token, un + '|' + Date.now());
     cache.put('T_' + token, '1', 120);
   }
+  CUR_PLAT_ = cache.get('P_' + token) || '';
   var u = userCached_(un);
   if (!u || u.status !== 'approved') throw new Error('SESSION');
   u.perms = parsePerms_(u.perms);
@@ -345,7 +348,7 @@ function publicUser_(u) {
   return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms) };
 }
 
-function login(username, password) {
+function login(username, password, platform) {
   ensureAdmin_();
   username = clip_(username, 40).toLowerCase();
   var cache = CacheService.getScriptCache();
@@ -362,7 +365,10 @@ function login(username, password) {
   var token = Utilities.getUuid() + Utilities.getUuid();
   sessionSave_(token, username);
   sessionPrune_();
-  updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()) });
+  var plat = normPlat_(platform);
+  CUR_PLAT_ = plat;
+  try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {}
+  updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()), platform: plat, curPage: 'تسجيل الدخول', curPageAt: now_() });
   log_(u.name, 'دخول', 'النظام', username);
   return { token: token };
 }
@@ -422,10 +428,23 @@ function ping(token) {
   return true;
 }
 
+/* الحضور الحي: منصة المستخدم (ويب/أندرويد) والشاشة المفتوحة الآن؛ opened=true يسجّل فتح الشاشة في السجل */
+function presence(token, platform, page, opened) {
+  var u = auth_(token);
+  var plat = normPlat_(platform) || CUR_PLAT_;
+  if (plat && plat !== CUR_PLAT_) { CUR_PLAT_ = plat; try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {} }
+  var f = { lastActive: String(Date.now()), platform: plat };
+  page = clip_(page, 60);
+  if (page) { f.curPage = page; f.curPageAt = now_(); }
+  updateUser_(u.username, f);
+  if (opened && page) log_(u.name, 'فتح صفحة', page, '');
+  return true;
+}
+
 /* ===================== السجل ===================== */
 function log_(user, action, page, details) {
   var sheet = sh_('Log');
-  sheet.appendRow([now_(), clip_(user, 60), clip_(action, 60), clip_(page, 60), clip_(details, 200)]);
+  sheet.appendRow([now_(), clip_(user, 60), clip_(action, 60), clip_(page, 60), clip_(details, 200), CUR_PLAT_]);
   if (sheet.getLastRow() > MAX_LOG_ROWS + 1) sheet.deleteRows(2, 1000);
 }
 
@@ -815,9 +834,12 @@ function getMonitor(token) {
     var mine = log.filter(function (l) { return l.user === u.name; });
     var last = mine.length ? mine[mine.length - 1].action : '';
     var act = Number(u.lastActive) || 0;
-    return { name: u.name, username: u.username, lastLogin: u.lastLogin, online: act && (nowMs - act) < ONLINE_MS, count: mine.length, lastAction: last };
+    var edits = mine.filter(function (l) { return l.action !== 'فتح صفحة' && l.action !== 'دخول' && l.action !== 'خروج'; });
+    var lastEdit = edits.length ? edits[edits.length - 1] : null;
+    return { name: u.name, username: u.username, lastLogin: u.lastLogin, online: !!(act && (nowMs - act) < ONLINE_MS), count: mine.length, lastAction: last,
+      platform: u.platform || '', curPage: u.curPage || '', curPageAt: u.curPageAt || '', lastEdit: lastEdit ? (lastEdit.action + ' — ' + lastEdit.page + ' (' + lastEdit.time + ')') : '' };
   });
-  return { users: users, log: log.slice(-300).reverse() };
+  return { users: users, log: log.slice(-600).reverse() };
 }
 
 /* ===================== دفتر دخول البوابة ===================== */

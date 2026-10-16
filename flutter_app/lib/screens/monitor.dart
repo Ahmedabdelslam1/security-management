@@ -15,8 +15,9 @@ class MonitorScreen extends StatefulWidget {
 class _MonitorScreenState extends State<MonitorScreen> {
   Map? _data;
   // سجل الإجراءات: التعديل والإضافة والحذف فقط
-  static final _editRe = RegExp('تعديل|إضافة|اضافة|حذف|حفظ|تسوية|تسجيل دخول بوابة');
+  static final _editRe = RegExp('تعديل|إضافة|اضافة|حذف|حفظ|تسوية|تسجيل دخول بوابة|فتح صفحة|^دخول\$|^خروج\$');
   bool _isEdit(String a) => _editRe.hasMatch(a);
+  static String _plat(dynamic p) => p == 'android' ? '📱 أندرويد' : (p == 'web' ? '🌐 ويب' : '--');
 
   void _pdf() {
     if (_data == null) return;
@@ -25,24 +26,24 @@ class _MonitorScreenState extends State<MonitorScreen> {
       final rows = <List<String>>[];
       for (final l in log) {
         if (!_filter.isEmpty && !'${l['user'] ?? ''} ${l['action'] ?? ''} ${l['details'] ?? ''}'.contains(_filter)) continue;
-        rows.add(['${l['time'] ?? ''}', '${l['user'] ?? ''}', '${l['action'] ?? ''}', '${l['page'] ?? ''}', '${l['details'] ?? ''}']);
+        rows.add(['${l['time'] ?? ''}', '${l['user'] ?? ''}', _plat(l['platform']), '${l['action'] ?? ''}', '${l['page'] ?? ''}', '${l['details'] ?? ''}']);
       }
       exportTablePdf(
         context: context,
         title: 'سجل نشاط المستخدمين',
-        headers: ['الوقت', 'المستخدم', 'الإجراء', 'الشاشة', 'التفاصيل'],
-        widths: [70, 65, 65, 55, 95],
+        headers: ['الوقت', 'المستخدم', 'المنصة', 'الإجراء', 'الشاشة', 'التفاصيل'],
+        widths: [65, 55, 50, 55, 50, 80],
         rows: rows,
         landscape: true,
       );
     } else {
       final us = (_data!['users'] as List? ?? []).map((x) => x as Map).toList();
-      final rows = [for (final u in us) ['${u['name'] ?? ''}', '${u['username'] ?? ''}', u['online'] == true ? 'متصل الآن' : 'غير متصل', '${u['lastSeen'] ?? ''}']];
+      final rows = [for (final u in us) ['${u['name'] ?? ''}', '${u['username'] ?? ''}', u['online'] == true ? 'متصل الآن' : 'غير متصل', _plat(u['platform']), '${u['curPage'] ?? ''}']];
       exportTablePdf(
         context: context,
         title: 'حالة المستخدمين',
-        headers: ['الاسم', 'المستخدم', 'الحالة', 'آخر ظهور'],
-        widths: [100, 80, 60, 75],
+        headers: ['الاسم', 'المستخدم', 'الحالة', 'المنصة', 'الشاشة الحالية'],
+        widths: [85, 65, 50, 55, 70],
         rows: rows,
       );
     }
@@ -143,7 +144,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                   elevation: 1,
                                   child: ListTile(
                                     dense: true,
-                                    title: Text('${l['action'] ?? ''} — ${l['user'] ?? ''}',
+                                    title: Text('${l['action'] ?? ''} — ${l['user'] ?? ''} • ${_plat(l['platform'])}',
                                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                                     subtitle: Padding(
                                       padding: const EdgeInsets.only(top: 3),
@@ -187,7 +188,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                     subtitle: Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
-                                        'آخر دخول: ${u['lastLogin'] ?? '--'} • آخر إجراء: ${u['lastAction'] ?? '--'}',
+                                        '${_plat(u['platform'])} • الشاشة الحالية: ${(u['curPage'] ?? '') == '' ? '--' : u['curPage']}\nآخر دخول: ${u['lastLogin'] ?? '--'}\nآخر تعديل: ${(u['lastEdit'] ?? '') == '' ? '--' : u['lastEdit']}',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                                       ),
                                     ),
