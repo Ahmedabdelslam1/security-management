@@ -69,6 +69,25 @@ class AttRec {
         paidAmt: (j['paidAmt'] ?? 0).toDouble(),
       );
   Map<String, dynamic> toRec() => {'wid': wid, 'status': status, 'loc': loc, 'xh': xh, 'notes': notes};
+
+  /// أجر الساعة لهذا السجل
+  double hourlyOf(Worker w) => (wage > 0 ? wage : w.wage) / (w.hours <= 0 ? 8 : w.hours);
+  /// ساعات الإضافي (حضور الساعات خانته هي ساعات الحضور نفسها وليست إضافي)
+  double get otHours => status == kHoursStatus ? 0.0 : xh;
+  /// الأجر الأساسي: نصف يوم = نصف أجر اليوم، ساعات = عدد الساعات × أجر الساعة
+  double baseOf(Worker w) {
+    if (status == kHalfStatus) return r2(wage / 2);
+    if (status == kHoursStatus) return r2(xh * hourlyOf(w));
+    return wage;
+  }
+  double otOf(Worker w) => otHours * hourlyOf(w);
+  double valueOf(Worker w) => baseOf(w) + otOf(w);
+  /// عدد الأيام: نصف يوم = 0.5، ساعات = ساعات ÷ ساعات اليوم
+  double daysOf(Worker w) {
+    if (status == kHalfStatus) return 0.5;
+    if (status == kHoursStatus) return r2(xh / (w.hours <= 0 ? 8 : w.hours));
+    return 1.0;
+  }
 }
 
 class BootData {
@@ -87,7 +106,13 @@ class BootData {
       );
 }
 
-const List<String> kStatuses = ['--', 'حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
+const String kHalfStatus = 'حضور نصف يوم';
+const String kHoursStatus = 'حضور ساعات';
+const List<String> kStatuses = ['--', 'حضور', kHalfStatus, kHoursStatus, 'حضور + وقت اضافى', 'حضور + مبيت'];
+/// المواقف التي تفتح خانة الساعات (إضافي أو عدد ساعات)
+bool usesXh(String s) => kExtraStatuses.contains(s) || s == kHoursStatus;
+/// عدد أيام بدون كسر زائد (3 أو 0.5)
+String dn(double d) => d == d.truncateToDouble() ? d.truncate().toString() : r2(d).toString();
 const List<String> kExtraStatuses = ['حضور + وقت اضافى', 'حضور + مبيت'];
 
 String fmtDate(String s) {
@@ -110,20 +135,20 @@ String otText(double h) {
 
 /// المستحق للعامل حتى اليوم: عدد الأيام + ساعات الإضافي = المبلغ
 String workerDueText(Worker w, List<AttRec> att) {
-  var days = 0;
+  var days = 0.0;
   var hrs = 0.0;
   var amt = 0.0;
   final hpd = w.hours <= 0 ? 8.0 : w.hours;
   for (final r in att) {
     if (r.wid != w.id) continue;
     final h = (r.wage > 0 ? r.wage : w.wage) / hpd;
-    final val = r.counts ? r.wage + r.xh * h : 0.0;
+    final val = r.counts ? r.valueOf(w) : 0.0;
     final d = r2(val - (r.settleId.isNotEmpty ? r.paidAmt : 0));
     if (d > 0.005) {
-      days++;
+      days += r.daysOf(w);
       amt += d;
-      hrs += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.xh;
+      hrs += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.otHours;
     }
   }
-  return '$days يوم${hrs > 0 ? ' + ${otText(r2(hrs))} إضافي' : ''} = ${r2(amt)} ج';
+  return '${dn(r2(days))} يوم${hrs > 0 ? ' + ${otText(r2(hrs))} إضافي' : ''} = ${r2(amt)} ج';
 }

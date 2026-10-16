@@ -83,17 +83,17 @@ class _SettlePaneState extends State<_SettlePane> {
       final counts = r.loc.trim().isNotEmpty;
       if (r.settleId.isEmpty && !counts) continue;
       final hr = (r.wage > 0 ? r.wage : w.wage) / (w.hours <= 0 ? 8 : w.hours);
-      final val = counts ? r.wage + r.xh * hr : 0.0;
+      final val = counts ? r.valueOf(w) : 0.0;
       final diff = (val - (r.settleId.isNotEmpty ? r.paidAmt : 0)) * 100;
       final diffR = diff.round() / 100;
       if (diffR.abs() < 0.005) continue;
       d.amount += diffR;
       if (r.settleId.isEmpty) {
-        d.days++;
-        d.wsum += r.wage;
+        d.days = r2(d.days + r.daysOf(w));
+        d.wsum += r.baseOf(w);
         if (counts) {
-          d.ot += r.xh * hr;
-          d.hrs += r.xh;
+          d.ot += r.otOf(w);
+          d.hrs += r.otHours;
         }
       } else {
         d.ot += diffR;
@@ -117,7 +117,7 @@ class _SettlePaneState extends State<_SettlePane> {
       final a = _a(w.id);
       final net = _netOf(w, d);
       total += net;
-      rows.add([w.name, '${d.days}', d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
+      rows.add([w.name, dn(d.days), d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
     }
     exportTablePdf(
       context: context,
@@ -129,7 +129,7 @@ class _SettlePaneState extends State<_SettlePane> {
       rows: rows,
       total: r2(total).toStringAsFixed(2),
       totalLabel: 'قيمة التسوية (الإجمالي)',
-      totalsRow: ['الإجمالي', '${rows.fold<int>(0, (s, r) => s + int.parse(r[1]))}', '', r2(rows.fold<double>(0, (s, r) => s + double.parse(r[3]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[4]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[5]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[6]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[7]))).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
+      totalsRow: ['الإجمالي', dn(rows.fold<double>(0, (s, r) => s + double.parse(r[1]))), '', r2(rows.fold<double>(0, (s, r) => s + double.parse(r[3]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[4]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[5]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[6]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[7]))).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
     );
   }
 
@@ -407,7 +407,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
       landscape: false,
       rows: rows,
       total: r2(total).toStringAsFixed(2),
-      totalsRow: ['الإجمالي', '${rows.fold<int>(0, (s, r) => s + int.parse(r[1]))}', '', col(3).toStringAsFixed(2), col(4).toStringAsFixed(2), col(5).toStringAsFixed(2), col(6).toStringAsFixed(2), col(7).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
+      totalsRow: ['الإجمالي', dn(rows.fold<double>(0, (s, r) => s + double.parse(r[1]))), '', col(3).toStringAsFixed(2), col(4).toStringAsFixed(2), col(5).toStringAsFixed(2), col(6).toStringAsFixed(2), col(7).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
     );
   }
   String _q = '';
@@ -578,8 +578,8 @@ class _PayrollPaneState extends State<_PayrollPane> {
 }
 
 class _Due {
-  int days = 0;
+  double days = 0;
   double amount = 0, ot = 0, hrs = 0, wsum = 0, wage = 0;
   double get gross => r2(amount - ot);
-  String get label => '$days يوم${hrs > 0 ? ' + إضافي (${hrs == hrs.truncateToDouble() ? hrs.truncate() : r2(hrs)}) ساعة' : ''}';
+  String get label => '${dn(days)} يوم${hrs > 0 ? ' + إضافي (${hrs == hrs.truncateToDouble() ? hrs.truncate() : r2(hrs)}) ساعة' : ''}';
 }

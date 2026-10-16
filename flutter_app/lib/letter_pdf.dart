@@ -7,7 +7,7 @@ import 'models.dart';
 
 class LetterRow {
   final String name;
-  final int days;
+  final double days;
   final double wage, gross, ot, b, d, tax, net;
   const LetterRow(this.name, this.days, this.wage, this.gross, this.ot, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0});
   double get total => gross + ot;
@@ -33,7 +33,7 @@ Future<Uint8List> buildLetterPdf({
 
   final tot = _r2(rows.fold<double>(0, (s, r) => s + r.net)); // الصافي = الإجمالي + المكافآت - الخصومات - الضرائب
   final gTot = _r2(rows.fold<double>(0, (s, r) => s + r.gross));
-  final days = rows.fold<int>(0, (s, r) => s + r.days);
+  final days = rows.fold<double>(0, (s, r) => s + r.days);
   final txh = _r2(rows.fold<double>(0, (s, r) => s + r.ot));
   final tb = _r2(rows.fold<double>(0, (s, r) => s + r.b));
   final td = _r2(rows.fold<double>(0, (s, r) => s + r.d));
@@ -110,7 +110,7 @@ Future<Uint8List> buildLetterPdf({
   return doc.save();
 }
 
-pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, int days, double txh, double tb, double td, double tt, double gTot, double tot) {
+pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, double days, double txh, double tb, double td, double tt, double gTot, double tot) {
   const headers = ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'ملاحظات'];
   final widths = [3.0, 1.0, 1.0, 1.2, 1.0, 1.0, 1.1, 1.0, 1.3, 1.2];
   pw.Widget cell(String t, {bool head = false, bool isBold = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
@@ -144,7 +144,7 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
           decoration: pw.BoxDecoration(color: rows.indexOf(r).isEven ? light : null),
           children: [
             cell(r.name, isBold: true),
-            cell('${r.days}'),
+            cell(dn(r.days)),
             cell(_trimNum(r.wage)),
             cell(_trimNum(r.gross)),
             cell(r.ot > 0 ? _trimNum(r.ot) : '—'),
@@ -159,7 +159,7 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
         decoration: pw.BoxDecoration(color: light),
         children: [
           cell('الإجمالي', head: true),
-          cell('$days', head: true),
+          cell(dn(days), head: true),
           cell('', head: true),
           cell(_trimNum(gTot), head: true),
           cell(txh > 0 ? _trimNum(txh) : '—', head: true),

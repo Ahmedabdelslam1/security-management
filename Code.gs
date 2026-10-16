@@ -11,7 +11,8 @@
  */
 
 var TZ = 'Africa/Cairo';
-var STATUSES = ['حضور', 'حضور + وقت اضافى', 'حضور + مبيت'];
+var HALF_STATUS = 'حضور نصف يوم', HOURS_STATUS = 'حضور ساعات';
+var STATUSES = ['حضور', HALF_STATUS, HOURS_STATUS, 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
 var PERMS = ['workers', 'attendance', 'reports', 'gate', 'procs'];
 var SESSION_TTL = 1800;             // الجلسة تنتهي بعد نصف ساعة بلا أي نشاط (تتجدد مع كل طلب)
@@ -452,9 +453,22 @@ function workerOut_(w, full, ls) {
 }
 
 /* قيمة اليوم = الأجر + الساعات الإضافية × أجر الساعة */
+function hourlyRate_(r, w) { return w ? ((num_(r.wage) || num_(w.wage)) / (num_(w.hours, 8) || 8)) : 0; }
+/* أجر الحضور الأساسي: نصف يوم = نصف أجر اليوم، ساعات = عدد الساعات × أجر الساعة */
+function recBase_(r, w) {
+  if (r.status === HALF_STATUS) return num_(r.wage) / 2;
+  if (r.status === HOURS_STATUS) return num_(r.xh) * hourlyRate_(r, w);
+  return num_(r.wage);
+}
+/* الإضافي لا ينطبق على حضور الساعات (الخانة تحمل عدد الساعات نفسها) */
+function recOt_(r, w) { return r.status === HOURS_STATUS ? 0 : num_(r.xh) * hourlyRate_(r, w); }
+function recDays_(r, w) {
+  if (r.status === HALF_STATUS) return 0.5;
+  if (r.status === HOURS_STATUS) return Math.round(num_(r.xh) / ((w && num_(w.hours, 8)) || 8) * 100) / 100;
+  return 1;
+}
 function recValue_(r, w) {
-  var h = w ? ((num_(r.wage) || num_(w.wage)) / (num_(w.hours, 8) || 8)) : 0;
-  return Math.round((num_(r.wage) + num_(r.xh) * h) * 100) / 100;
+  return Math.round((recBase_(r, w) + recOt_(r, w)) * 100) / 100;
 }
 
 /* ترحيل لمرة واحدة: (1) الأيام المسوّاة حسب "آخر تسوية" القديم تُعلَّم مصروفة، (2) يُسجَّل المبلغ المصروف فعليًا لكل يوم مصروف */
@@ -520,7 +534,7 @@ function saveDay(token, date, recs, partial) {
       if (STATUSES.indexOf(r.status) === -1 && clip_(r.loc, 80)) r.status = STATUSES[0]; /* كتابة مكان الحضور تحسب اليوم حتى لو الموقف -- */
       if (STATUSES.indexOf(r.status) === -1) return;
       seen[w.id] = 1;
-      var extra = EXTRA_STATUSES.indexOf(r.status) !== -1;
+      var extra = EXTRA_STATUSES.indexOf(r.status) !== -1 || r.status === HOURS_STATUS; /* خانة الساعات: إضافي أو عدد ساعات الحضور */
       var c = closed[w.id];
       if (c) {
         var same = c.status === r.status && String(c.loc) === clip_(r.loc, 80) &&
@@ -576,11 +590,11 @@ function settleWorkers(token, ids, from, to, adj, loc, setDate) {
       var diff = Math.round((val - (r.settleId ? num_(r.paidAmt) : 0)) * 100) / 100;
       if (Math.abs(diff) < 0.005) return;
       var wasPaid = !!r.settleId;
-      var otPart = wasPaid ? diff : (counts ? num_(r.xh) * ((num_(r.wage) || num_(w.wage)) / (num_(w.hours, 8) || 8)) : 0);
+      var otPart = wasPaid ? diff : (counts ? recOt_(r, w) : 0);
       r.settleId = sid;
       r.paidAmt = String(val);
       var p = per[r.wid] || (per[r.wid] = { days: 0, amt: 0, ot: 0, name: w.name });
-      if (!wasPaid) p.days++;
+      if (!wasPaid) p.days = Math.round((p.days + recDays_(r, w)) * 100) / 100;
       p.amt += diff;
       p.ot += otPart;
       keys.push(r.date + '|' + r.wid);

@@ -84,7 +84,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           'wid': wid,
           'status': c.status,
           'loc': c.loc.trim(),
-          'xh': kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
+          'xh': usesXh(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
           'wage': double.tryParse(c.wg) ?? 0,
           'notes': c.notes.trim(),
         });
@@ -283,7 +283,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   // المستحق = عدد الأيام + الإضافي = الإجمالي (نفس منطق الويب)
   List<String> _dueParts(Worker w, _RowCtl c) {
-    var days = 0;
+    var days = 0.0;
     var ot = 0.0;
     var hrsTotal = 0.0;
     var amt = 0.0;
@@ -294,30 +294,33 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (r.date == _dstr) saved = r;
       if (r.date.compareTo(_dstr) >= 0) continue;
       final h = (r.wage > 0 ? r.wage : w.wage) / hrs;
-      final val = r.counts ? r.wage + r.xh * h : 0.0;
+      final val = r.counts ? r.valueOf(w) : 0.0;
       final d = r2(val - (r.settleId.isNotEmpty ? r.paidAmt : 0));
       amt += d;
       if (d > 0.005) {
-        days++;
-        ot += r.settleId.isNotEmpty ? d : r.xh * h;
-        hrsTotal += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.xh;
+        days += r.daysOf(w);
+        ot += r.settleId.isNotEmpty ? d : r.otOf(w);
+        hrsTotal += r.settleId.isNotEmpty ? (h > 0 ? d / h : 0.0) : r.otHours;
       }
     }
     final wgRaw = double.tryParse(c.wg) ?? 0;
     final wg = wgRaw > 0 ? wgRaw : w.wage;
     final counts = c.loc.trim().isNotEmpty;
-    final xh = kExtraStatuses.contains(c.status) ? (double.tryParse(c.xh) ?? 0) : 0.0;
+    final xRaw = double.tryParse(c.xh) ?? 0;
+    final xh = kExtraStatuses.contains(c.status) ? xRaw : 0.0;
     final liveOt = xh * (wg / hrs);
+    final liveBase = c.status == kHalfStatus ? r2(wg / 2) : (c.status == kHoursStatus ? r2(xRaw * (wg / hrs)) : wg);
+    final liveDays = c.status == kHalfStatus ? 0.5 : (c.status == kHoursStatus ? r2(xRaw / hrs) : 1.0);
     final settled = saved != null && saved.settleId.isNotEmpty;
-    final d = r2((counts ? wg + liveOt : 0.0) - (settled ? saved!.paidAmt : 0));
+    final d = r2((counts ? liveBase + liveOt : 0.0) - (settled ? saved!.paidAmt : 0));
     amt += d;
     if (d > 0.005) {
-      days++;
+      days += liveDays;
       ot += settled ? d : liveOt;
       hrsTotal += settled ? (wg > 0 ? d / (wg / hrs) : 0.0) : xh;
     }
     final hr0 = hrsTotal;
-    return ['$days يوم', hr0 > 0 ? '+ إضافي (${_numStr(r2(hr0))}) ساعة' : '', '= ${r2(amt < 0 ? 0 : amt)}'];
+    return ['${dn(r2(days))} يوم', hr0 > 0 ? '+ إضافي (${_numStr(r2(hr0))}) ساعة' : '', '= ${r2(amt < 0 ? 0 : amt)}'];
   }
 
   void _pdf() {
@@ -329,7 +332,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (c == null) continue;
       if (c.status != '--' || c.loc.trim().isNotEmpty) present++;
       final xhN = double.tryParse(c.xh) ?? 0;
-      final ex = (kExtraStatuses.contains(c.status) && xhN > 0) ? 'إضافي (${_numStr(xhN)}) ساعة' : '';
+      final ex = (usesXh(c.status) && xhN > 0) ? '${c.status == kHoursStatus ? 'حضور' : 'إضافي'} (${_numStr(xhN)}) ساعة' : '';
       rows.add([w.name, c.status == '--' ? '—' : c.status, c.loc.isEmpty ? '—' : c.loc, [ex, c.notes].where((x) => x.isNotEmpty).join(' — ')]);
     }
     exportTablePdf(
@@ -360,7 +363,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget _workerCard(BuildContext context, Worker w, List<String> locs) {
     final c = _ctl[w.id]!;
     final cs = Theme.of(context).colorScheme;
-    final isExtra = kExtraStatuses.contains(c.status);
+    final isExtra = usesXh(c.status);
     final active = c.status != '--';
     final isSettled = App.I.att.any((r) => r.date == _dstr && r.wid == w.id && r.settleId.isNotEmpty);
     final col = _palette[w.id.hashCode.abs() % _palette.length];
@@ -444,7 +447,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     decoration: _dec(null),
                     items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) {
-                      setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; if (c.status == '--') c.loc = ''; });
+                      setState(() { final prev = c.status; c.status = v ?? '--'; if (!usesXh(c.status) || (prev == kHoursStatus) != (c.status == kHoursStatus)) c.xh = ''; if (c.status == '--') c.loc = ''; });
                       if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
                         setState(() => c.loc = w.loc);
                       }
@@ -478,7 +481,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       child: TextField(
                         controller: TextEditingController(text: c.xh)..selection = TextSelection.collapsed(offset: c.xh.length),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: _dec('إضافي (ساعة)'),
+                        decoration: _dec(c.status == kHoursStatus ? 'عدد الساعات' : 'إضافي (ساعة)'),
                         style: const TextStyle(fontSize: 12),
                         onChanged: (v) => setState(() => c.xh = v),
                       ),
@@ -520,10 +523,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         final recs = App.I.att.where((r) => r.wid == w.id && r.date.compareTo(f) >= 0 && r.date.compareTo(t) <= 0 && r.counts).toList()
           ..sort((a, b) => a.date.compareTo(b.date));
         final hrs = w.hours <= 0 ? 8.0 : w.hours;
-        double val(AttRec r) => r.counts ? (r.wage > 0 ? r.wage : w.wage) + r.xh * ((r.wage > 0 ? r.wage : w.wage) / hrs) : 0.0;
+        double val(AttRec r) => r.counts ? r.valueOf(w) : 0.0;
         final total = r2(recs.fold<double>(0, (s, r) => s + val(r)));
-        final days = recs.where((r) => r.counts).length;
-        final xs = recs.fold<double>(0, (s, r) => s + r.xh);
+        final days = r2(recs.where((r) => r.counts).fold<double>(0, (s, r) => s + r.daysOf(w)));
+        final xs = recs.fold<double>(0, (s, r) => s + r.otHours);
+        String xTxt(String st, double x) => x > 0 ? '${st == kHoursStatus ? 'حضور' : 'إضافي'} (${x == x.truncateToDouble() ? x.truncate() : x}) ساعة' : '';
         String exTxt(double x) => x > 0 ? 'إضافي (${x == x.truncateToDouble() ? x.truncate() : x}) ساعة' : '';
         Future<void> pick(bool isFrom) async {
           final d = await showDatePicker(context: ctx, initialDate: isFrom ? from : to, firstDate: DateTime(2020), lastDate: DateTime(2100));
@@ -549,8 +553,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           subtitle: 'من ${fmtDate(f)} إلى ${fmtDate(t)}',
                           headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'القيمة', 'ملاحظات'],
                           widths: [70, 80, 80, 55, 110],
-                          rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, val(r).toStringAsFixed(2), [exTxt(r.xh), r.notes].where((x) => x.isNotEmpty).join(' — ')]],
-                          totalsRow: ['الإجمالي', '$days يوم', '', total.toStringAsFixed(2), exTxt(xs)],
+                          rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, val(r).toStringAsFixed(2), [xTxt(r.status, r.xh), r.notes].where((x) => x.isNotEmpty).join(' — ')]],
+                          totalsRow: ['الإجمالي', '${dn(days)} يوم', '', total.toStringAsFixed(2), exTxt(xs)],
                           total: total.toStringAsFixed(2),
                         );
                       },
@@ -567,7 +571,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text('$days يوم${xs > 0 ? ' + ${exTxt(xs)}' : ''} = ${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D))),
+                  child: Text('${dn(days)} يوم${xs > 0 ? ' + ${exTxt(xs)}' : ''} = ${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D))),
                 ),
                 Expanded(
                   child: recs.isEmpty
@@ -587,7 +591,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               dense: true,
                               visualDensity: VisualDensity.compact,
                               title: Text('${fmtDate(r.date)} • $shownStatus • ${shownLoc.isEmpty ? '—' : shownLoc}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              subtitle: Text([exTxt(shownXh), shownNotes, if (edit != null) 'تعديل غير محفوظ'].where((x) => x.isNotEmpty).join(' — '), style: const TextStyle(fontSize: 11)),
+                              subtitle: Text([xTxt(shownStatus, shownXh), shownNotes, if (edit != null) 'تعديل غير محفوظ'].where((x) => x.isNotEmpty).join(' — '), style: const TextStyle(fontSize: 11)),
                               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                 Text(val(r).toStringAsFixed(2), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                                 if (settled) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.lock, size: 14, color: Colors.green))
@@ -661,7 +665,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               value: kStatuses.contains(status) ? status : '--',
               decoration: _dec('الموقف'),
               items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12.5)))).toList(),
-              onChanged: (v) => setD(() { status = v ?? '--'; if (status == '--') loc = ''; }),
+              onChanged: (v) => setD(() { final prev = status; status = v ?? '--'; if (status == '--') loc = ''; if (!usesXh(status) || (prev == kHoursStatus) != (status == kHoursStatus)) xh.text = ''; }),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -670,9 +674,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               items: locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12.5)))).toList(),
               onChanged: (v) => setD(() => loc = v ?? ''),
             ),
-            if (kExtraStatuses.contains(status)) ...[
+            if (usesXh(status)) ...[
               const SizedBox(height: 8),
-              TextField(controller: xh, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: _dec('إضافي (ساعة)')),
+              TextField(controller: xh, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: _dec(status == kHoursStatus ? 'عدد الساعات' : 'إضافي (ساعة)')),
             ],
             const SizedBox(height: 8),
             TextField(controller: notes, decoration: _dec('ملاحظات')),
@@ -689,7 +693,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'wid': w.id,
       'status': status,
       'loc': loc.trim(),
-      'xh': kExtraStatuses.contains(status) ? (double.tryParse(xh.text) ?? 0) : 0,
+      'xh': usesXh(status) ? (double.tryParse(xh.text) ?? 0) : 0,
       'wage': r.wage > 0 ? r.wage : w.wage,
       'notes': notes.text.trim(),
     };
