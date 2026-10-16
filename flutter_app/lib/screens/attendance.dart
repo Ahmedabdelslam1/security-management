@@ -32,6 +32,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _ctl = {};
     _locF = App.I.attLoc;
     App.I.attLoc = '';
+    App.I.addListener(_onApp);
     _build();
     if (widget.openWorkerId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -41,23 +42,52 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    App.I.removeListener(_onApp);
+    super.dispose();
+  }
+
+  _RowCtl _mk(Worker w, AttRec? r) {
+    final c = _RowCtl(
+      status: r?.status ?? '--',
+      loc: r?.loc ?? '',
+      xh: r?.xh.toString() ?? '',
+      notes: r?.notes ?? '',
+      wg: _numStr((r?.wage ?? 0) > 0 ? r!.wage : w.wage),
+    );
+    c.base = c.sig();
+    return c;
+  }
+
   void _build() {
     final app = App.I;
     final byWid = <String, AttRec>{};
     for (final r in app.att.where((r) => r.date == _dstr)) {
       byWid[r.wid] = r;
     }
-    _ctl = {
-      for (final w in app.workers)
-        w.id: _RowCtl(
-          status: byWid[w.id]?.status ?? '--',
-          loc: byWid[w.id]?.loc ?? '',
-          xh: byWid[w.id]?.xh.toString() ?? '',
-          notes: byWid[w.id]?.notes ?? '',
-          wg: _numStr((byWid[w.id]?.wage ?? 0) > 0 ? byWid[w.id]!.wage : w.wage),
-        ),
-    };
+    _ctl = {for (final w in app.workers) w.id: _mk(w, byWid[w.id])};
     setState(() {});
+  }
+
+  /// عند وصول بيانات جديدة (من الويب أو جهاز آخر): تُحدَّث الصفوف التي لم يعدّلها المستخدم فقط
+  void _onApp() {
+    if (!mounted || _saving) return;
+    final byWid = <String, AttRec>{};
+    for (final r in App.I.att.where((r) => r.date == _dstr)) {
+      byWid[r.wid] = r;
+    }
+    var changed = false;
+    for (final w in App.I.workers) {
+      final c = _ctl[w.id];
+      if (c != null && c.sig() != c.base) continue; // المستخدم يعدّل هذا الصف الآن
+      final n = _mk(w, byWid[w.id]);
+      if (c == null || n.base != c.base) {
+        _ctl[w.id] = n;
+        changed = true;
+      }
+    }
+    if (changed) setState(() {});
   }
 
   Future<void> _pickDate() async {
@@ -75,12 +105,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
-    setState(() { _saving = true; _err = null; });
-    try {
-      final recs = <Map<String, dynamic>>[];
-      _ctl.forEach((wid, c) {
-        if (c.status == '--' && c.loc.trim().isEmpty) return;
-        recs.add({
+    // الحفظ الجزئي: يُرسل فقط العمال الذين تغيّر موقفهم هنا، فلا تُمحى تسجيلات الويب أو الأجهزة الأخرى
+    final php = await Api.isPhp();
+    final recs = <Map<String, dynamic>>[];
+    _ctl.forEach((wid, c) {
+      final empty = c.status == '--' && c.loc.trim().isEmpty;
+      if (!php && c.sig() == c.base) return;
+      if (empty) {
+        if (!php) recs.add({'wid': wid, 'status': '--', 'loc': '', 'xh': 0, 'wage': 0, 'notes': ''});
+        return;
+      }
+      recs.add({
           'wid': wid,
           'status': c.status,
           'loc': c.loc.trim(),
@@ -88,8 +123,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           'wage': double.tryParse(c.wg) ?? 0,
           'notes': c.notes.trim(),
         });
-      });
-      final res = await Api.auth('saveDay', [_dstr, recs]) as Map;
+    });
+    if (recs.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد تغييرات للحفظ')));
+      return;
+    }
+    setState(() { _saving = true; _err = null; });
+    try {
+      final res = await Api.auth('saveDay', php ? [_dstr, recs] : [_dstr, recs, true]) as Map;
       final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
       // حدّث الحالة محليًا
       final app = App.I;
@@ -97,6 +138,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();
       app.att..clear()..addAll(kept);
       app.locs.addAll(newLocs);
+      _saving = false;
+      if (mounted) _build();
       app.notifyListeners();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -701,6 +744,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _saveSituation(Map<String, Map<String, dynamic>> changes) async {
     final app = App.I;
+    final php = await Api.isPhp();
     for (final entry in changes.entries) {
       final date = entry.key;
       final records = app.att.where((r) => r.date == date).map((r) => <String, dynamic>{
@@ -717,7 +761,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       } else {
         records[index] = entry.value;
       }
-      final res = await Api.auth('saveDay', [date, records]) as Map;
+      final res = await Api.auth('saveDay', php ? [date, records] : [date, [entry.value], true]) as Map;
       final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
       final kept = app.att.where((r) => r.date != date).toList()..addAll(fresh);
       final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();
@@ -754,5 +798,7 @@ class _RowCtl {
   String notes;
   String wg;
   bool wgLocked = true; // أجر اليوم تلقائي ومغلق حتى الضغط عليه
+  String base = ''; // بصمة الصف عند التحميل/آخر حفظ (لمعرفة ما تغيّر)
+  String sig() => '$status|${loc.trim()}|$xh|$wg|${notes.trim()}';
   _RowCtl({required this.status, required this.loc, required this.xh, required this.notes, required this.wg});
 }

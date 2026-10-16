@@ -1,7 +1,7 @@
 // ===== محمّل تلقائي: يسحب Code.gs من GitHub ويشغّله (يلصق مرة واحدة فقط) =====
 // أي تعديل على Code.gs في GitHub يصل للسكريبت تلقائياً خلال ~5 دقائق بدون نشر جديد.
 var SRC_URL_ = 'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Code.gs';
-var FN_ = ['doGet','doPost','setup','resetAdminPassword','resetAll','rev','login','logout','register','changePassword','ping','addLog',
+var FN_ = ['doGet','doPost','setup','resetAdminPassword','resetAll','rev','login','logout','register','changePassword','ping','presence','addLog',
   'bootstrap','saveDay','settleWorkers','listPayroll','updatePayrollAdj','saveWorker','deleteWorkers','getImage','setUser','addUser',
   'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive','srvVer'];
 var LIB_ = null;
@@ -58,6 +58,7 @@ function logout() { return call_('logout', [].slice.call(arguments)); }
 function register() { return call_('register', [].slice.call(arguments)); }
 function changePassword() { return call_('changePassword', [].slice.call(arguments)); }
 function ping() { return call_('ping', [].slice.call(arguments)); }
+function presence() { return call_('presence', [].slice.call(arguments)); }
 function addLog() { return call_('addLog', [].slice.call(arguments)); }
 function bootstrap() { return call_('bootstrap', [].slice.call(arguments)); }
 function saveDay() { return call_('saveDay', [].slice.call(arguments)); }

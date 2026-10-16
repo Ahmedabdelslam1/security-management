@@ -77,6 +77,12 @@ class Api {
         (!lower.contains('script.google.com') && !lower.contains('googleusercontent.com'));
   }
 
+  /// هل السيرفر الحالي PHP؟ (لا يدعم الحفظ الجزئي لليوم)
+  static Future<bool> isPhp() async {
+    final u = (await getUrl()) ?? defaultUrl;
+    return _isPhpBackend(u);
+  }
+
   // نداء عام: action = اسم الدالة، args = وسائطها (token أولًا حيث يلزم)
   static Future<dynamic> call(String action, [List args = const []]) async {
     var u = _url ?? await getUrl();
