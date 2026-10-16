@@ -444,7 +444,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     decoration: _dec(null),
                     items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) {
-                      setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; });
+                      setState(() { c.status = v ?? '--'; if (!kExtraStatuses.contains(c.status)) c.xh = ''; if (c.status == '--') c.loc = ''; });
                       if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
                         setState(() => c.loc = w.loc);
                       }
@@ -661,7 +661,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               value: kStatuses.contains(status) ? status : '--',
               decoration: _dec('الموقف'),
               items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12.5)))).toList(),
-              onChanged: (v) => setD(() => status = v ?? '--'),
+              onChanged: (v) => setD(() { status = v ?? '--'; if (status == '--') loc = ''; }),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
