@@ -512,7 +512,8 @@ function bootstrap(token) {
   var u = auth_(token);
   if (!PropertiesService.getScriptProperties().getProperty('MIG_PAIDAMT')) locked_(migrate_);
   if (Date.now() - num_(u.lastActive) > 60000) updateUser_(u.username, { lastActive: String(Date.now()) });
-  var ck = 'BS_' + revNow_() + '_' + u.username;
+  var rv = revNow_();
+  var ck = 'BS_' + rv + '_' + u.username;
   var hit = cacheBigGet_(ck);
   if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   var full = can_(u, 'workers');
@@ -521,7 +522,7 @@ function bootstrap(token) {
   var att = readAll_('Attendance').map(function (r) {
     return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) };
   });
-  var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att) };
+  var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att), rev: rv };
   if (u.role === 'admin') out.users = readAll_('Users').map(publicUser_);
   cacheBigPut_(ck, JSON.stringify(out), 900);
   return out;
