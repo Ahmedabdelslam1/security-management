@@ -144,15 +144,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _saving = false;
       if (mounted) _build();
       app.notifyListeners();
+      final noLoc = recs.where((r) => r['status'] != '--' && '${r['loc']}'.trim().isEmpty).length;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حفظ يوم ${fmtDate(_dstr)} (${recs.length} عامل) — المسجل في السيرفر: ${fresh.length}'), backgroundColor: Colors.green.shade700),
+          SnackBar(content: Text('تم حفظ يوم ${fmtDate(_dstr)} (${recs.length} عامل) — المسجل في السيرفر: ${fresh.length}${noLoc > 0 ? '\nتنبيه: $noLoc عامل بدون مكان حضور — لن يُحتسب يومهم ولن يظهروا في الويب كحضور' : ''}'), backgroundColor: Colors.green.shade700),
         );
       }
     } on SessionExpired {
       await _relogin();
     } on ApiException catch (e) {
       setState(() => _err = e.message);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم الحفظ: ${e.message}'), backgroundColor: Colors.red.shade700, duration: const Duration(seconds: 8)));
+    } catch (e) {
+      setState(() => _err = 'تعذر الحفظ: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم الحفظ: $e'), backgroundColor: Colors.red.shade700, duration: const Duration(seconds: 8)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -494,8 +499,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     items: _sts.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) {
                       setState(() { final prev = c.status; c.status = v ?? '--'; if (!usesXh(c.status) || (prev == kHoursStatus) != (c.status == kHoursStatus)) c.xh = ''; if (c.status == '--') c.loc = ''; });
-                      if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
-                        setState(() => c.loc = w.loc);
+                      if (c.status != '--' && c.loc.trim().isEmpty) {
+                        // مكان تلقائي: المكان الثابت للعامل، وإلا المكان المحدد في الفلتر، وإلا المكان الوحيد المسجل
+                        final auto = w.loc.isNotEmpty ? w.loc : (_locF.isNotEmpty ? _locF : (locs.length == 1 ? locs.first : ''));
+                        if (auto.isNotEmpty) setState(() => c.loc = auto);
                       }
                     },
                   ),
