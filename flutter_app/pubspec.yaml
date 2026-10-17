@@ -1,7 +1,7 @@
 name: security_management
 description: تطبيق إدارة الأمن — نسخة أندرويد (Flutter)
 publish_to: 'none'
-version: 2.0.0+59
+version: 2.1.0+60
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -9,11 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
-  http: ^1.2.2
-  shared_preferences: ^2.3.2
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

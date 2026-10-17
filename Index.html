@@ -494,6 +494,15 @@ var API_OK=(typeof google!=='undefined'&&google.script&&google.script.run);
 function srv(fn){var args=Array.prototype.slice.call(arguments,1);return new Promise(function(resolve,reject){
 if(!API_OK){reject(new Error('يعمل هذا الملف داخل تطبيق Google Apps Script فقط'));return;}
 google.script.run.withSuccessHandler(resolve).withFailureHandler(function(e){reject(e);})[fn].apply(google.script.run,args);});}
+/* ===== تطبيق الأندرويد (WebView): المنصة + تنزيل الملفات + الطباعة ===== */
+var PLAT=(window.AndroidApp||/SecurityAndroidApp/.test(navigator.userAgent))?'android':'web';
+(function(){if(!window.AndroidApp)return;
+function dl(a){fetch(a.href).then(function(r){return r.blob();}).then(function(b){var fr=new FileReader();fr.onload=function(){var s=String(fr.result||'');try{AndroidApp.saveFile(a.getAttribute('download')||'file',b.type||'application/octet-stream',s.slice(s.indexOf(',')+1));}catch(e){}};fr.readAsDataURL(b);}).catch(function(){try{toast('تعذر حفظ الملف');}catch(e){}});}
+var oc=HTMLAnchorElement.prototype.click;
+HTMLAnchorElement.prototype.click=function(){if(this.hasAttribute('download')&&this.href){dl(this);return;}oc.call(this);};
+document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[download]'):null;if(a&&a.href){e.preventDefault();e.stopPropagation();dl(a);}},true);
+window.print=function(){try{AndroidApp.print();}catch(e){}};
+})();
 function api(fn){var args=Array.prototype.slice.call(arguments,1);args.unshift(TOKEN);return srv.apply(null,[fn].concat(args));}
 function errMsg(e){return String((e&&e.message)||e||'خطأ غير معروف').replace(/^Error:\s*/,'');}
 function fail(e){var m=errMsg(e);if(m.indexOf('SESSION')!==-1){toast('انتهت الجلسة، سجّل الدخول من جديد');doLogout(true);return;}toast(m);}
@@ -558,7 +567,7 @@ function setAuthMsg(t,err){var m=document.getElementById('authMsg');m.className=
 function doLogin(){var u=document.getElementById('liUser').value.trim().toLowerCase(),p=document.getElementById('liPass').value;
 if(!u||!p)return setAuthMsg('اكتب اسم المستخدم وكلمة المرور',true);
 setAuthMsg('جاري الدخول...');
-srv('login',u,p,'web').then(function(r){TOKEN=r.token;markAct();shareWrite(true);
+srv('login',u,p,PLAT).then(function(r){TOKEN=r.token;markAct();shareWrite(true);
 document.getElementById('liPass').value='';setAuthMsg('');return loadAll();}).catch(function(e){TOKEN=null;setAuthMsg(errMsg(e),true);});}
 function applyData(d){USER=d.user;WORKERS=d.workers||[];ATT=d.att||[];LOCS=d.locs||[];USERS=d.users||[];}
 function loadAll(){return api('bootstrap').then(function(d){applyData(d);showApp();});}
@@ -585,7 +594,7 @@ function markAct(){LAST_ACT=Date.now();shareWrite(false);}
 ['click','keydown','touchstart','mousemove','scroll'].forEach(function(ev){document.addEventListener(ev,markAct,{passive:true,capture:true});});
 function checkIdle(){if(TOKEN){var o=shareRead();if(o&&o.t===TOKEN&&o.at>LAST_ACT)LAST_ACT=o.at;}if(TOKEN&&Date.now()-LAST_ACT>IDLE_MS){doLogout();toast('تم تسجيل الخروج لعدم التعامل لمدة نصف ساعة');return true;}return false;}
 setInterval(checkIdle,30000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden&&TOKEN&&!checkIdle())api('presence','web',TABS[CURTAB]||'',false).catch(function(){api('ping').catch(function(){});});});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&TOKEN&&!checkIdle())api('presence',PLAT,TABS[CURTAB]||'',false).catch(function(){api('ping').catch(function(){});});});
 function showReg(){var b=document.getElementById('regBox');b.style.display=b.style.display==='none'?'block':'none';}
 function doRegister(){var n=document.getElementById('rgName').value,u=document.getElementById('rgUser').value,p=document.getElementById('rgPass').value;
 srv('register',n,u,p).then(function(){setAuthMsg('تم إرسال طلب التسجيل. لن يتم الدخول إلا بعد موافقة الإدارة');
@@ -602,7 +611,7 @@ var first=document.querySelector('#mainNav button');
 if(!APPURL&&!/googleusercontent|google\.com/.test(location.hostname))APPURL=location.origin+location.pathname;
 api('appUrl').then(function(u){if(u)APPURL=u;}).catch(function(){});
 if(first){var _run=function(p){var tb=(p.tab&&document.getElementById('nav-'+p.tab))?p.tab:first.id.replace('nav-','');switchTab(tb);if(tb==='attendance'&&p.loc){attFiltFill();var f=document.getElementById('attLocFilt');f.value=p.loc;renderDay();}};if(BOOTP)_run(BOOTP);else startParams(_run);}else{switchTab('none');toast('لا توجد صلاحيات لهذا الحساب، تواصل مع الإدارة');}
-if(!HB)HB=setInterval(function(){if(TOKEN)api('presence','web',TABS[CURTAB]||'',false).catch(function(e){api('ping').catch(fail);});},180000);}
+if(!HB)HB=setInterval(function(){if(TOKEN)api('presence',PLAT,TABS[CURTAB]||'',false).catch(function(e){api('ping').catch(fail);});},180000);}
 function openChangePassword(){openModal('<h3>تغيير كلمة المرور</h3><input class="inp" id="cpOld" type="password" placeholder="كلمة المرور الحالية"><input class="inp" id="cpNew" type="password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)"><input class="inp" id="cpNew2" type="password" placeholder="تأكيد كلمة المرور الجديدة"><button class="btn primary block" onclick="doChangePassword()">حفظ</button>');}
 function doChangePassword(){var o=document.getElementById('cpOld').value,n=document.getElementById('cpNew').value,n2=document.getElementById('cpNew2').value;
 if(n!==n2)return toast('تأكيد كلمة المرور غير مطابق');
@@ -727,7 +736,7 @@ window.addEventListener('popstate',function(){if(TOKEN){var m=document.getElemen
 try{history.pushState({t:CURTAB},'');}catch(e){}}});
 try{history.replaceState({t:'start'},'');history.pushState({t:'app'},'');}catch(e){}
 function refreshAll(){toast('جاري التحديث...');api('refreshLive').catch(function(){}).then(function(){return reloadData();}).then(function(){refreshLists();buildNav();var ok=document.getElementById('nav-'+CURTAB);var first=document.querySelector('#mainNav button');switchTab(ok?CURTAB:(first?first.id.replace('nav-',''):'none'));toast('تم تحديث البيانات');}).catch(fail);}
-function pres(page,opened){if(!USER||!TOKEN)return;api('presence','web',page||TABS[CURTAB]||'',!!opened).catch(function(){if(opened)api('addLog','فتح صفحة',page,'').catch(function(){});});}
+function pres(page,opened){if(!USER||!TOKEN)return;api('presence',PLAT,page||TABS[CURTAB]||'',!!opened).catch(function(){if(opened)api('addLog','فتح صفحة',page,'').catch(function(){});});}
 function log(a,p,d){if(!USER||!TOKEN)return;api('addLog',a,p,d||'').catch(function(){});}
 /* ============ الحضور ============ */
 function liveOt(w,st,xh,wg){return EXTRA_STS.indexOf(st)!==-1?(Number(xh)||0)*((Number(wg)||w.wage||0)/((w.hours||8)||8)):0;}
