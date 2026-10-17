@@ -1,18 +1,17 @@
-// تخزين محلي آمن: يستخدم shared_preferences وإن تعطّل (خطأ في إضافة النظام) يرجع لملف محلي/الذاكرة
-// حتى لا يتعطل التطبيق عند الفتح.
+// تخزين محلي بسيط: shared_preferences وإن تعطّل يرجع لملف محلي/الذاكرة (حتى لا يتعطل التطبيق)
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Store {
   static final Map<String, String> _mem = {};
-  static bool _fileLoaded = false;
+  static bool _loaded = false;
 
   static File get _file => File('${Directory.systemTemp.path}/sm_store.json');
 
   static Future<void> _loadFile() async {
-    if (_fileLoaded) return;
-    _fileLoaded = true;
+    if (_loaded) return;
+    _loaded = true;
     try {
       if (await _file.exists()) {
         final m = jsonDecode(await _file.readAsString()) as Map;
@@ -25,7 +24,7 @@ class Store {
     try { await _file.writeAsString(jsonEncode(_mem)); } catch (_) {}
   }
 
-  static Future<String?> getString(String k) async {
+  static Future<String?> get(String k) async {
     try {
       final p = await SharedPreferences.getInstance().timeout(const Duration(seconds: 4));
       final v = p.getString(k);
@@ -35,7 +34,7 @@ class Store {
     return _mem[k];
   }
 
-  static Future<void> setString(String k, String v) async {
+  static Future<void> set(String k, String v) async {
     _mem[k] = v;
     var ok = false;
     try {
