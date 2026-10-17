@@ -113,7 +113,7 @@ class Api {
               headers: {'Content-Type': 'application/json; charset=utf-8'},
               body: body,
             )
-            .timeout(const Duration(seconds: 60));
+            .timeout(const Duration(seconds: 30));
       } else {
         // Google Apps Script: POST ثم اتبع تحويل 302 يدويًا
         final req = http.Request('POST', Uri.parse(u))
@@ -121,7 +121,7 @@ class Api {
           ..body = body
           ..followRedirects = false;
         res = await http.Response.fromStream(
-            await client.send(req).timeout(const Duration(seconds: 60)));
+            await client.send(req).timeout(const Duration(seconds: 30)));
         var hops = 0;
         while ((res.statusCode == 301 ||
                 res.statusCode == 302 ||
@@ -129,7 +129,7 @@ class Api {
             hops < 5) {
           final loc = res.headers['location'];
           if (loc == null || loc.isEmpty) break;
-          res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 60));
+          res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 30));
           hops++;
         }
       }

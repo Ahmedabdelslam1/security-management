@@ -1,5 +1,7 @@
 // حالة التطبيق العامة — بيانات bootstrap + الجلسة
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'models.dart';
 
@@ -24,15 +26,43 @@ class App extends ChangeNotifier {
 
   Worker worker(String id) => workers.firstWhere((w) => w.id == id, orElse: () => Worker(id: id, name: '؟', card: '', phone: '', wage: 0, hours: 8, lastSet: '', hasCard: false, hasPhoto: false));
 
+  bool sessionExpired = false;
+  static const _kCache = 'boot_cache_v1';
+
+  /// تحميل آخر بيانات محفوظة فورًا (فتح سريع بدون انتظار السيرفر)
+  Future<bool> loadCache() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final s = p.getString(_kCache);
+      if (s == null || s.isEmpty) return false;
+      data = BootData.fromJson(jsonDecode(s) as Map);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> clearCache() async {
+    try { (await SharedPreferences.getInstance()).remove(_kCache); } catch (_) {}
+  }
+
+  void _saveCache(Object j) {
+    SharedPreferences.getInstance().then((p) => p.setString(_kCache, jsonEncode(j))).catchError((_) => false);
+  }
+
   Future<void> bootstrap({bool silent = false}) async {
     if (!silent) _setLoading(true);
     try {
       final j = await Api.auth('bootstrap');
       data = BootData.fromJson(j as Map);
+      final rv = (j as Map)['rev'];
+      if (rv != null) _rev = rv.toString(); // نفس الطلب يرجع رقم التعديل: لا سحب مكرر
       bootError = '';
+      _saveCache(j);
       notifyListeners();
     } catch (e) {
       bootError = '$e';
+      if (e is SessionExpired) sessionExpired = true;
       rethrow;
     } finally {
       if (!silent) _setLoading(false);
@@ -56,6 +86,9 @@ class App extends ChangeNotifier {
   Future<void> logout() async {
     try { await Api.auth('logout').timeout(const Duration(seconds: 5)); } catch (_) {}
     await Api.clear();
+    await clearCache();
+    sessionExpired = false;
+    bootError = '';
     data = null;
     notifyListeners();
   }

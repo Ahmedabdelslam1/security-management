@@ -56,10 +56,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (mounted) setState(() => _now = DateTime.now());
     });
     // مزامنة فورية مع الويب: سحب أي إضافة/تعديل كل 15 ثانية
-    _sync = Timer.periodic(const Duration(seconds: 15), (_) {
+    _sync = Timer.periodic(const Duration(seconds: 8), (_) {
       if (!App.I.loading) App.I.syncIfChanged().catchError((_) {});
       // نبضة حضور كل 3 دقائق (تبقي المستخدم "متصل" وتحدّث الشاشة الحالية)
-      if (++_presTick % 12 == 0) App.I.presence(_presName(_tab));
+      if (++_presTick % 22 == 0) App.I.presence(_presName(_tab));
     });
     // فحص التحديث عند البدء ثم كل 6 ساعات
     Future.delayed(const Duration(seconds: 2), () { if (mounted) autoUpdate(context); });
@@ -141,6 +141,15 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final app = App.I;
+    if (app.sessionExpired) {
+      // انتهت الجلسة على السيرفر → رجوع لشاشة الدخول
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await App.I.logout();
+        if (mounted) Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final u = app.user;
     if (u == null) return _bootView();
 

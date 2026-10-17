@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
+import 'state.dart';
 import 'screens/login.dart';
 import 'screens/shell.dart';
 
@@ -123,20 +124,10 @@ class _GateState extends State<Gate> {
       setState(() { _busy = false; });
       return;
     }
-    try {
-      await Api.auth('ping').timeout(const Duration(seconds: 8));
-      if (!mounted) return;
-      setState(() { _valid = true; _busy = false; });
-    } on ApiException {
-      // رفض السيرفر الجلسة فعلاً → شاشة الدخول
-      await Api.clear();
-      if (!mounted) return;
-      setState(() { _valid = false; _busy = false; });
-    } catch (_) {
-      // بطء/انقطاع شبكة: لا نعلّق الشاشة ولا نخرج المستخدم، ندخل مباشرة
-      if (!mounted) return;
-      setState(() { _valid = true; _busy = false; });
-    }
+    // فتح فوري: نعرض آخر بيانات محفوظة والشاشة تحدّث نفسها من السيرفر في الخلفية
+    await App.I.loadCache();
+    if (!mounted) return;
+    setState(() { _valid = true; _busy = false; });
   }
 
   @override
