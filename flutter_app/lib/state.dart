@@ -11,6 +11,7 @@ class App extends ChangeNotifier {
   String attLoc = ''; // فلتر مكان الحضور عند الفتح من الرئيسية
   bool loading = false;
 
+  String bootError = ''; // آخر خطأ في تحميل البيانات (للعرض بدل الدائرة الدائمة)
   int srvVer = 0; // إصدار سكربت Google (0 = غير معروف بعد، 4+ يدعم نصف يوم/ساعات)
   AppUser? get user => data?.user;
   bool get ready => data != null;
@@ -28,7 +29,11 @@ class App extends ChangeNotifier {
     try {
       final j = await Api.auth('bootstrap');
       data = BootData.fromJson(j as Map);
+      bootError = '';
       notifyListeners();
+    } catch (e) {
+      bootError = '$e';
+      rethrow;
     } finally {
       if (!silent) _setLoading(false);
     }
@@ -49,7 +54,7 @@ class App extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    try { await Api.auth('logout'); } catch (_) {}
+    try { await Api.auth('logout').timeout(const Duration(seconds: 5)); } catch (_) {}
     await Api.clear();
     data = null;
     notifyListeners();

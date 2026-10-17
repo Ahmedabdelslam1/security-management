@@ -15,6 +15,7 @@ import 'procs.dart';
 import 'home.dart';
 import 'users.dart';
 import 'monitor.dart';
+import '../main.dart' show Gate;
 import 'settings.dart';
 
 const _arDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -85,11 +86,63 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  DateTime _bootStart = DateTime.now();
+  bool _retrying = false;
+
+  Widget _bootView() {
+    final err = App.I.bootError;
+    final slow = DateTime.now().difference(_bootStart).inSeconds > 15;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (err.isEmpty && !slow) const CircularProgressIndicator(),
+            if (err.isEmpty && slow) ...[
+              const CircularProgressIndicator(),
+              const SizedBox(height: 14),
+              const Text('التحميل بطيء... تأكد من الإنترنت ورابط السيرفر', textAlign: TextAlign.center),
+            ],
+            if (err.isNotEmpty) ...[
+              const Icon(Icons.error_outline, color: Colors.red, size: 40),
+              const SizedBox(height: 10),
+              const Text('تعذّر تحميل البيانات', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 8),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: SelectableText(err, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Wrap(spacing: 10, runSpacing: 8, alignment: WrapAlignment.center, children: [
+              FilledButton(
+                onPressed: _retrying ? null : () async {
+                  setState(() { _retrying = true; _bootStart = DateTime.now(); });
+                  try { await App.I.bootstrap(silent: true).timeout(const Duration(seconds: 60)); } catch (_) {}
+                  if (mounted) setState(() => _retrying = false);
+                },
+                child: const Text('إعادة المحاولة'),
+              ),
+              OutlinedButton(
+                onPressed: () async {
+                  await App.I.logout();
+                  if (mounted) Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
+                },
+                child: const Text('تسجيل الخروج / تغيير السيرفر'),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = App.I;
     final u = app.user;
-    if (u == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (u == null) return _bootView();
 
     final tabs = <_Tab>[
       const _Tab('home', 'الرئيسية', Icons.home),
