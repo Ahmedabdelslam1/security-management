@@ -5,6 +5,9 @@ on:
     paths: ['flutter_app/**', '.github/workflows/build-apk.yml']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,11 +32,30 @@ jobs:
           flutter create --platforms android --org eg.security --project-name security_management .
           rm -rf lib && mv /tmp/lib_backup lib
 
+      - name: توقيع ثابت للتطبيق (ليقبل أندرويد التحديث فوق النسخة القديمة)
+        run: |
+          mkdir -p ~/.android
+          cp signing/debug.keystore ~/.android/debug.keystore
+
       - run: flutter pub get
-      - run: flutter build apk --debug
+
+      - name: تحليل الكود (flutter analyze) — يعرض الأخطاء في سجل البناء
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
+
+      - name: flutter build apk --release (نسخة سريعة وخفيفة)
+        run: |
+          set -o pipefail
+          flutter build apk --release --target-platform android-arm64 2>&1 | tee ../build.log || { grep -A12 -E "What went wrong|error:|Error:" ../build.log | grep -v Unzipping | head -50 | sed 's/^/::error::/'; exit 1; }
 
       - name: رفع ملف الـ APK كملف قابل للتحميل
         uses: actions/upload-artifact@v4
         with:
           name: security-management-apk
-          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: نشر الـ APK على الإصدار ليتحدث التطبيق تلقائيًا
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/security-management.apk
+          gh release upload v1.0-android /tmp/security-management.apk --clobber --repo "${{ github.repository }}"
