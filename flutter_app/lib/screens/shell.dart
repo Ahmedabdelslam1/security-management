@@ -86,6 +86,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  bool _leaving = false;
   DateTime _bootStart = DateTime.now();
   bool _retrying = false;
 
@@ -113,7 +114,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 child: SelectableText(err, style: const TextStyle(color: Colors.red, fontSize: 12)),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+            Text('v$appVersion', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+            const SizedBox(height: 10),
             Wrap(spacing: 10, runSpacing: 8, alignment: WrapAlignment.center, children: [
               FilledButton(
                 onPressed: _retrying ? null : () async {
@@ -142,8 +145,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final app = App.I;
     if (app.sessionExpired) {
-      // انتهت الجلسة على السيرفر → رجوع لشاشة الدخول
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // انتهت الجلسة على السيرفر → رجوع لشاشة الدخول (مرة واحدة فقط)
+      if (!_leaving) WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (_leaving) return;
+        _leaving = true;
         await App.I.logout();
         if (mounted) Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const Gate()), (_) => false);

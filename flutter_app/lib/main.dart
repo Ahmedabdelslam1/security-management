@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
 import 'state.dart';
+import 'updater.dart' show appVersion;
 import 'screens/login.dart';
 import 'screens/shell.dart';
 
@@ -116,6 +117,10 @@ class _GateState extends State<Gate> {
   void initState() {
     super.initState();
     _restore();
+    // حارس: لو علقت القراءة المحلية لأي سبب لا نترك دائرة بلا نهاية
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted && _busy) setState(() { _busy = false; _valid = false; });
+    });
   }
 
   Future<void> _restore() async {
@@ -133,7 +138,15 @@ class _GateState extends State<Gate> {
   @override
   Widget build(BuildContext context) {
     if (_busy) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 14),
+            Text('v$appVersion', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+          ]),
+        ),
+      );
     }
     return _valid ? const Shell() : const LoginScreen();
   }
