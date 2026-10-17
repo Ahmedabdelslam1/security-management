@@ -1,0 +1,155 @@
+// بوابة الاتصال بالسيرفر — متوافقة مع Google Apps Script (doPost) و PHP (api.php)
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'store.dart';
+
+class ApiException implements Exception {
+  final String message;
+  ApiException(this.message);
+  @override
+  String toString() => message;
+}
+
+class SessionExpired implements Exception {
+  @override
+  String toString() => 'انتهت الجلسة، سجّل الدخول من جديد';
+}
+
+class Api {
+  static final http.Client _shared = http.Client(); // اتصال دائم لتسريع كل الطلبات
+  static String? _url;
+  static String? _token;
+  static const _kUrl = 'gas_url_v2';
+  static const _kTok = 'gas_token';
+
+  // رابط السيرفر الافتراضي (Google Apps Script)
+  static const String defaultUrl =
+      'https://script.google.com/macros/s/AKfycbz5ISJT-vROTmczOi8HdFBvwSXiUZ3mMGzHJBfv732cumsONfMsu-yK_5-NuOzByHQu/exec';
+
+  static Future<String?> getUrl() async {
+    if (_url != null) return _url;
+    _url = await Store.getString(_kUrl);
+    if (_url == null || _url!.trim().isEmpty) {
+      _url = defaultUrl;
+      await Store.setString(_kUrl, defaultUrl);
+    }
+    return _url;
+  }
+
+  static Future<void> saveUrl(String u) async {
+    u = u.trim();
+    if (u.isEmpty) {
+      _url = defaultUrl;
+      return;
+    }
+    if (!u.startsWith('http')) throw ApiException('الرابط لازم يبدأ بـ https://');
+    _url = u;
+    await Store.setString(_kUrl, u);
+  }
+
+  static Future<String?> getToken() async {
+    if (_token != null) return _token;
+    _token = await Store.getString(_kTok);
+    return _token;
+  }
+
+  static Future<void> saveToken(String t) async {
+    _token = t;
+    await Store.setString(_kTok, t);
+  }
+
+  static Future<void> clear() async {
+    _token = null;
+    await Store.remove(_kTok);
+  }
+
+  /// هل الرابط يشير لسيرفر PHP؟
+  static bool _isPhpBackend(String u) {
+    final lower = u.toLowerCase();
+    return lower.contains('api.php') ||
+        lower.endsWith('/php') ||
+        lower.contains('/php/') ||
+        (!lower.contains('script.google.com') && !lower.contains('googleusercontent.com'));
+  }
+
+  /// هل السيرفر الحالي PHP؟ (لا يدعم الحفظ الجزئي لليوم)
+  static Future<bool> isPhp() async {
+    final u = (await getUrl()) ?? defaultUrl;
+    return _isPhpBackend(u);
+  }
+
+  // نداء عام: action = اسم الدالة، args = وسائطها (token أولًا حيث يلزم)
+  static Future<dynamic> call(String action, [List args = const []]) async {
+    var u = _url ?? await getUrl();
+    if (u == null || u.trim().isEmpty) u = defaultUrl;
+    u = u.trim();
+
+    // لو كان رابط مجلد PHP بدون api.php أضفه تلقائيًا
+    if (!u.contains('script.google.com') &&
+        !u.endsWith('/exec') &&
+        !u.endsWith('api.php') &&
+        !u.contains('api.php?')) {
+      if (u.endsWith('/')) {
+        u = '${u}api.php';
+      } else if (!u.contains('.php')) {
+        u = '$u/api.php';
+      }
+    }
+
+    final body = jsonEncode({'action': action, 'args': args});
+    http.Response res;
+    final client = _shared;
+    try {
+      if (_isPhpBackend(u) || !u.contains('script.google.com')) {
+        // سيرفر PHP أو أي API مباشر — POST JSON عادي
+        res = await client
+            .post(
+              Uri.parse(u),
+              headers: {'Content-Type': 'application/json; charset=utf-8'},
+              body: body,
+            )
+            .timeout(const Duration(seconds: 30));
+      } else {
+        // Google Apps Script: POST ثم اتبع تحويل 302 يدويًا
+        final req = http.Request('POST', Uri.parse(u))
+          ..headers['Content-Type'] = 'text/plain; charset=utf-8'
+          ..body = body
+          ..followRedirects = false;
+        res = await http.Response.fromStream(
+            await client.send(req).timeout(const Duration(seconds: 30)));
+        var hops = 0;
+        while ((res.statusCode == 301 ||
+                res.statusCode == 302 ||
+                res.statusCode == 303) &&
+            hops < 5) {
+          final loc = res.headers['location'];
+          if (loc == null || loc.isEmpty) break;
+          res = await client.get(Uri.parse(loc)).timeout(const Duration(seconds: 30));
+          hops++;
+        }
+      }
+    } catch (e) {
+      throw ApiException('تعذر الوصول للسيرفر — تأكد من الرابط والإنترنت');
+    }
+
+    Map out;
+    try {
+      out = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
+    } catch (_) {
+      throw ApiException(
+          'رد غير صالح من السيرفر (${res.statusCode}) — تأكد من الرابط والنشر');
+    }
+    if (out['ok'] != true) {
+      final msg = (out['error'] ?? 'خطأ غير معروف').toString();
+      if (msg.contains('SESSION')) throw SessionExpired();
+      throw ApiException(msg);
+    }
+    return out['data'];
+  }
+
+  // نداء موثّق: يضيف token تلقائيًا كأول وسيطة
+  static Future<dynamic> auth(String action, [List args = const []]) async {
+    final t = await getToken();
+    return call(action, [if (t != null) t else '', ...args]);
+  }
+}
