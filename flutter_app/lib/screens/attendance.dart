@@ -23,6 +23,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _saving = false;
   String? _err;
 
+  /// المواقف المتاحة: الموقفان الجديدان يُخفيان مع سكربت Google القديم
+  List<String> get _sts => (App.I.srvVer > 0 && App.I.srvVer < 4) ? kStatuses.where((s) => s != kHalfStatus && s != kHoursStatus).toList() : kStatuses;
+
   String get _dstr =>
       '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
@@ -143,7 +146,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       app.notifyListeners();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حفظ يوم ${fmtDate(_dstr)} (${"${recs.length} عامل"})'), backgroundColor: Colors.green.shade700),
+          SnackBar(content: Text('تم حفظ يوم ${fmtDate(_dstr)} (${recs.length} عامل) — المسجل في السيرفر: ${fresh.length}'), backgroundColor: Colors.green.shade700),
         );
       }
     } on SessionExpired {
@@ -486,9 +489,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
-                    value: kStatuses.contains(c.status) ? c.status : '--',
+                    value: _sts.contains(c.status) ? c.status : '--',
                     decoration: _dec(null),
-                    items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
+                    items: _sts.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) {
                       setState(() { final prev = c.status; c.status = v ?? '--'; if (!usesXh(c.status) || (prev == kHoursStatus) != (c.status == kHoursStatus)) c.xh = ''; if (c.status == '--') c.loc = ''; });
                       if (c.status != '--' && c.loc.trim().isEmpty && w.loc.isNotEmpty) {
@@ -705,9 +708,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             DropdownButtonFormField<String>(
-              value: kStatuses.contains(status) ? status : '--',
+              value: _sts.contains(status) ? status : '--',
               decoration: _dec('الموقف'),
-              items: kStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12.5)))).toList(),
+              items: _sts.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12.5)))).toList(),
               onChanged: (v) => setD(() { final prev = status; status = v ?? '--'; if (status == '--') loc = ''; if (!usesXh(status) || (prev == kHoursStatus) != (status == kHoursStatus)) xh.text = ''; }),
             ),
             const SizedBox(height: 8),

@@ -11,6 +11,7 @@ class App extends ChangeNotifier {
   String attLoc = ''; // فلتر مكان الحضور عند الفتح من الرئيسية
   bool loading = false;
 
+  int srvVer = 0; // إصدار سكربت Google (0 = غير معروف بعد، 4+ يدعم نصف يوم/ساعات)
   AppUser? get user => data?.user;
   bool get ready => data != null;
 

@@ -40,6 +40,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     App.I.bootstrap(silent: true).catchError((_) {});
+    Api.auth('srvVer').then((v) {
+      App.I.srvVer = int.tryParse('$v') ?? 0;
+      App.I.notifyListeners();
+      if (App.I.srvVer > 0 && App.I.srvVer < 4 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 12),
+          backgroundColor: Color(0xFFB45309),
+          content: Text('سكربت Google قديم: حدّث Code.gs (الصق Loader.gs) — تم إخفاء موقفي نصف يوم/ساعات حتى لا تُلغى التسجيلات'),
+        ));
+      }
+    }).catchError((_) {});
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });

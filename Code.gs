@@ -90,7 +90,8 @@ function apiMap_() {
   };
 }
 
-function srvVer(token) { auth_(token); return '3'; }
+/* 4 = يدعم موقفي نصف يوم/ساعات + الحضور الحي (presence) */
+function srvVer(token) { auth_(token); return '4'; }
 
 /* تحديث يدوي من زر المستخدمين: يمسح الذاكرة المؤقتة ويسحب أحدث واجهة من GitHub ويرجع إصدار التطبيق المتاح */
 function refreshLive(token) {
