@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="app-rev" content="rev-2026-10-05-2">
+<meta name="app-rev" content="rev-2026-10-17-3">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>إدارة الأمن</title>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -20,6 +20,55 @@ input,select,button,textarea{font-family:'Times New Roman',Times,serif}
 .btn.primary{background:linear-gradient(135deg,#7c5cfc,#a78bfa);color:#fff;box-shadow:0 2px 8px rgba(124,92,252,.3)}
 .btn.danger{background:#fee2e2;color:#b91c1c}
 .btn.small{padding:5px 10px;font-size:12px}
+/* ===== شاشة الموبايل / تطبيق الأندرويد ===== */
+@media(max-width:700px){
+body{font-size:14px}
+.frame{margin:0;border-radius:0;border-left:none;border-right:none;box-shadow:none}
+.app-body{align-items:stretch;width:100%}
+.content-area{width:100%;max-width:100%}
+header{padding:8px 10px}
+.brand{font-size:16px}
+.hdr-user{flex-wrap:wrap;gap:6px;width:100%;font-size:13px}
+.hdr-user .btn{padding:6px 10px}
+nav,#mainNav{display:grid !important;grid-template-columns:repeat(4,1fr);padding:6px;gap:4px;overflow:visible !important;flex-direction:unset}
+nav button{flex-direction:column;justify-content:center;gap:2px;padding:6px 2px;font-size:11.5px;text-align:center;white-space:normal;line-height:1.25}
+#mainNav button>span:first-child{margin:0}
+main{padding:8px}
+.card{padding:10px;border-radius:11px}
+.card-head{gap:6px}
+.card-head h2{font-size:16px;width:100%}
+.head-actions{width:100%;gap:6px}
+.head-actions>*{flex:1 1 calc(50% - 6px);min-width:0}
+.head-actions input,.head-actions select{width:100% !important}
+.filters>*{flex:1 1 calc(50% - 8px);min-width:0}
+.filters label{flex:1 1 100%}
+.modal{padding:14px;width:100%;max-width:100%;margin:8px auto}
+#modalWrap{padding:6px}
+.gridf{grid-template-columns:1fr}
+.clockbar{font-size:12.5px;padding:6px}
+.inp,select,input[type=date],input[type=text],input[type=number],input[type=time],input[type=password]{font-size:14px;padding:7px 9px}
+.table-wrap{overflow-x:visible}
+/* الجداول كبطاقات (يضيف الجافاسكربت data-label لكل خلية) */
+table.mc{display:block;border:none;background:transparent}
+table.mc thead{display:none}
+table.mc tbody,table.mc tfoot{display:block}
+table.mc tr{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin:0 0 10px;padding:6px 10px;box-shadow:0 1px 4px rgba(30,41,59,.06)}
+table.mc tbody tr:nth-child(even){background:#faf9ff}
+table.mc td{display:flex;align-items:center;justify-content:space-between;gap:10px;border:none;border-bottom:1px dashed #ece8f7;padding:6px 0;text-align:right;min-height:34px}
+table.mc td:last-child{border-bottom:none}
+table.mc td::before{content:attr(data-label);flex:0 0 auto;white-space:nowrap;font-size:12px;font-weight:700;color:#7c5cfc}
+table.mc td[data-label=""]::before,table.mc td:not([data-label])::before{display:none}
+table.mc td>*{max-width:68%}
+table.mc td select,table.mc td input:not([type=checkbox]):not([type=radio]){flex:1 1 auto;width:100% !important;max-width:100% !important;min-width:0}
+table.mc td:first-child:not(:has(input[type=checkbox])){font-weight:800;font-size:15px;background:#f3f1fb;margin:-6px -10px 4px;padding:8px 10px;border-radius:11px 11px 0 0;border-bottom:1px solid #e7e3f3}
+table.mc td:first-child:not(:has(input[type=checkbox]))::before{display:none}
+table.mc td:first-child:not(:has(input[type=checkbox]))>*{max-width:100%}
+table.mc td:has(input[type=checkbox]){justify-content:flex-start;min-height:0;padding:2px 0}
+table.mc td:has(input[type=checkbox])::before{display:none}
+table.mc td.noprint{max-width:none !important;font-size:12.5px !important}
+table.mc .xhw{width:100%}
+.totals{flex-wrap:wrap}.tbox{flex:1 1 30%}
+}
 /* login */
 .auth-wrap{display:flex;align-items:center;justify-content:center;padding:40px 14px;background:linear-gradient(135deg,#f6f5fb,#ece7fb)}
 .auth-card{background:#fff;border:1px solid #e7e3f3;border-radius:16px;padding:12px;width:220px;max-width:90%;text-align:center;box-shadow:0 10px 30px rgba(124,92,252,.14)}
@@ -494,6 +543,21 @@ var API_OK=(typeof google!=='undefined'&&google.script&&google.script.run);
 function srv(fn){var args=Array.prototype.slice.call(arguments,1);return new Promise(function(resolve,reject){
 if(!API_OK){reject(new Error('يعمل هذا الملف داخل تطبيق Google Apps Script فقط'));return;}
 google.script.run.withSuccessHandler(resolve).withFailureHandler(function(e){reject(e);})[fn].apply(google.script.run,args);});}
+/* ===== الجداول كبطاقات على الموبايل: يضيف data-label من رؤوس الأعمدة ===== */
+(function(){var MQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null,busy=false;
+function lab(t){if(t.classList.contains('mc')||t.closest('.paper,.letter,#modalWrap .paper'))return;var hr=t.querySelector('thead tr:last-child');if(!hr||t.querySelectorAll('thead tr').length!==1)return;
+var hs=[].slice.call(hr.children).map(function(h){return (h.textContent||'').replace(/\s+/g,' ').trim();});
+var rows=t.querySelectorAll('tbody>tr');if(!rows.length)return;var ok=true;
+rows.forEach(function(r){if(r.children.length!==hs.length||r.querySelector('[colspan]'))ok=false;});if(!ok)return;
+rows.forEach(function(r){[].forEach.call(r.children,function(c,i){c.setAttribute('data-label',hs[i]||'');});});t.classList.add('mc');}
+function run(){if(busy||!MQ||!MQ.matches)return;busy=true;try{document.querySelectorAll('main table').forEach(function(t){
+if(t.classList.contains('mc')){var hr=t.querySelector('thead tr:last-child');if(!hr)return;var hs=[].map.call(hr.children,function(h){return (h.textContent||'').replace(/\s+/g,' ').trim();});
+t.querySelectorAll('tbody>tr').forEach(function(r){if(r.children.length===hs.length&&!r.firstElementChild.hasAttribute('data-label'))[].forEach.call(r.children,function(c,i){c.setAttribute('data-label',hs[i]||'');});});}
+else lab(t);});}catch(e){}busy=false;}
+var tm=null;function sched(){clearTimeout(tm);tm=setTimeout(run,60);}
+new MutationObserver(sched).observe(document.documentElement,{childList:true,subtree:true});
+if(MQ&&MQ.addListener)MQ.addListener(function(){document.querySelectorAll('table.mc').forEach(function(t){if(!MQ.matches)t.classList.remove('mc');});sched();});
+})();
 /* ===== تطبيق الأندرويد (WebView): المنصة + تنزيل الملفات + الطباعة ===== */
 var PLAT=(window.AndroidApp||/SecurityAndroidApp/.test(navigator.userAgent))?'android':'web';
 (function(){if(!window.AndroidApp)return;
