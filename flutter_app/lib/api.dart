@@ -1,7 +1,7 @@
 // بوابة الاتصال بالسيرفر — متوافقة مع Google Apps Script (doPost) و PHP (api.php)
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'store.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -28,11 +28,10 @@ class Api {
 
   static Future<String?> getUrl() async {
     if (_url != null) return _url;
-    final p = await SharedPreferences.getInstance();
-    _url = p.getString(_kUrl);
+    _url = await Store.getString(_kUrl);
     if (_url == null || _url!.trim().isEmpty) {
       _url = defaultUrl;
-      await p.setString(_kUrl, defaultUrl);
+      await Store.setString(_kUrl, defaultUrl);
     }
     return _url;
   }
@@ -45,27 +44,23 @@ class Api {
     }
     if (!u.startsWith('http')) throw ApiException('الرابط لازم يبدأ بـ https://');
     _url = u;
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kUrl, u);
+    await Store.setString(_kUrl, u);
   }
 
   static Future<String?> getToken() async {
     if (_token != null) return _token;
-    final p = await SharedPreferences.getInstance();
-    _token = p.getString(_kTok);
+    _token = await Store.getString(_kTok);
     return _token;
   }
 
   static Future<void> saveToken(String t) async {
     _token = t;
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kTok, t);
+    await Store.setString(_kTok, t);
   }
 
   static Future<void> clear() async {
     _token = null;
-    final p = await SharedPreferences.getInstance();
-    await p.remove(_kTok);
+    await Store.remove(_kTok);
   }
 
   /// هل الرابط يشير لسيرفر PHP؟

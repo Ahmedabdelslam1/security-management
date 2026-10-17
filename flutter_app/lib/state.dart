@@ -1,7 +1,7 @@
 // حالة التطبيق العامة — بيانات bootstrap + الجلسة
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'store.dart';
 import 'api.dart';
 import 'models.dart';
 
@@ -32,8 +32,7 @@ class App extends ChangeNotifier {
   /// تحميل آخر بيانات محفوظة فورًا (فتح سريع بدون انتظار السيرفر)
   Future<bool> loadCache() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      final s = p.getString(_kCache);
+      final s = await Store.getString(_kCache);
       if (s == null || s.isEmpty) return false;
       data = BootData.fromJson(jsonDecode(s) as Map);
       return true;
@@ -43,11 +42,11 @@ class App extends ChangeNotifier {
   }
 
   Future<void> clearCache() async {
-    try { (await SharedPreferences.getInstance()).remove(_kCache); } catch (_) {}
+    try { await Store.remove(_kCache); } catch (_) {}
   }
 
   void _saveCache(Object j) {
-    SharedPreferences.getInstance().then((p) => p.setString(_kCache, jsonEncode(j))).catchError((_) => false);
+    Store.setString(_kCache, jsonEncode(j)).catchError((_) {});
   }
 
   Future<void> bootstrap({bool silent = false}) async {

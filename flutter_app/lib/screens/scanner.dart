@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../store.dart';
 import '../attach.dart';
 import '../state.dart';
 import '../widgets.dart';
@@ -30,8 +30,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Future<void> _loadScans() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      final j = jsonDecode(p.getString('scan_history') ?? '[]') as List;
+      final j = jsonDecode(await Store.getString('scan_history') ?? '[]') as List;
       setState(() {
         _scans.clear();
         for (final e in j) {
@@ -43,8 +42,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   Future<void> _saveScans() async {
     try {
-      final p = await SharedPreferences.getInstance();
-      p.setString('scan_history', jsonEncode(_scans.take(30).map((s) => [s.$1, s.$2.toIso8601String()]).toList()));
+      await Store.setString('scan_history', jsonEncode(_scans.take(30).map((s) => [s.$1, s.$2.toIso8601String()]).toList()));
     } catch (_) {}
   }
 
