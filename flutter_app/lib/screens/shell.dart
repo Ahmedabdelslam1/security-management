@@ -48,7 +48,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           duration: Duration(seconds: 12),
           backgroundColor: Color(0xFFB45309),
-          content: Text('سكربت Google قديم: حدّث Code.gs (الصق Loader.gs) — تم إخفاء موقفي نصف يوم/ساعات حتى لا تُلغى التسجيلات'),
+          content: Text('سكربت Google قديم: يُحفظ نصف يوم/ساعات بصيغة متوافقة (القيمة صحيحة). للميزات الكاملة الصق Loader.gs واعمل Deploy ← New version'),
         ));
       }
     }).catchError((e) {
@@ -59,7 +59,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           duration: Duration(seconds: 12),
           backgroundColor: Color(0xFFB45309),
-          content: Text('سكربت Google قديم: حدّث Code.gs (الصق Loader.gs واعمل Deploy ← New version) — تم إخفاء موقفي نصف يوم/ساعات حتى لا تضيع التسجيلات'),
+          content: Text('سكربت Google قديم: يُحفظ نصف يوم/ساعات بصيغة متوافقة (القيمة صحيحة). للميزات الكاملة الصق Loader.gs واعمل Deploy ← New version'),
         ));
       }
     });

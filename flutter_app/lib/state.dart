@@ -49,6 +49,19 @@ class App extends ChangeNotifier {
     Store.setString(_kCache, jsonEncode(j)).catchError((_) {});
   }
 
+  /// هل السيرفر لا يدعم نصف يوم/ساعات والحفظ الجزئي؟ (PHP أو سكربت Google قديم)
+  Future<bool> legacySrv() async {
+    if (await Api.isPhp()) return true;
+    if (srvVer == 0) {
+      try {
+        srvVer = int.tryParse('${await Api.auth('srvVer')}') ?? 0;
+      } on ApiException catch (e) {
+        if (e.message.contains('غير معروف')) srvVer = 1;
+      } catch (_) {}
+    }
+    return srvVer > 0 && srvVer < 4;
+  }
+
   Future<void> bootstrap({bool silent = false}) async {
     if (!silent) _setLoading(true);
     try {

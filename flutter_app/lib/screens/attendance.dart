@@ -24,7 +24,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? _err;
 
   /// المواقف المتاحة: الموقفان الجديدان يُخفيان مع سكربت Google القديم
-  List<String> get _sts => (App.I.srvVer > 0 && App.I.srvVer < 4) ? kStatuses.where((s) => s != kHalfStatus && s != kHoursStatus).toList() : kStatuses;
+  List<String> get _sts => kStatuses;
 
   String get _dstr =>
       '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
@@ -52,13 +52,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   _RowCtl _mk(Worker w, AttRec? r) {
-    final c = _RowCtl(
-      status: r?.status ?? '--',
-      loc: r?.loc ?? '',
-      xh: r?.xh.toString() ?? '',
-      notes: r?.notes ?? '',
-      wg: _numStr((r?.wage ?? 0) > 0 ? r!.wage : w.wage),
-    );
+    final lg = r == null ? null : legacyDec(r.notes);
+    final c = lg != null
+        ? _RowCtl(status: lg.status, loc: r!.loc, xh: lg.xh > 0 ? lg.xh.toString() : '', notes: lg.notes, wg: _numStr(lg.wage > 0 ? lg.wage : w.wage))
+        : _RowCtl(
+            status: r?.status ?? '--',
+            loc: r?.loc ?? '',
+            xh: r?.xh.toString() ?? '',
+            notes: r?.notes ?? '',
+            wg: _numStr((r?.wage ?? 0) > 0 ? r!.wage : w.wage),
+          );
     c.base = c.sig();
     return c;
   }
@@ -109,7 +112,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _save() async {
     // الحفظ الجزئي: يُرسل فقط العمال الذين تغيّر موقفهم هنا، فلا تُمحى تسجيلات الويب أو الأجهزة الأخرى
-    final php = await Api.isPhp();
+    final php = await App.I.legacySrv(); // سيرفر قديم/PHP: يُرسل اليوم كاملًا وبصيغة متوافقة
     final recs = <Map<String, dynamic>>[];
     _ctl.forEach((wid, c) {
       final empty = c.status == '--' && c.loc.trim().isEmpty;
@@ -118,14 +121,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         if (!php) recs.add({'wid': wid, 'status': '--', 'loc': '', 'xh': 0, 'wage': 0, 'notes': ''});
         return;
       }
-      recs.add({
+      final rec = <String, dynamic>{
           'wid': wid,
           'status': c.status,
           'loc': c.loc.trim(),
           'xh': usesXh(c.status) ? (double.tryParse(c.xh) ?? 0) : 0,
           'wage': double.tryParse(c.wg) ?? 0,
           'notes': c.notes.trim(),
-        });
+        };
+      recs.add(php ? legacyEnc(rec, App.I.worker(wid).hours) : rec);
     });
     if (recs.isEmpty) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد تغييرات للحفظ')));
@@ -766,7 +770,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _saveSituation(Map<String, Map<String, dynamic>> changes) async {
     final app = App.I;
-    final php = await Api.isPhp();
+    final php = await App.I.legacySrv();
     for (final entry in changes.entries) {
       final date = entry.key;
       final records = app.att.where((r) => r.date == date).map((r) => <String, dynamic>{
@@ -777,13 +781,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         'xh': r.xh,
         'notes': r.notes,
       }).toList();
-      final index = records.indexWhere((r) => r['wid'] == entry.value['wid']);
+      final ev = php ? legacyEnc(entry.value, App.I.worker('${entry.value['wid']}').hours) : entry.value;
+      final index = records.indexWhere((r) => r['wid'] == ev['wid']);
       if (index == -1) {
-        records.add(entry.value);
+        records.add(ev);
       } else {
-        records[index] = entry.value;
+        records[index] = ev;
       }
-      final res = await Api.auth('saveDay', php ? [date, records] : [date, [entry.value], true]) as Map;
+      final res = await Api.auth('saveDay', php ? [date, records] : [date, [ev], true]) as Map;
       final fresh = (res['att'] as List).map((r) => AttRec.fromJson(r as Map)).toList();
       final kept = app.att.where((r) => r.date != date).toList()..addAll(fresh);
       final newLocs = (res['locs'] as List).map((l) => l.toString()).where((l) => !app.locs.contains(l)).toList();

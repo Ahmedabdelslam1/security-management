@@ -152,3 +152,43 @@ String workerDueText(Worker w, List<AttRec> att) {
   }
   return '${dn(r2(days))} يوم${hrs > 0 ? ' + ${otText(r2(hrs))} إضافي' : ''} = ${r2(amt)} ج';
 }
+
+
+// ===== توافق السكربت القديم =====
+// السكربت القديم (أو PHP) لا يعرف "حضور نصف يوم/ساعات": نحفظها كـ "حضور" بأجر محسوب (القيمة صحيحة في الويب والشيت)
+// ونضع علامة في الملاحظات ليستعيد التطبيق الموقف الأصلي عند القراءة: [نصف يوم|الأجر] أو [ساعات:5|الأجر]
+Map<String, dynamic> legacyEnc(Map<String, dynamic> r, double hoursPerDay) {
+  final st = '${r['status']}';
+  if (st != kHalfStatus && st != kHoursStatus) return r;
+  final wage = (r['wage'] is num ? (r['wage'] as num).toDouble() : double.tryParse('${r['wage']}') ?? 0);
+  final xh = (r['xh'] is num ? (r['xh'] as num).toDouble() : double.tryParse('${r['xh']}') ?? 0);
+  final hrs = hoursPerDay > 0 ? hoursPerDay : 8;
+  final notes = '${r['notes'] ?? ''}'.trim();
+  final out = Map<String, dynamic>.from(r);
+  out['status'] = 'حضور';
+  out['xh'] = 0;
+  if (st == kHalfStatus) {
+    out['wage'] = r2(wage / 2);
+    out['notes'] = '[نصف يوم|${dn(wage)}]${notes.isEmpty ? '' : ' $notes'}';
+  } else {
+    out['wage'] = r2(xh * (wage / hrs));
+    out['notes'] = '[ساعات:${dn(xh)}|${dn(wage)}]${notes.isEmpty ? '' : ' $notes'}';
+  }
+  return out;
+}
+
+class LegacyMark {
+  final String status;
+  final double xh;
+  final double wage;
+  final String notes;
+  LegacyMark(this.status, this.xh, this.wage, this.notes);
+}
+
+LegacyMark? legacyDec(String notes) {
+  final m = RegExp(r'^\[(نصف يوم|ساعات:([0-9.]+))\|([0-9.]+)\]\s?(.*)$', dotAll: true).firstMatch(notes);
+  if (m == null) return null;
+  final half = m.group(1) == 'نصف يوم';
+  return LegacyMark(half ? kHalfStatus : kHoursStatus, half ? 0 : (double.tryParse(m.group(2) ?? '') ?? 0),
+      double.tryParse(m.group(3) ?? '') ?? 0, m.group(4) ?? '');
+}

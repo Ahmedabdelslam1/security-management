@@ -27,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       b.writeln('رابط السيرفر:\n${await Api.getUrl()}');
       try {
         final v = await Api.auth('srvVer');
-        b.writeln('إصدار سكربت Google: $v ${(int.tryParse('$v') ?? 0) >= 4 ? '(محدّث ✓)' : '(قديم ✗ — حدّث Code.gs)'}');
+        b.writeln('إصدار سكربت Google: $v ${(int.tryParse('$v') ?? 0) >= 4 ? '(محدّث ✓)' : '(قديم — التطبيق يحفظ نصف يوم/ساعات بصيغة متوافقة؛ للميزات الكاملة حدّث السكربت)'}');
       } catch (e) {
         b.writeln('إصدار سكربت Google: غير معروف ($e)');
       }
@@ -42,8 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final wid = '${(ws.first as Map)['id']}';
         const d = '2099-12-31';
         try {
-          await Api.auth('saveDay', [d, [{'wid': wid, 'status': kHoursStatus, 'loc': 'اختبار', 'xh': 1, 'wage': 0, 'notes': 'اختبار ربط'}], true]);
-          b.writeln('اختبار الكتابة (نصف يوم/ساعات): نجح ✓');
+          await Api.auth('saveDay', [d, [{'wid': wid, 'status': 'حضور', 'loc': 'اختبار', 'xh': 1, 'wage': 0, 'notes': 'اختبار ربط'}], true]);
+          b.writeln('اختبار الكتابة في السيرفر: نجح ✓');
         } catch (e) {
           b.writeln('اختبار الكتابة: فشل ✗ — $e');
         }
