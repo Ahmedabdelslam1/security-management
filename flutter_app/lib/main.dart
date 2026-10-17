@@ -124,11 +124,18 @@ class _GateState extends State<Gate> {
       return;
     }
     try {
-      await Api.auth('ping');
+      await Api.auth('ping').timeout(const Duration(seconds: 8));
+      if (!mounted) return;
       setState(() { _valid = true; _busy = false; });
-    } catch (_) {
+    } on ApiException {
+      // رفض السيرفر الجلسة فعلاً → شاشة الدخول
       await Api.clear();
+      if (!mounted) return;
       setState(() { _valid = false; _busy = false; });
+    } catch (_) {
+      // بطء/انقطاع شبكة: لا نعلّق الشاشة ولا نخرج المستخدم، ندخل مباشرة
+      if (!mounted) return;
+      setState(() { _valid = true; _busy = false; });
     }
   }
 
