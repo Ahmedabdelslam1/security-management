@@ -5,6 +5,20 @@ import 'screens/login.dart';
 import 'screens/shell.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // أي خطأ في الواجهة يظهر نصه على الشاشة بدل الإغلاق الصامت/الشاشة الفارغة (للتشخيص)
+  ErrorWidget.builder = (FlutterErrorDetails d) => Material(
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: SingleChildScrollView(
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: SelectableText('خطأ في الواجهة:\n${d.exceptionAsString()}', style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ),
+          ),
+        ),
+      );
   runApp(const SecurityApp());
 }
 
