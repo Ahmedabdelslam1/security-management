@@ -1,1 +1,1 @@
-{"version": "1.11.4", "apk": "https://github.com/Ahmedabdelslam1/security-management/releases/download/v1.0-android/security-management.apk", "note": "إصلاح تعطل التخزين المحلي (shared_preferences) الذي كان يمنع الدخول"}
+{"version": "1.11.5", "apk": "https://github.com/Ahmedabdelslam1/security-management/releases/download/v1.0-android/security-management.apk", "note": "كشف سكربت Google القديم وتنبيه عند عدم تسجيل السيرفر لموقف نصف يوم/ساعات"}

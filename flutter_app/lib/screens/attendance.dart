@@ -144,6 +144,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _saving = false;
       if (mounted) _build();
       app.notifyListeners();
+      // تحقق: كل عامل أُرسل بموقف حضور يجب أن يعود في رد السيرفر، وإلا السيرفر قديم ورفضه
+      final back = fresh.map((r) => r.wid).toSet();
+      final lost = recs.where((r) => r['status'] != '--' && !back.contains('${r['wid']}')).toList();
+      if (lost.isNotEmpty) {
+        setState(() => _err = 'السيرفر لم يسجّل ${lost.length} عامل');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 15),
+          content: Text('لم يُحفظ ${lost.length} عامل في السيرفر! سكربت Google غالبًا قديم (لا يعرف ${lost.map((r) => r['status']).toSet().join('، ')}). الصق Loader.gs في Apps Script واعمل Deploy ← New version'),
+        ));
+        return;
+      }
       final noLoc = recs.where((r) => r['status'] != '--' && '${r['loc']}'.trim().isEmpty).length;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

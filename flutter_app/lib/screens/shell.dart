@@ -51,7 +51,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           content: Text('سكربت Google قديم: حدّث Code.gs (الصق Loader.gs) — تم إخفاء موقفي نصف يوم/ساعات حتى لا تُلغى التسجيلات'),
         ));
       }
-    }).catchError((_) {});
+    }).catchError((e) {
+      // سكربت Google قديم جدًا لا يعرف الإجراء srvVer أصلًا → يُعتبر إصدارًا قديمًا
+      if (e is ApiException && e.message.contains('غير معروف')) {
+        App.I.srvVer = 1;
+        App.I.notifyListeners();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 12),
+          backgroundColor: Color(0xFFB45309),
+          content: Text('سكربت Google قديم: حدّث Code.gs (الصق Loader.gs واعمل Deploy ← New version) — تم إخفاء موقفي نصف يوم/ساعات حتى لا تضيع التسجيلات'),
+        ));
+      }
+    });
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
