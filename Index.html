@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="app-rev" content="rev-2026-10-18-1">
+<meta name="app-rev" content="rev-2026-10-18-2">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>إدارة الأمن</title>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -277,7 +277,6 @@ input.wgfix{width:46px;min-width:0;max-width:46px;height:24px;padding:0 2px;marg
       <div class="brand">إدارة الأمن</div>
       <div class="hdr-user"><button class="btn small" id="backBtn" onclick="goBack()" title="رجوع">⬅ رجوع</button><span id="hdrName"></span>
         <button class="btn small" onclick="openCalculator()" title="الآلة الحاسبة">🖩</button>
-        <button class="btn small" onclick="showAppUrl()" title="رابط السيرفر لتطبيق الأندرويد">🔗</button>
         <button class="btn small" style="background:#dcfce7;color:#15803d;padding:2px 6px" onclick="exportPage('xls')" title="تصدير الصفحة إلى Excel">📗</button>
         <button class="btn small" style="background:#fee2e2;color:#b91c1c;padding:2px 6px" onclick="exportPage('pdf')" title="تصدير الصفحة إلى PDF">📕</button>
         <button class="btn small" onclick="captureScreen()" title="تصوير الشاشة">📷</button>
@@ -1243,7 +1242,7 @@ if(u.status==='pending')acts+='<button class="btn small primary" onclick="setUse
 else if(u.status==='approved')acts+='<button class="btn small" onclick="setUserStatus(\''+u.username+'\',\'suspended\')">إيقاف</button> ';
 else acts+='<button class="btn small primary" onclick="setUserStatus(\''+u.username+'\',\'approved\')">تنشيط</button> ';
 acts+='<button class="btn small" onclick="openResetPass(\''+u.username+'\')">كلمة المرور</button> <button class="btn small danger" onclick="delUser(\''+u.username+'\')">حذف</button>';}
-return '<tr><td><b>'+esc(u.name)+'</b></td><td>'+esc(u.username)+'</td><td>'+st+'</td><td class="permcell">'+perms+'</td><td style="white-space:nowrap">'+acts+'</td></tr>';}).join('')
+return '<tr><td><b>'+esc(u.name)+'</b></td><td>'+esc(u.username)+' <span style="font-size:12px;white-space:nowrap">'+platTxt(u.platform)+'</span></td><td>'+st+'</td><td class="permcell">'+perms+'</td><td style="white-space:nowrap">'+acts+'</td></tr>';}).join('')
 ||'<tr><td colspan="5" class="mut" style="text-align:center">لا يوجد مستخدمون</td></tr>';}
 function permsOf(root,cls){var p={};root.querySelectorAll('.'+cls).forEach(function(c){if(c.checked)p[c.getAttribute('data-p')]=1;});return p;}
 function allPerms(el){var cell=el.closest('td')||el.closest('div');cell.querySelectorAll('input[data-p]').forEach(function(c){c.checked=el.checked;});}

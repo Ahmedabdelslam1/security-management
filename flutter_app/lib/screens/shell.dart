@@ -17,7 +17,6 @@ import 'users.dart';
 import 'monitor.dart';
 import '../main.dart' show Gate;
 import 'settings.dart';
-import '../url_dialog.dart';
 
 const _arDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const _arMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -73,24 +72,19 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   /// تنبيه: السيرفر الذي يتصل به التطبيق لا يعرف نصف يوم/ساعات — غالبًا رابط نشر قديم أو سكربت لم يتحدّث
   Future<void> _oldSrv(String why) async {
     if (!mounted) return;
-    final u = await Api.getUrl() ?? '';
-    final tail = u.length > 14 ? u.substring(u.length - 14) : u;
+    // قبل التنبيه: جرّب اختيار أحدث سيرفر منشور تلقائيًا
+    try {
+      if (await Api.autoSelect(force: true)) {
+        App.I.srvVer = 4;
+        await App.I.bootstrap(silent: true);
+        return;
+      }
+    } catch (_) {}
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 15),
       backgroundColor: const Color(0xFFB45309),
-      content: Text('السيرفر الذي يتصل به التطبيق (…$tail) لا يقبل حضور نصف يوم/ساعات — $why.\nالأرجح أنه رابط نشر قديم: افتح الويب، اضغط 🔗 أعلى الصفحة، وانسخ الرابط هنا.'),
-      action: SnackBarAction(
-        label: 'تغيير الرابط',
-        textColor: Colors.white,
-        onPressed: () async {
-          final ch = await showServerUrlDialog(context);
-          if (ch) {
-            await App.I.logout();
-            if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
-          }
-        },
-      ),
+      content: Text('سكربت Google المنشور قديم ولا يقبل حضور نصف يوم/ساعات ($why). حدّث النشر في Apps Script: Deploy ← Manage deployments ← Edit ← New version.'),
     ));
   }
 

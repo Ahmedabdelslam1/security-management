@@ -133,6 +133,10 @@ class _GateState extends State<Gate> {
     await App.I.loadCache();
     if (!mounted) return;
     setState(() { _valid = true; _busy = false; });
+    // اختيار أحدث سيرفر منشور تلقائيًا (في الخلفية) ثم تحديث البيانات منه
+    Api.autoSelect().then((changed) {
+      if (changed) App.I.bootstrap(silent: true).catchError((_) {});
+    }).catchError((_) {});
   }
 
   @override

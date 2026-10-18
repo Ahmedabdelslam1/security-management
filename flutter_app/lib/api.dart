@@ -155,6 +155,68 @@ class Api {
     return out['data'];
   }
 
+
+  // ===== اختيار السيرفر تلقائيًا =====
+  static const String registryUrl =
+      'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/server-url.json';
+  static Future<bool>? _selFut;
+
+  /// يفحص رابطًا: 4 = سكربت محدّث، 1 = قديم، 0 = لا يرد
+  static Future<int> probe(String u) async {
+    try {
+      final req = http.Request('POST', Uri.parse(u))
+        ..headers['Content-Type'] = 'text/plain; charset=utf-8'
+        ..body = jsonEncode({'action': 'srvVer', 'args': [_token ?? '']})
+        ..followRedirects = false;
+      var res = await http.Response.fromStream(await _shared.send(req).timeout(const Duration(seconds: 9)));
+      var hops = 0;
+      while ([301, 302, 303, 307].contains(res.statusCode) && hops < 5) {
+        final loc = res.headers['location'];
+        if (loc == null || loc.isEmpty) break;
+        res = await _shared.get(Uri.parse(loc)).timeout(const Duration(seconds: 9));
+        hops++;
+      }
+      final out = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
+      if (out['ok'] == true) return (int.tryParse('${out['data']}') ?? 1) >= 4 ? 4 : 1;
+      final msg = '${out['error']}';
+      if (msg.contains('SESSION')) return 4; // الدالة موجودة (فشل التوثيق فقط)
+      return 1; // إجراء غير معروف = سكربت قديم
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// يختار تلقائيًا أحدث سيرفر منشور: المحفوظ ثم المسجّل في GitHub (server-url.json) ثم الافتراضي،
+  /// ويعتمد أول رابط يرد بسكربت محدّث. يرجع true إذا تغيّر الرابط.
+  static Future<bool> autoSelect({bool force = false}) {
+    if (force || _selFut == null) _selFut = _autoSelect();
+    return _selFut!;
+  }
+
+  static Future<bool> _autoSelect() async {
+    final stored = (await getUrl()) ?? defaultUrl;
+    final cands = <String>[stored];
+    try {
+      final r = await _shared
+          .get(Uri.parse('$registryUrl?t=${DateTime.now().millisecondsSinceEpoch}'))
+          .timeout(const Duration(seconds: 6));
+      if (r.statusCode == 200) {
+        final u = normalizeUrl('${(jsonDecode(utf8.decode(r.bodyBytes)) as Map)['url'] ?? ''}');
+        if (u.startsWith('http') && !cands.contains(u)) cands.add(u);
+      }
+    } catch (_) {}
+    if (!cands.contains(defaultUrl)) cands.add(defaultUrl);
+    final res = await Future.wait(cands.map(probe));
+    for (var i = 0; i < cands.length; i++) {
+      if (res[i] == 4) {
+        if (cands[i] == stored) return false;
+        await saveUrl(cands[i]);
+        return true;
+      }
+    }
+    return false; // لا أحد محدّث: نبقى على المحفوظ
+  }
+
   // نداء موثّق: يضيف token تلقائيًا كأول وسيطة
   static Future<dynamic> auth(String action, [List args = const []]) async {
     final t = await getToken();

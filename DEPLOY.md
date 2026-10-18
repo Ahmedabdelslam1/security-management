@@ -39,3 +39,13 @@
 2. امسح محتوى `Code.gs` والصق بدلاً منه محتوى `Code.gs` من المستودع، وامسح محتوى `index.html` والصق محتوى `Index.html`.
 3. اختر الدالة `setup` وشغّلها وامنح الأذونات.
 4. Deploy ← Manage deployments ← Edit ← New version ← Deploy.
+
+## اختيار رابط السيرفر تلقائيًا في تطبيق الأندرويد
+التطبيق لا يعرض خانة رابط؛ عند كل تشغيل يفحص ثلاثة روابط (المحفوظ، ثم المسجّل في `server-url.json` على GitHub، ثم الافتراضي) ويعتمد أول رابط يرد بسكربت محدّث.
+
+لتحديث `server-url.json` **تلقائيًا** كلما نشرت رابطًا جديدًا (اختياري):
+1. أنشئ في GitHub توكن (Fine-grained) بصلاحية **Contents: Read and write** على المستودع فقط.
+2. في Apps Script: Project Settings ← Script properties ← أضف الخاصية `GH_TOKEN` وقيمتها التوكن.
+3. افتح الويب مرة بعد كل نشر جديد؛ يكتب السكربت الرابط الجديد في `server-url.json` ويلتقطه التطبيق عند تشغيله.
+
+نصيحة: عدّل النشر الحالي (Deploy ← Manage deployments ← Edit ← New version) بدل إنشاء نشر جديد، فيبقى الرابط ثابتًا.

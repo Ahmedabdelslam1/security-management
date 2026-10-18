@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
-import '../url_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -102,33 +101,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _busy
                     ? const Center(child: CircularProgressIndicator())
                     : FilledButton.icon(onPressed: _changePass, icon: const Icon(Icons.key, size: 18), label: const Text('تغيير')),
-              ],
-            ),
-          ),
-        ),
-        Card(
-          elevation: 1.5,
-          margin: const EdgeInsets.only(top: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('رابط السيرفر', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                const SizedBox(height: 4),
-                const Text('يجب أن يكون نفس رابط الويب الذي تفتحه في المتصفح. لو تغيّر النشر في Apps Script غيّره هنا.', style: TextStyle(fontSize: 12.5, height: 1.5)),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final ch = await showServerUrlDialog(context);
-                    if (ch) {
-                      await App.I.logout();
-                      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
-                    }
-                  },
-                  icon: const Icon(Icons.link, size: 18),
-                  label: const Text('تغيير رابط السيرفر'),
-                ),
               ],
             ),
           ),

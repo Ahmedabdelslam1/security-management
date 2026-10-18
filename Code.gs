@@ -346,7 +346,7 @@ function updateUser_(username, fields) {
 }
 
 function publicUser_(u) {
-  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms) };
+  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms), platform: u.platform || '' };
 }
 
 function login(username, password, platform) {
@@ -420,7 +420,30 @@ function changePassword(token, oldPass, newPass) {
 
 function appUrl(token) {
   auth_(token);
-  try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; }
+  var url = '';
+  try { url = ScriptApp.getService().getUrl(); } catch (e) { return ''; }
+  try { syncUrl_(url); } catch (e2) {}
+  return url;
+}
+
+/* يحفظ آخر رابط نشر، وإن وُجد GH_TOKEN في خصائص السكربت يكتبه في server-url.json على GitHub
+ * ليتحول تطبيق الأندرويد تلقائيًا لأحدث رابط منشور (بدون أي إدخال يدوي) */
+function syncUrl_(url) {
+  if (!url || !/\/exec$/.test(url)) return;
+  var p = PropertiesService.getScriptProperties();
+  if (p.getProperty('APP_URL') === url) return;
+  var tok = p.getProperty('GH_TOKEN');
+  if (!tok) { p.setProperty('APP_URL', url); return; }
+  var api = 'https://api.github.com/repos/Ahmedabdelslam1/security-management/contents/server-url.json';
+  var h = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+  var g = UrlFetchApp.fetch(api + '?ref=main', { headers: h, muteHttpExceptions: true });
+  var body = {
+    message: 'تحديث رابط السيرفر تلقائيًا', branch: 'main',
+    content: Utilities.base64Encode(Utilities.newBlob(JSON.stringify({ url: url, at: now_() })).getBytes())
+  };
+  if (g.getResponseCode() === 200) body.sha = JSON.parse(g.getContentText()).sha;
+  var r = UrlFetchApp.fetch(api, { method: 'put', contentType: 'application/json', headers: h, payload: JSON.stringify(body), muteHttpExceptions: true });
+  if (r.getResponseCode() < 300) p.setProperty('APP_URL', url);
 }
 
 function ping(token) {

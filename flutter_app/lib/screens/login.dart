@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     Api.getUrl();
+    Api.autoSelect().catchError((_) => false); // اختيار أحدث سيرفر منشور تلقائيًا
   }
 
   void _say(String m, [bool e = false]) => setState(() { _msg = m; _err = e; });
@@ -34,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       await Api.getUrl();
+      try { await Api.autoSelect().timeout(const Duration(seconds: 10)); } catch (_) {}
       final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text, 'android']);
       await Api.saveToken((r as Map)['token'] as String);
       await App.I.bootstrap();
@@ -90,7 +92,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: cs.onSurface)),
+                GestureDetector(
+                  // ضغطة مطوّلة على العنوان = تغيير الرابط يدويًا (مخفي، للطوارئ فقط)
+                  onLongPress: () async {
+                    final ch = await showServerUrlDialog(context);
+                    if (ch && mounted) _say('تم حفظ رابط السيرفر — سجّل الدخول', false);
+                  },
+                  child: Text('إدارة الأمن', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: cs.onSurface)),
+                ),
                 const SizedBox(height: 18),
                 Center(child: SizedBox(width: 240, child: Card(
                   elevation: 3,
@@ -131,13 +140,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextButton(
                             onPressed: () => setState(() { _reg = !_reg; _msg = ''; }),
                             child: Text(_reg ? 'لديك حساب؟ سجّل الدخول' : 'مستخدم جديد'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final ch = await showServerUrlDialog(context);
-                              if (ch && mounted) _say('تم حفظ رابط السيرفر الجديد — سجّل الدخول', false);
-                            },
-                            child: const Text('رابط السيرفر', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                         if (_msg.isNotEmpty)
