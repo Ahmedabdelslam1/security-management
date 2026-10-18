@@ -17,6 +17,7 @@ import 'users.dart';
 import 'monitor.dart';
 import '../main.dart' show Gate;
 import 'settings.dart';
+import '../url_dialog.dart';
 
 const _arDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const _arMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -44,23 +45,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     Api.auth('srvVer').then((v) {
       App.I.srvVer = int.tryParse('$v') ?? 0;
       App.I.notifyListeners();
-      if (App.I.srvVer > 0 && App.I.srvVer < 4 && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          duration: Duration(seconds: 12),
-          backgroundColor: Color(0xFFB45309),
-          content: Text('سكربت Google قديم: لن يقبل حضور نصف يوم/ساعات. الصق Loader.gs في Apps Script واعمل Deploy ← New version'),
-        ));
-      }
+      if (App.I.srvVer > 0 && App.I.srvVer < 4) _oldSrv('إصدار السكربت: $v');
     }).catchError((e) {
       // سكربت Google قديم جدًا لا يعرف الإجراء srvVer أصلًا → يُعتبر إصدارًا قديمًا
       if (e is ApiException && e.message.contains('غير معروف')) {
         App.I.srvVer = 1;
         App.I.notifyListeners();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          duration: Duration(seconds: 12),
-          backgroundColor: Color(0xFFB45309),
-          content: Text('سكربت Google قديم: لن يقبل حضور نصف يوم/ساعات. الصق Loader.gs في Apps Script واعمل Deploy ← New version'),
-        ));
+        _oldSrv('رد السيرفر: ${e.message}');
       }
     });
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -77,6 +68,30 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _updateCheck = Timer.periodic(const Duration(minutes: 20), (_) {
       if (mounted) autoUpdate(context);
     });
+  }
+
+  /// تنبيه: السيرفر الذي يتصل به التطبيق لا يعرف نصف يوم/ساعات — غالبًا رابط نشر قديم أو سكربت لم يتحدّث
+  Future<void> _oldSrv(String why) async {
+    if (!mounted) return;
+    final u = await Api.getUrl() ?? '';
+    final tail = u.length > 14 ? u.substring(u.length - 14) : u;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 20),
+      backgroundColor: const Color(0xFFB45309),
+      content: Text('السيرفر الذي يتصل به التطبيق (…$tail) لا يقبل حضور نصف يوم/ساعات — $why.\nالأرجح أنه رابط نشر قديم: افتح الويب، اضغط 🔗 أعلى الصفحة، وانسخ الرابط هنا.'),
+      action: SnackBarAction(
+        label: 'تغيير الرابط',
+        textColor: Colors.white,
+        onPressed: () async {
+          final ch = await showServerUrlDialog(context);
+          if (ch) {
+            await App.I.logout();
+            if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const Gate()), (_) => false);
+          }
+        },
+      ),
+    ));
   }
 
   @override

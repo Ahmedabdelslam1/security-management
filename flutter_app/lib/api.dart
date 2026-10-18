@@ -36,10 +36,18 @@ class Api {
     return _url;
   }
 
-  static Future<void> saveUrl(String u) async {
+  /// ينظّف الرابط الملصوق من المتصفح: يقطع أي معاملات بعد /exec أو /dev
+  static String normalizeUrl(String u) {
     u = u.trim();
+    final m = RegExp(r'^(https?://[^\s?#]*?/(?:exec|dev))(?:[/?#].*)?$').firstMatch(u);
+    return m != null ? m.group(1)! : u.split(RegExp(r'[?#]')).first;
+  }
+
+  static Future<void> saveUrl(String u) async {
+    u = normalizeUrl(u);
     if (u.isEmpty) {
       _url = defaultUrl;
+      await Store.setString(_kUrl, defaultUrl);
       return;
     }
     if (!u.startsWith('http')) throw ApiException('الرابط لازم يبدأ بـ https://');

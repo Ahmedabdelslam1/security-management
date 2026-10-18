@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../state.dart';
+import '../url_dialog.dart';
 import 'shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -130,6 +131,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextButton(
                             onPressed: () => setState(() { _reg = !_reg; _msg = ''; }),
                             child: Text(_reg ? 'لديك حساب؟ سجّل الدخول' : 'مستخدم جديد'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final ch = await showServerUrlDialog(context);
+                              if (ch && mounted) _say('تم حفظ رابط السيرفر الجديد — سجّل الدخول', false);
+                            },
+                            child: const Text('رابط السيرفر', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                         if (_msg.isNotEmpty)

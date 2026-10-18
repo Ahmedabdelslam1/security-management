@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="app-rev" content="rev-2026-10-17-3">
+<meta name="app-rev" content="rev-2026-10-18-1">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>إدارة الأمن</title>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -277,6 +277,7 @@ input.wgfix{width:46px;min-width:0;max-width:46px;height:24px;padding:0 2px;marg
       <div class="brand">إدارة الأمن</div>
       <div class="hdr-user"><button class="btn small" id="backBtn" onclick="goBack()" title="رجوع">⬅ رجوع</button><span id="hdrName"></span>
         <button class="btn small" onclick="openCalculator()" title="الآلة الحاسبة">🖩</button>
+        <button class="btn small" onclick="showAppUrl()" title="رابط السيرفر لتطبيق الأندرويد">🔗</button>
         <button class="btn small" style="background:#dcfce7;color:#15803d;padding:2px 6px" onclick="exportPage('xls')" title="تصدير الصفحة إلى Excel">📗</button>
         <button class="btn small" style="background:#fee2e2;color:#b91c1c;padding:2px 6px" onclick="exportPage('pdf')" title="تصدير الصفحة إلى PDF">📕</button>
         <button class="btn small" onclick="captureScreen()" title="تصوير الشاشة">📷</button>
@@ -717,6 +718,12 @@ paper(title,html);setTimeout(function(){toast('اضغط طباعة ثم اختر
 /* ============ أدوات سريعة: آلة حاسبة + تصوير الشاشة ============ */
 var CALC_EXPR='';var CALC_MEM=0;
 function calcBtn(l,fn){return '<button class="btn" style="font-size:17px;padding:12px 0" onclick="'+fn+'">'+l+'</button>';}
+function showAppUrl(){var u=APPURL||((/googleusercontent|google\.com/.test(location.hostname))?'':location.origin+location.pathname);
+api('appUrl').then(function(x){if(x)u=x;}).catch(function(){}).then(function(){
+openModal('<h3>🔗 رابط السيرفر لتطبيق الأندرويد</h3><div class="mut" style="font-size:13px;margin-bottom:8px">انسخ هذا الرابط والصقه في التطبيق: شاشة الدخول ← «رابط السيرفر» (أو الإعدادات). يجب أن يكون نفس رابط النشر الحالي حتى تتطابق البيانات.</div>'+
+'<textarea id="appUrlBox" class="inp" readonly rows="4" style="direction:ltr;font-size:12px">'+esc(u||'تعذر تحديد الرابط')+'</textarea>'+
+'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary block" onclick="copyAppUrl()">📋 نسخ الرابط</button><button class="btn block" onclick="closeModal()">إغلاق</button></div>');});}
+function copyAppUrl(){var b=document.getElementById('appUrlBox');if(!b)return;b.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}try{if(navigator.clipboard)navigator.clipboard.writeText(b.value);ok=true;}catch(e){}toast(ok?'تم نسخ الرابط':'حدّد الرابط وانسخه يدويًا');}
 function openCalculator(){CALC_DONE=false;openModal('<h3>الآلة الحاسبة</h3>'+
 '<div id="calcDisplay" style="background:#f3f1fb;border:1px solid #e7e3f3;border-radius:10px;padding:14px;margin-bottom:10px;text-align:left;direction:ltr;font-size:26px;font-weight:700;min-height:38px;overflow-x:auto;white-space:nowrap">0</div>'+
 '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'+
