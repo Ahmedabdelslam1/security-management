@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="app-rev" content="rev-2026-10-18-2">
+<meta name="app-rev" content="rev-2026-10-19-1">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>إدارة الأمن</title>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -394,6 +394,30 @@ input.wgfix{width:46px;min-width:0;max-width:46px;height:24px;padding:0 2px;marg
             <button id="rtab2" onclick="showRepSub(2)">حسب مكان الحضور</button>
             <button id="rtab3" onclick="showRepSub(3)">تقرير مجمع</button>
             <button id="rtab4" onclick="showRepSub(4)">خطاب الاعتماد</button>
+            <button id="rtab5" onclick="showRepSub(5)">تقرير الحضور</button>
+            <button id="rtab6" onclick="showRepSub(6)">تقرير الحسابات</button>
+          </div>
+          <div id="rep5" style="display:none">
+            <div class="filters">
+              <label>من</label><input type="date" id="raFrom" onchange="runAttReport()">
+              <label>إلى</label><input type="date" id="raTo" onchange="runAttReport()">
+              <label>مكان الحضور</label><select id="raFilt" onchange="runAttReport()"><option value="">كل الأماكن</option></select>
+              <button class="btn primary" onclick="runAttReport()">عرض</button>
+              <button class="btn" onclick="printAttReport()">🖨 طباعة</button>
+            </div>
+            <div class="totals" id="raTotals"></div>
+            <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>مكان الحضور</th><th>إجمالي العدد</th><th>إجمالي الحضور</th></tr></thead><tbody id="raBody"></tbody><tfoot><tr id="raFoot"></tr></tfoot></table></div>
+          </div>
+          <div id="rep6" style="display:none">
+            <div class="filters">
+              <label>من</label><input type="date" id="rcFrom" onchange="runAccReport()">
+              <label>إلى</label><input type="date" id="rcTo" onchange="runAccReport()">
+              <label>مكان الحضور</label><select id="rcFilt" onchange="runAccReport()"><option value="">كل الأماكن</option></select>
+              <button class="btn primary" onclick="runAccReport()">عرض</button>
+              <button class="btn" onclick="printAccReport()">🖨 طباعة</button>
+            </div>
+            <div class="totals" id="rcTotals"></div>
+            <div class="table-wrap"><table><thead><tr><th>تاريخ التسوية</th><th>الفترة</th><th>مكان الحضور</th><th>الإجمالي</th></tr></thead><tbody id="rcBody"></tbody><tfoot><tr id="rcFoot"></tr></tfoot></table></div>
           </div>
           <div id="rep1">
             <div class="filters">
@@ -776,11 +800,11 @@ sl.innerHTML=LOCS.map(function(l){return '<option>'+esc(l)+'</option>';}).join('
 if(cl&&LOCS.indexOf(cl)!==-1)sl.value=cl;
 document.getElementById('locList').innerHTML=LOCS.map(function(l){return '<option value="'+esc(l)+'">';}).join('');
 fillLocFilters();}
-function fillLocFilters(){['setFilt','rlLetFilt'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML='<option value="">كل الأماكن</option>'+LOCS.map(function(l){return '<option>'+esc(l)+'</option>';}).join('');el.value=LOCS.indexOf(cur)!==-1?cur:'';});}
+function fillLocFilters(){['setFilt','rlLetFilt','raFilt','rcFilt'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cur=el.value;el.innerHTML='<option value="">كل الأماكن</option>'+LOCS.map(function(l){return '<option>'+esc(l)+'</option>';}).join('');el.value=LOCS.indexOf(cur)!==-1?cur:'';});}
 function setFlt(){var e=document.getElementById('setFilt');return e?e.value:'';}
 function initInputs(){var td=todayStr(),ms=monthStart();
 document.getElementById('attDate').value=td;
-['per','set','rw','rl','rs','rlLet'].forEach(function(p){document.getElementById(p+'From').value=ms;document.getElementById(p+'To').value=td;});
+['per','set','rw','rl','rs','rlLet','ra','rc'].forEach(function(p){document.getElementById(p+'From').value=ms;document.getElementById(p+'To').value=td;});
 refreshLists();}
 var TABS={none:'',home:'الرئيسية',gate:'دفتر البوابة',procs:'الإجراءات اليومية',attendance:'الحضور',settlement:'التسوية',workers:'العاملين',reports:'التقارير',users:'المستخدمين',monitor:'المتابعة'};
 var NAVH=[];
@@ -1123,9 +1147,38 @@ function printWorkers(){var td=todayStr();
 paper('كشف العاملين','<h2>كشف العاملين اليومية</h2><table><thead><tr><th>الاسم</th><th>رقم البطاقة</th><th>التليفون</th><th>أجر اليوم</th><th>ساعات العمل</th><th>آخر تسوية</th><th>المستحق</th></tr></thead><tbody>'+
 WORKERS.map(function(w){return '<tr><td>'+esc(w.name)+'</td><td>'+esc(w.card)+'</td><td>'+esc(w.phone)+'</td><td>'+w.wage+'</td><td>'+w.hours+'</td><td>'+fmtD(w.lastSet)+'</td><td>'+unText(w,td)+'</td></tr>';}).join('')+'</tbody></table>');}
 /* ============ التقارير ============ */
-function showRepSub(n){[1,2,3,4].forEach(function(i){document.getElementById('rep'+i).style.display=i===n?'block':'none';
+function showRepSub(n){[1,2,3,4,5,6].forEach(function(i){document.getElementById('rep'+i).style.display=i===n?'block':'none';
 document.getElementById('rtab'+i).classList.toggle('active',i===n);});
-try{[0,runWorkerReport,runLocationReport,runSummary,runLetterReport][n]();}catch(e){}}
+try{[0,runWorkerReport,runLocationReport,runSummary,runLetterReport,runAttReport,runAccReport][n]();}catch(e){}}
+/* تقرير الحضور: لكل تاريخ ومكان — عدد العمال المسجلين وإجمالي الحضور (نصف يوم = 0.5، ساعات = ساعات/ساعات العمل) */
+var LAST_RA=null,LAST_RC=null;
+function attRepRows(){var f=pg('raFrom').value,t=pg('raTo').value,flt=pg('raFilt').value,m={};
+ATT.filter(function(r){return counts(r)&&r.date>=f&&r.date<=t&&(!flt||r.loc===flt);}).forEach(function(r){var w=W(r.wid),k=r.date+'|'+r.loc,o=m[k]||(m[k]={date:r.date,loc:r.loc,n:0,days:0});o.n++;o.days=r2(o.days+recDays(r,w));});
+return Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return a.date===b.date?(a.loc<b.loc?-1:1):(a.date<b.date?-1:1);});}
+function runAttReport(){var rows=attRepRows(),n=0,d=0;rows.forEach(function(x){n+=x.n;d+=x.days;});d=r2(d);
+LAST_RA={rows:rows,n:n,d:d,from:pg('raFrom').value,to:pg('raTo').value,loc:pg('raFilt').value};
+pg('raTotals').innerHTML=tbox('عدد الأيام',Object.keys(rows.reduce(function(a,x){a[x.date]=1;return a;},{})).length)+tbox('إجمالي العدد',n)+tbox('إجمالي الحضور',d);
+pg('raBody').innerHTML=rows.map(function(x){return '<tr><td>'+fmtDW(x.date)+'</td><td>'+esc(x.loc)+'</td><td>'+x.n+'</td><td>'+x.days+'</td></tr>';}).join('')||'<tr><td colspan="4" class="mut" style="text-align:center">لا توجد سجلات في الفترة</td></tr>';
+pg('raFoot').innerHTML=rows.length?'<th colspan="2">الإجمالي</th><th>'+n+'</th><th>'+d+'</th>':'';}
+function printAttReport(){if(!LAST_RA||!LAST_RA.rows.length)return toast('لا توجد بيانات للطباعة');var r=LAST_RA;
+paper('تقرير الحضور','<h2>تقرير الحضور</h2><div class="meta">من '+fmtD(r.from)+' إلى '+fmtD(r.to)+(r.loc?' — '+esc(r.loc):' — كل الأماكن')+'</div><table><thead><tr><th>التاريخ</th><th>مكان الحضور</th><th>إجمالي العدد</th><th>إجمالي الحضور</th></tr></thead><tbody>'+
+r.rows.map(function(x){return '<tr><td>'+fmtDW(x.date)+'</td><td>'+esc(x.loc)+'</td><td>'+x.n+'</td><td>'+x.days+'</td></tr>';}).join('')+'</tbody><tfoot><tr><th colspan="2">الإجمالي</th><th>'+r.n+'</th><th>'+r.d+'</th></tr></tfoot></table>');}
+/* تقرير الحسابات: لكل تسوية (تاريخها وفترتها) ولكل مكان حضور شملته — إجمالي الصرف */
+function accRepRows(){var f=pg('rcFrom').value,t=pg('rcTo').value,flt=pg('rcFilt').value,S={};
+(PAYROLL||[]).forEach(function(r){if(r.date<f||r.date>t)return;var s=S[r.id]||(S[r.id]={id:r.id,date:r.date,from:r.from,to:r.to,amt:0,locs:{}});s.amt+=Number(r.amount)||0;});
+ATT.forEach(function(r){var s=S[r.settleId];if(!s||!counts(r))return;s.locs[r.loc]=r2((s.locs[r.loc]||0)+(Number(r.paidAmt)||0));});
+var out=[];Object.keys(S).forEach(function(id){var s=S[id],ks=Object.keys(s.locs),per=(s.from?fmtD(s.from):'--')+' → '+fmtD(s.to);
+if(!ks.length){if(!flt)out.push({date:s.date,period:per,loc:'—',total:r2(s.amt)});return;}
+ks.forEach(function(l){if(flt&&l!==flt)return;out.push({date:s.date,period:per,loc:l,total:ks.length===1?r2(s.amt):s.locs[l]});});});
+return out.sort(function(a,b){return a.date===b.date?(a.loc<b.loc?-1:1):(a.date<b.date?1:-1);});}
+function runAccReport(){loadAdj().then(function(){var rows=accRepRows(),tot=gsum(rows,'total');
+LAST_RC={rows:rows,tot:tot,from:pg('rcFrom').value,to:pg('rcTo').value,loc:pg('rcFilt').value};
+pg('rcTotals').innerHTML=tbox('عدد السطور',rows.length)+tbox('الإجمالي',tot);
+pg('rcBody').innerHTML=rows.map(function(x){return '<tr><td>'+fmtDW(x.date)+'</td><td>'+esc(x.period)+'</td><td>'+esc(x.loc)+'</td><td>'+x.total+'</td></tr>';}).join('')||'<tr><td colspan="4" class="mut" style="text-align:center">لا توجد تسويات في الفترة</td></tr>';
+pg('rcFoot').innerHTML=rows.length?'<th colspan="3">الإجمالي</th><th>'+tot+'</th>':'';}).catch(fail);}
+function printAccReport(){if(!LAST_RC||!LAST_RC.rows.length)return toast('لا توجد بيانات للطباعة');var r=LAST_RC;
+paper('تقرير الحسابات','<h2>تقرير الحسابات</h2><div class="meta">من '+fmtD(r.from)+' إلى '+fmtD(r.to)+(r.loc?' — '+esc(r.loc):' — كل الأماكن')+'</div><table><thead><tr><th>تاريخ التسوية</th><th>الفترة</th><th>مكان الحضور</th><th>الإجمالي</th></tr></thead><tbody>'+
+r.rows.map(function(x){return '<tr><td>'+fmtDW(x.date)+'</td><td>'+esc(x.period)+'</td><td>'+esc(x.loc)+'</td><td>'+x.total+'</td></tr>';}).join('')+'</tbody><tfoot><tr><th colspan="3">الإجمالي</th><th>'+r.tot+'</th></tr></tfoot></table>',{total:r.tot});}
 var LAST_RW=null,LAST_RL=null,LAST_RS=null;
 /* مجموع المكافآت والخصومات والضرائب لكل عامل من تسويات متداخلة مع فترة التقرير */
 function adjMap(f,t){var m={};(PAYROLL||[]).forEach(function(r){
