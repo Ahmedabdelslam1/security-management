@@ -87,7 +87,7 @@ function apiMap_() {
     updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
-    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer
+    listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer, setDayOpen: setDayOpen
   };
 }
 
@@ -575,18 +575,46 @@ function migrate_() {
   props.setProperty('MIG_PAIDAMT', '1');
 }
 
-/* فترات التسوية المغلقة (من–إلى): تُغلق فيها كل الأسماء، ولا تدخل التسويات المفتوحة من البداية */
+/* فترات التسوية المغلقة (من–إلى): تُغلق فيها كل الأسماء، ولا تدخل التسويات المفتوحة من البداية.
+ * الأدمن وحده يفتحها للتعديل ويعيد إغلاقها (OPEN_KEYS في خصائص السكريبت: 'من|إلى' للفترة، 'd:تاريخ' ليوم مسوّى خارج أي فترة). */
+function openKeys_() {
+  try { var a = JSON.parse(PropertiesService.getScriptProperties().getProperty('OPEN_KEYS') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
 function periods_() {
-  var seen = {}, out = [];
+  var seen = {}, out = [], open = openKeys_();
   readAll_('Settlements').forEach(function (r) {
     if (!r.from || !r.to || !validDate_(r.from) || !validDate_(r.to)) return;
     var k = r.from + '|' + r.to;
-    if (!seen[k]) { seen[k] = 1; out.push({ from: r.from, to: r.to }); }
+    if (!seen[k]) { seen[k] = 1; out.push({ from: r.from, to: r.to, open: open.indexOf(k) !== -1 }); }
   });
   return out;
 }
-function periodLocked_(date) {
-  return periods_().some(function (p) { return date >= p.from && date <= p.to; });
+function lockKey_(date) {
+  var ps = periods_().filter(function (p) { return date >= p.from && date <= p.to; });
+  return ps.length ? ps[0].from + '|' + ps[0].to : 'd:' + date;
+}
+/* هل اليوم مغلق (فترة تسوية) على هذا المستخدم؟ الأدمن لا يُغلق عليه إلا إذا لم تُفتح الفترة */
+function periodLocked_(date, u) {
+  var open = openKeys_();
+  return periods_().some(function (p) {
+    if (date < p.from || date > p.to) return false;
+    return !(u && u.role === 'admin' && open.indexOf(p.from + '|' + p.to) !== -1);
+  });
+}
+function dayOpenForAdmin_(date, u) {
+  return !!(u && u.role === 'admin' && openKeys_().indexOf(lockKey_(date)) !== -1);
+}
+/* الأدمن فقط: فتح يوم/فترة تسوية للتعديل أو إعادة إغلاقها */
+function setDayOpen(token, date, open) {
+  var u = auth_(token, 'admin');
+  if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
+  return locked_(function () {
+    var key = lockKey_(date), keys = openKeys_().filter(function (k) { return k !== key; });
+    if (open) keys.push(key);
+    PropertiesService.getScriptProperties().setProperty('OPEN_KEYS', JSON.stringify(keys));
+    log_(u.name, open ? 'فتح يوم مسوّى للتعديل' : 'إغلاق يوم مسوّى', 'الحضور', key.replace('d:', ''));
+    return { key: key, open: !!open };
+  });
 }
 
 function bootstrap(token) {
@@ -603,7 +631,7 @@ function bootstrap(token) {
   var att = readAll_('Attendance').map(function (r) {
     return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) };
   });
-  var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att), rev: rv, periods: periods_() };
+  var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att), rev: rv, periods: periods_(), openDays: openKeys_().filter(function (k) { return k.indexOf('d:') === 0; }).map(function (k) { return k.slice(2); }) };
   if (u.role === 'admin') out.users = readAll_('Users').map(publicUser_);
   cacheBigPut_(ck, JSON.stringify(out), 900);
   return out;
@@ -627,14 +655,16 @@ function saveDay(token, date, recs, partial) {
     readAll_('Workers').forEach(function (w) { workers[w.id] = w; });
     /* الأيام المسوّاة مغلقة: لا تُعدَّل ولا تُحذف، وتبقى كما سُجّلت وقت التسوية */
     var existing = readAll_('Attendance'), closed = {};
-    if (periodLocked_(date)) {   /* يوم داخل فترة تسوية تمت: مغلق لكل الأسماء */
+    var adminOpen = dayOpenForAdmin_(date, u);
+    if (periodLocked_(date, u)) {   /* يوم داخل فترة تسوية تمت: مغلق (الأدمن يفتحه للتعديل) */
       var names = [];
       recs.forEach(function (r) { var w = workers[String(r.wid)]; if (w) names.push(w.name); });
       log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' — محاولة تعديل يوم داخل فترة تسوية مغلقة');
       return { att: existing.filter(function (r) { return r.date === date; }).map(function (r) { return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) }; }), locs: allLocs_(existing), locked: names.length ? names : ['اليوم مغلق (فترة تسوية)'] };
     }
     existing.forEach(function (r) { if (r.date === date && r.settleId) closed[r.wid] = r; });
-    var fresh = [], seen = {}, blocked = [], touched = {};
+    var editedSettled = [];
+    var fresh = [], seen = {}, blocked = [], touched = {}, touchedSettled = {};
     recs.forEach(function (r) {
       var w = workers[String(r.wid)];
       if (!w || seen[w.id]) return;
@@ -644,6 +674,17 @@ function saveDay(token, date, recs, partial) {
       seen[w.id] = 1;
       var extra = EXTRA_STATUSES.indexOf(r.status) !== -1 || r.status === HOURS_STATUS; /* خانة الساعات: إضافي أو عدد ساعات الحضور */
       var c = closed[w.id];
+      if (c && adminOpen) {   /* الأدمن فتح اليوم: يُعدَّل السجل المسوّى ويبقى مرتبطًا بالتسوية فتُصرف/تُسترد الفروق في التسوية التالية */
+        editedSettled.push(w.name);
+        fresh.push({
+          date: date, wid: w.id, name: w.name, status: r.status, loc: clip_(r.loc, 80),
+          wage: num_(r.wage) > 0 ? num_(r.wage) : num_(c.wage), xh: extra ? Math.max(0, num_(r.xh)) : 0, notes: clip_(r.notes, 300),
+          settleId: c.settleId, paidAmt: c.paidAmt
+        });
+        delete closed[w.id];
+        touchedSettled[w.id] = 1;
+        return;
+      }
       if (c) {
         var same = c.status === r.status && String(c.loc) === clip_(r.loc, 80) &&
           num_(c.xh) === (extra ? Math.max(0, num_(r.xh)) : 0) && String(c.notes) === clip_(r.notes, 300) &&
@@ -657,13 +698,13 @@ function saveDay(token, date, recs, partial) {
         settleId: '', paidAmt: ''
       });
     });
-    var all = existing.filter(function (r) { return r.date !== date || r.settleId || (partial && !touched[r.wid]); }).concat(fresh);
+    var all = existing.filter(function (r) { return r.date !== date || (r.settleId && !touchedSettled[r.wid]) || (partial && !touched[r.wid]); }).concat(fresh);
     writeAll_('Attendance', all);
     var known = readAll_('Locations').map(function (x) { return x.name; });
     var add = [];
     fresh.forEach(function (r) { if (r.loc && known.indexOf(r.loc) === -1 && add.indexOf(r.loc) === -1) add.push(r.loc); });
     if (add.length) writeAll_('Locations', known.concat(add).map(function (n) { return { name: n }; }));
-    log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' (' + fresh.length + ')' + (blocked.length ? ' — محاولة تعديل أيام مغلقة: ' + blocked.join('، ') : ''));
+    log_(u.name, 'حفظ يوم حضور', 'الحضور', date + ' (' + fresh.length + ')' + (editedSettled.length ? ' — تعديل أيام مسوّاة (أدمن): ' + editedSettled.join('، ') : '') + (blocked.length ? ' — محاولة تعديل أيام مغلقة: ' + blocked.join('، ') : ''));
     var att = all.filter(function (r) { return r.date === date; }).map(function (r) { return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) }; });
     return { att: att, locs: allLocs_(readAll_('Attendance')), locked: blocked };
   });
