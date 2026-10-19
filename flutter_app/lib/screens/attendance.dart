@@ -108,6 +108,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
+    if (App.I.periodLocked(_dstr)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.orange.shade800, content: Text('يوم ${fmtDate(_dstr)} داخل فترة تسوية تمت — مغلق لكل الأسماء ولا يمكن تعديله')));
+      return;
+    }
     // الحفظ الجزئي: يُرسل فقط العمال الذين تغيّر موقفهم هنا، فلا تُمحى تسجيلات الويب أو الأجهزة الأخرى
     final php = await App.I.legacySrv(); // سيرفر قديم/PHP: يُرسل اليوم كاملًا (لا يعرف الحفظ الجزئي)
     final recs = <Map<String, dynamic>>[];
@@ -429,7 +433,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final cs = Theme.of(context).colorScheme;
     final isExtra = usesXh(c.status);
     final active = c.status != '--';
-    final isSettled = App.I.att.any((r) => r.date == _dstr && r.wid == w.id && r.settleId.isNotEmpty);
+    final isSettled = App.I.periodLocked(_dstr) || App.I.att.any((r) => r.date == _dstr && r.wid == w.id && r.settleId.isNotEmpty);
     final col = _palette[w.id.hashCode.abs() % _palette.length];
 
     return GlowCard(

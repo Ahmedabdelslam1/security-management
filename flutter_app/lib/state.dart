@@ -24,6 +24,9 @@ class App extends ChangeNotifier {
   /// كل أماكن الحضور: المسجلة سابقًا + الثابتة للعاملين
   List<String> get allLocs => <String>{...locs, ...workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
 
+  /// اليوم داخل فترة تسوية تمت: مغلق لكل الأسماء
+  bool periodLocked(String date) => (data?.periods ?? const []).any((p) => p[0].isNotEmpty && date.compareTo(p[0]) >= 0 && date.compareTo(p[1]) <= 0);
+
   Worker worker(String id) => workers.firstWhere((w) => w.id == id, orElse: () => Worker(id: id, name: '؟', card: '', phone: '', wage: 0, hours: 8, lastSet: '', hasCard: false, hasPhoto: false));
 
   bool sessionExpired = false;
@@ -116,7 +119,7 @@ class App extends ChangeNotifier {
   // تحديث قائمة المستخدمين بعد أي تعديل إداري (السيرفر يرجع القائمة الجديدة)
   void updateUsers(List<AppUser> us) {
     if (data != null) {
-      data = BootData(user: data!.user, workers: data!.workers, att: data!.att, locs: data!.locs, users: us);
+      data = BootData(user: data!.user, workers: data!.workers, att: data!.att, locs: data!.locs, users: us, periods: data!.periods);
       notifyListeners();
     }
   }

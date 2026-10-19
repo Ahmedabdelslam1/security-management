@@ -8,6 +8,7 @@ import '../pdf_export.dart';
 import '../models.dart';
 import '../state.dart';
 import '../widgets.dart';
+import 'reports_extra.dart';
 
 // ===== التفقيط: تحويل المبلغ لكلمات بالجنيه والقروش (مثل الويب) =====
 String _three(int x) {
@@ -337,6 +338,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final all = App.I.workers;
     if (_wid == null && all.isNotEmpty) _wid = all.first.id;
     if (_loc == null && App.I.locs.isNotEmpty) _loc = App.I.locs.first;
+    // أول بند مسموح للمستخدم
+    final allowed = [for (var i = 1; i <= 6; i++) if (App.I.user?.can('rep$i') ?? false) i];
+    if (allowed.isNotEmpty && !allowed.contains(_sub)) _sub = allowed.first;
 
     return Column(
       children: [
@@ -346,23 +350,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
           elevation: 1,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-            child: SegmentedButton<int>(
-              style: const ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6, vertical: 0)),
-              ),
-              segments: const [
-                ButtonSegment(value: 1, label: Text('حسب العامل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 2, label: Text('حسب المكان', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 3, label: Text('مجمع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-                ButtonSegment(value: 4, label: Text('خطاب اعتماد', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-              ],
-              selected: {_sub},
-              onSelectionChanged: (s) => setState(() => _sub = s.first),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                for (final t in const [(1, 'حسب العامل'), (2, 'حسب المكان'), (3, 'مجمع'), (4, 'خطاب اعتماد'), (5, 'تقرير الحضور'), (6, 'تقرير الحسابات')])
+                  if (App.I.user?.can('rep${t.$1}') ?? false)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: ChoiceChip(
+                        label: Text(t.$2, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                        selected: _sub == t.$1,
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) => setState(() => _sub = t.$1),
+                      ),
+                    ),
+              ]),
             ),
           ),
         ),
-        Expanded(child: _sub == 1 ? _workerTab(all) : _sub == 2 ? _locTab() : _sub == 3 ? _summaryTab() : _letterTab()),
+        Expanded(child: _sub == 1 ? _workerTab(all) : _sub == 2 ? _locTab() : _sub == 3 ? _summaryTab() : _sub == 4 ? _letterTab() : _sub == 5 ? const AttendanceReportTab() : const AccountsReportTab()),
       ],
     );
   }

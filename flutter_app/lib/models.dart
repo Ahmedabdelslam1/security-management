@@ -103,13 +103,15 @@ class BootData {
   final List<AttRec> att;
   final List<String> locs;
   final List<AppUser> users;
-  BootData({required this.user, required this.workers, required this.att, required this.locs, required this.users});
+  final List<List<String>> periods; // فترات التسوية المغلقة [من، إلى]
+  BootData({required this.user, required this.workers, required this.att, required this.locs, required this.users, this.periods = const []});
   factory BootData.fromJson(Map j) => BootData(
         user: AppUser.fromJson(j['user']),
         workers: ((j['workers'] ?? []) as List).map((w) => Worker.fromJson(w as Map)).toList(),
         att: ((j['att'] ?? []) as List).map((r) => AttRec.fromJson(r as Map)).toList(),
         locs: ((j['locs'] ?? []) as List).map((l) => l.toString()).toList(),
         users: ((j['users'] ?? []) as List).map((u) => AppUser.fromJson(u as Map)).toList(),
+        periods: ((j['periods'] ?? []) as List).map((p) => ['${(p as Map)['from'] ?? ''}', '${p['to'] ?? ''}']).toList(),
       );
 }
 
