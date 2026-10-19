@@ -32,7 +32,7 @@ class Api {
 
   // رابط السيرفر الافتراضي (Google Apps Script)
   static const String defaultUrl =
-      'https://script.google.com/macros/s/AKfycbz5ISJT-vROTmczOi8HdFBvwSXiUZ3mMGzHJBfv732cumsONfMsu-yK_5-NuOzByHQu/exec';
+      'https://script.google.com/macros/s/AKfycbyuuuvOsx9ttlnAzPSUCeAksqDmRl4qkHn32Cnpoe33YhLG4x3A7KCk0er9DjGW5OqW/exec';
 
   static Future<String?> getUrl() async {
     if (_url != null) return _url;
@@ -203,17 +203,20 @@ class Api {
 
   static Future<bool> _autoSelect() async {
     final stored = (await getUrl()) ?? defaultUrl;
-    final cands = <String>[stored];
+    // الأولوية: أحدث رابط منشور (السجل على GitHub) ← الافتراضي ← المحفوظ؛ أول رابط يردّ بسكربت محدّث يُعتمد
+    final cands = <String>[];
     try {
       final r = await _shared
           .get(Uri.parse('$registryUrl?t=${DateTime.now().millisecondsSinceEpoch}'))
           .timeout(const Duration(seconds: 6));
       if (r.statusCode == 200) {
         final u = normalizeUrl('${(jsonDecode(utf8.decode(r.bodyBytes)) as Map)['url'] ?? ''}');
-        if (u.startsWith('http') && !cands.contains(u)) cands.add(u);
+        if (u.startsWith('http')) cands.add(u);
       }
     } catch (_) {}
-    if (!cands.contains(defaultUrl)) cands.add(defaultUrl);
+    for (final u in [defaultUrl, stored]) {
+      if (!cands.contains(u)) cands.add(u);
+    }
     final res = await Future.wait(cands.map(probe));
     for (var i = 0; i < cands.length; i++) {
       if (res[i] == 4) {
