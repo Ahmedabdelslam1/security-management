@@ -279,13 +279,13 @@ class _AccState extends State<AccountsReportTab> {
           ),
           _bar('إجمالي $bs • إضافي $ot • مكافآت $bn • الإجمالي $tot ج', rows.isEmpty ? null : () => exportTablePdf(
                 context: context,
-                title: 'تقرير الحسابات',
+                title: 'تسوية',
                 subtitle: 'من ${fmtDate(_ds(_from))} إلى ${fmtDate(_ds(_to))}${_loc.isEmpty ? '' : ' — $_loc'}',
-                headers: ['تاريخ التسوية', 'الفترة', 'مكان الحضور', 'إجمالي', 'إضافي', 'مكافآت', 'الإجمالي'],
-                widths: [1.5, 2.5, 2.2, 1.2, 1.1, 1.1, 1.3],
+                headers: ['الفترة', 'مكان الحضور', 'إجمالي', 'إضافي', 'مكافآت', 'الإجمالي'],
+                widths: [1.7, 3.3, 1.3, 1.2, 1.1, 1.4],
                 landscape: true,
-                rows: [for (final x in rows) [fmtDate(x.date), x.period, x.loc, x.base.toStringAsFixed(2), x.ot.toStringAsFixed(2), x.bonus.toStringAsFixed(2), x.total.toStringAsFixed(2)]],
-                totalsRow: ['الإجمالي', '', '', bs.toStringAsFixed(2), ot.toStringAsFixed(2), bn.toStringAsFixed(2), tot.toStringAsFixed(2)],
+                rows: [for (final x in rows) [x.period, x.loc, x.base.toStringAsFixed(2), x.ot.toStringAsFixed(2), x.bonus.toStringAsFixed(2), x.total.toStringAsFixed(2)]],
+                totalsRow: ['الإجمالي', '', bs.toStringAsFixed(2), ot.toStringAsFixed(2), bn.toStringAsFixed(2), tot.toStringAsFixed(2)],
                 total: tot.toStringAsFixed(2),
               )),
           Expanded(
