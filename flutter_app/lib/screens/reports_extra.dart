@@ -171,8 +171,8 @@ class AccountsReportTab extends StatefulWidget {
 
 class _Acc {
   final String date, period, loc;
-  final double ot, bonus, total;
-  _Acc(this.date, this.period, this.loc, this.ot, this.bonus, this.total);
+  final double base, ot, bonus, total;
+  _Acc(this.date, this.period, this.loc, this.base, this.ot, this.bonus, this.total);
 }
 
 class _AccState extends State<AccountsReportTab> {
@@ -227,14 +227,14 @@ class _AccState extends State<AccountsReportTab> {
       final m = s['locs'] as Map<String, double>;
       final per = '${(s['from'] as String).isEmpty ? '--' : fmtDate(s['from'])} ← ${fmtDate(s['to'])}';
       if (m.isEmpty) {
-        if (_loc.isEmpty) out.add(_Acc(s['date'], per, '—', r2(s['ot']), r2(s['b']), r2(s['amt'])));
+        if (_loc.isEmpty) out.add(_Acc(s['date'], per, '—', r2(s['amt'] - s['ot']), r2(s['ot']), r2(s['b']), r2(s['amt'] + s['b'])));
         continue;
       }
       final sum = m.values.fold<double>(0, (a, b) => a + b);
       for (final e in m.entries) {
         if (_loc.isNotEmpty && e.key != _loc) continue;
         final sh = m.length == 1 ? 1.0 : (sum == 0 ? 0.0 : e.value / sum);
-        out.add(_Acc(s['date'], per, e.key, r2((s['ot'] as double) * sh), r2((s['b'] as double) * sh), r2((s['amt'] as double) * sh)));
+        out.add(_Acc(s['date'], per, e.key, r2(((s['amt'] as double) - (s['ot'] as double)) * sh), r2((s['ot'] as double) * sh), r2((s['b'] as double) * sh), r2(((s['amt'] as double) + (s['b'] as double)) * sh)));
       }
     }
     out.sort((a, b) => a.date == b.date ? a.loc.compareTo(b.loc) : b.date.compareTo(a.date));
@@ -247,6 +247,7 @@ class _AccState extends State<AccountsReportTab> {
       listenable: App.I,
       builder: (_, __) {
         final rows = _rows();
+        final bs = r2(rows.fold<double>(0, (s, x) => s + x.base));
         final ot = r2(rows.fold<double>(0, (s, x) => s + x.ot));
         final bn = r2(rows.fold<double>(0, (s, x) => s + x.bonus));
         final tot = r2(rows.fold<double>(0, (s, x) => s + x.total));
@@ -268,15 +269,15 @@ class _AccState extends State<AccountsReportTab> {
               ]),
             ),
           ),
-          _bar('إضافي $ot • مكافآت $bn • الإجمالي $tot ج', rows.isEmpty ? null : () => exportTablePdf(
+          _bar('إجمالي $bs • إضافي $ot • مكافآت $bn • الإجمالي $tot ج', rows.isEmpty ? null : () => exportTablePdf(
                 context: context,
                 title: 'تقرير الحسابات',
                 subtitle: 'من ${fmtDate(_ds(_from))} إلى ${fmtDate(_ds(_to))}${_loc.isEmpty ? '' : ' — $_loc'}',
-                headers: ['تاريخ التسوية', 'الفترة', 'مكان الحضور', 'إجمالي الإضافي', 'المكافآت', 'الإجمالي'],
-                widths: [1.5, 2.6, 2.4, 1.3, 1.2, 1.4],
+                headers: ['تاريخ التسوية', 'الفترة', 'مكان الحضور', 'إجمالي', 'إضافي', 'مكافآت', 'الإجمالي'],
+                widths: [1.5, 2.5, 2.2, 1.2, 1.1, 1.1, 1.3],
                 landscape: true,
-                rows: [for (final x in rows) [fmtDate(x.date), x.period, x.loc, x.ot.toStringAsFixed(2), x.bonus.toStringAsFixed(2), x.total.toStringAsFixed(2)]],
-                totalsRow: ['الإجمالي', '', '', ot.toStringAsFixed(2), bn.toStringAsFixed(2), tot.toStringAsFixed(2)],
+                rows: [for (final x in rows) [fmtDate(x.date), x.period, x.loc, x.base.toStringAsFixed(2), x.ot.toStringAsFixed(2), x.bonus.toStringAsFixed(2), x.total.toStringAsFixed(2)]],
+                totalsRow: ['الإجمالي', '', '', bs.toStringAsFixed(2), ot.toStringAsFixed(2), bn.toStringAsFixed(2), tot.toStringAsFixed(2)],
                 total: tot.toStringAsFixed(2),
               )),
           Expanded(
@@ -295,7 +296,7 @@ class _AccState extends State<AccountsReportTab> {
                               child: ListTile(
                                 dense: true,
                                 title: Text(rows[i].loc, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
-                                subtitle: Text('تسوية ${fmtDate(rows[i].date)}\nالفترة: ${rows[i].period}\nإضافي ${rows[i].ot} • مكافآت ${rows[i].bonus}', style: const TextStyle(fontSize: 12)),
+                                subtitle: Text('تسوية ${fmtDate(rows[i].date)}\nالفترة: ${rows[i].period}\nإجمالي ${rows[i].base} • إضافي ${rows[i].ot} • مكافآت ${rows[i].bonus}', style: const TextStyle(fontSize: 12)),
                                 isThreeLine: true,
                                 trailing: Text('${rows[i].total} ج', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF15803D))),
                               ),
