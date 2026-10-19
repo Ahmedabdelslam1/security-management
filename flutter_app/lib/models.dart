@@ -103,7 +103,7 @@ class BootData {
   final List<AttRec> att;
   final List<String> locs;
   final List<AppUser> users;
-  final List<List<String>> periods; // فترات التسوية [من، إلى، مفتوحة('1'/'0')]
+  final List<List<String>> periods; // التسويات [من، إلى، مفتوحة، مقفلة(لها تاريخ بداية)]
   final List<String> openDays; // أيام مسوّاة مفتوحة للتعديل (خارج الفترات)
   BootData({required this.user, required this.workers, required this.att, required this.locs, required this.users, this.periods = const [], this.openDays = const []});
   factory BootData.fromJson(Map j) => BootData(
@@ -112,7 +112,7 @@ class BootData {
         att: ((j['att'] ?? []) as List).map((r) => AttRec.fromJson(r as Map)).toList(),
         locs: ((j['locs'] ?? []) as List).map((l) => l.toString()).toList(),
         users: ((j['users'] ?? []) as List).map((u) => AppUser.fromJson(u as Map)).toList(),
-        periods: ((j['periods'] ?? []) as List).map((p) => ['${(p as Map)['from'] ?? ''}', '${p['to'] ?? ''}', p['open'] == true ? '1' : '0']).toList(),
+        periods: ((j['periods'] ?? []) as List).map((p) => ['${(p as Map)['from'] ?? ''}', '${p['to'] ?? ''}', p['open'] == true ? '1' : '0', p['lock'] == true ? '1' : '0']).toList(),
         openDays: ((j['openDays'] ?? []) as List).map((d) => d.toString()).toList(),
       );
 }

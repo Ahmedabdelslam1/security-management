@@ -20,7 +20,7 @@ class _SettlementScreenState extends State<SettlementScreen> {
     await showDialog(
       context: context,
       builder: (dc) => StatefulBuilder(builder: (dc, setS) {
-        final ps = [...(App.I.data?.periods ?? const <List<String>>[])]..sort((a, b) => b[0].compareTo(a[0]));
+        final ps = [...(App.I.data?.periods ?? const <List<String>>[])]..sort((a, b) => b[1] == a[1] ? b[0].compareTo(a[0]) : b[1].compareTo(a[1]));
         return AlertDialog(
           title: const Text('فتح / إغلاق تعديل التسويات'),
           content: SizedBox(
@@ -28,17 +28,17 @@ class _SettlementScreenState extends State<SettlementScreen> {
             child: ps.isEmpty
                 ? const Text('لا توجد فترات تسوية')
                 : ListView(shrinkWrap: true, children: [
-                    const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('الفترة المفتوحة يعدّل فيها الأدمن فقط. أغلقها بعد التعديل.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                    const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('افتح أي تسوية سابقة لتعديل أيامها (الأدمن فقط) ثم أغلقها بعد الانتهاء.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
                     for (final p in ps)
                       ListTile(
                         dense: true,
-                        title: Text('${fmtDate(p[0])} ← ${fmtDate(p[1])}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        title: Text('${p[0].isEmpty ? 'من البداية' : fmtDate(p[0])} ← ${fmtDate(p[1])}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                         subtitle: Text(p[2] == '1' ? 'مفتوحة للتعديل' : 'مغلقة'),
                         trailing: FilledButton(
                           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
                           onPressed: () async {
                             try {
-                              await Api.auth('setDayOpen', [p[0], p[2] != '1']);
+                              await Api.auth('setDayOpen', ['${p[0].isEmpty ? '0000-00-00' : p[0]}|${p[1]}', p[2] != '1']);
                               await App.I.bootstrap(silent: true);
                               setS(() {});
                             } catch (e) {

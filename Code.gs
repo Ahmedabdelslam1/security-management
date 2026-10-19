@@ -583,36 +583,43 @@ function openKeys_() {
 function periods_() {
   var seen = {}, out = [], open = openKeys_();
   readAll_('Settlements').forEach(function (r) {
-    if (!r.from || !r.to || !validDate_(r.from) || !validDate_(r.to)) return;
-    var k = r.from + '|' + r.to;
-    if (!seen[k]) { seen[k] = 1; out.push({ from: r.from, to: r.to, open: open.indexOf(k) !== -1 }); }
+    if (!r.to || !validDate_(r.to) || (r.from && !validDate_(r.from))) return;
+    var k = (r.from || '0000-00-00') + '|' + r.to;
+    if (!seen[k]) { seen[k] = 1; out.push({ from: r.from || '', to: r.to, open: open.indexOf(k) !== -1, lock: !!r.from }); }
   });
   return out;
 }
-function lockKey_(date) {
-  var ps = periods_().filter(function (p) { return date >= p.from && date <= p.to; });
-  return ps.length ? ps[0].from + '|' + ps[0].to : 'd:' + date;
+function keyCovers_(k, date) {
+  if (k.indexOf('d:') === 0) return k.slice(2) === date;
+  var p = k.split('|');
+  return p.length === 2 && date >= p[0] && date <= p[1];
 }
-/* هل اليوم مغلق (فترة تسوية) على هذا المستخدم؟ الأدمن لا يُغلق عليه إلا إذا لم تُفتح الفترة */
+/* هل اليوم مغلق (فترة تسوية بتاريخ بداية) على هذا المستخدم؟ الأدمن لا يُغلق عليه إلا إذا لم تُفتح الفترة */
 function periodLocked_(date, u) {
-  var open = openKeys_();
+  var open = openKeys_(), admin = !!(u && u.role === 'admin');
   return periods_().some(function (p) {
-    if (date < p.from || date > p.to) return false;
-    return !(u && u.role === 'admin' && open.indexOf(p.from + '|' + p.to) !== -1);
+    if (!p.lock || date < p.from || date > p.to) return false;
+    return !(admin && open.indexOf(p.from + '|' + p.to) !== -1);
   });
 }
+/* الأدمن فتح تسوية/يومًا تغطي هذا التاريخ (فتح التعديل على أيام سبقت تسويتها) */
 function dayOpenForAdmin_(date, u) {
-  return !!(u && u.role === 'admin' && openKeys_().indexOf(lockKey_(date)) !== -1);
+  if (!(u && u.role === 'admin')) return false;
+  return openKeys_().some(function (k) { return keyCovers_(k, date); });
 }
-/* الأدمن فقط: فتح يوم/فترة تسوية للتعديل أو إعادة إغلاقها */
-function setDayOpen(token, date, open) {
+/* الأدمن فقط: فتح تسوية للتعديل أو إعادة إغلاقها. key = 'من|إلى' (من البداية: 0000-00-00) */
+function setDayOpen(token, key, open) {
   var u = auth_(token, 'admin');
-  if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
+  key = String(key || '');
+  if (!/^(\d{4}-\d{2}-\d{2})\|(\d{4}-\d{2}-\d{2})$/.test(key)) {
+    if (!validDate_(key)) throw new Error('تسوية غير صحيحة');
+    key = 'd:' + key;
+  }
   return locked_(function () {
-    var key = lockKey_(date), keys = openKeys_().filter(function (k) { return k !== key; });
+    var keys = openKeys_().filter(function (k) { return k !== key; });
     if (open) keys.push(key);
     PropertiesService.getScriptProperties().setProperty('OPEN_KEYS', JSON.stringify(keys));
-    log_(u.name, open ? 'فتح يوم مسوّى للتعديل' : 'إغلاق يوم مسوّى', 'الحضور', key.replace('d:', ''));
+    log_(u.name, open ? 'فتح تسوية للتعديل' : 'إغلاق تسوية', 'التسوية', key.replace('0000-00-00', 'البداية').replace('|', ' ← '));
     return { key: key, open: !!open };
   });
 }

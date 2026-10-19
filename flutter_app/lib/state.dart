@@ -25,27 +25,19 @@ class App extends ChangeNotifier {
   List<String> get allLocs => <String>{...locs, ...workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
 
   /// اليوم داخل فترة تسوية تمت: مغلق لكل الأسماء
-  List<String>? periodOf(String date) {
-    for (final p in data?.periods ?? const <List<String>>[]) {
-      if (p[0].isNotEmpty && date.compareTo(p[0]) >= 0 && date.compareTo(p[1]) <= 0) return p;
-    }
-    return null;
-  }
+  List<List<String>> periodsFor(String date) => [
+        for (final p in data?.periods ?? const <List<String>>[])
+          if ((p[0].isEmpty ? '0000-00-00' : p[0]).compareTo(date) <= 0 && date.compareTo(p[1]) <= 0) p
+      ];
 
   bool get _admin => data?.user.isAdmin ?? false;
-  /// الأدمن وحده يفتح الفترة للتعديل
-  bool periodLocked(String date) {
-    final p = periodOf(date);
-    return p != null && !(_admin && p[2] == '1');
-  }
+  /// يوم داخل فترة تسوية (بتاريخ بداية): مغلق، والأدمن وحده يفتحها
+  bool periodLocked(String date) => periodsFor(date).any((p) => p[3] == '1' && !(_admin && p[2] == '1'));
 
-  bool dayOpen(String date) {
-    if (!_admin) return false;
-    final p = periodOf(date);
-    return p != null ? p[2] == '1' : (data?.openDays ?? const []).contains(date);
-  }
+  /// الأدمن فتح تسوية تغطي هذا اليوم
+  bool dayOpen(String date) => _admin && (periodsFor(date).any((p) => p[2] == '1') || (data?.openDays ?? const []).contains(date));
 
-  bool dayHasSettled(String date) => periodOf(date) != null || att.any((r) => r.date == date && r.settleId.isNotEmpty);
+  bool dayHasSettled(String date) => periodsFor(date).isNotEmpty || att.any((r) => r.date == date && r.settleId.isNotEmpty);
 
   Worker worker(String id) => workers.firstWhere((w) => w.id == id, orElse: () => Worker(id: id, name: '؟', card: '', phone: '', wage: 0, hours: 8, lastSet: '', hasCard: false, hasPhoto: false));
 
