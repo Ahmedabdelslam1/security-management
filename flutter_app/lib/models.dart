@@ -7,7 +7,14 @@ class AppUser {
   final Map<String, dynamic> perms;
   AppUser({required this.name, required this.username, required this.role, required this.status, required this.perms});
   bool get isAdmin => role == 'admin';
-  bool can(String p) => isAdmin || (perms[p] == 1 || perms[p] == true);
+  bool can(String p) {
+    if (isAdmin) return true;
+    bool on(String k) => perms[k] == 1 || perms[k] == true;
+    // صلاحيات قديمة بلا v2: التسوية ضمن الحضور
+    if (p == 'settlement' && !on('v2')) return on('settlement') || on('attendance');
+    if (p.startsWith('rep') && p.length == 4 && !on('v2')) return on(p) || on('reports');
+    return on(p);
+  }
   factory AppUser.fromJson(Map j) => AppUser(
         name: j['name'] ?? '',
         username: j['username'] ?? '',

@@ -18,6 +18,14 @@ class SessionExpired implements Exception {
 class Api {
   static final http.Client _shared = http.Client(); // اتصال دائم لتسريع كل الطلبات
   static String? _url;
+  static String myIp = ''; // IP الجهاز العام (يظهر للمدير في شاشة المتابعة)
+  static Future<void> fetchIp() async {
+    if (myIp.isNotEmpty) return;
+    try {
+      final r = await _shared.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 5));
+      if (r.statusCode == 200) myIp = r.body.trim();
+    } catch (_) {}
+  }
   static String? _token;
   static const _kUrl = 'gas_url_v2';
   static const _kTok = 'gas_token';

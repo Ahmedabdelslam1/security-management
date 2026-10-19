@@ -181,7 +181,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     final tabs = <_Tab>[
       const _Tab('home', 'الرئيسية', Icons.home),
       if (u.can('attendance')) const _Tab('attendance', 'الحضور', Icons.checklist),
-      if (u.can('attendance')) const _Tab('settlement', 'التسوية', Icons.payments_outlined),
+      if (u.can('settlement')) const _Tab('settlement', 'التسوية', Icons.payments_outlined),
       if (u.can('workers')) const _Tab('workers', 'العاملين', Icons.groups_outlined),
       if (u.can('reports')) const _Tab('reports', 'التقارير', Icons.bar_chart),
       if (u.can('gate')) const _Tab('gate', 'دفتر البوابة', Icons.door_front_door),

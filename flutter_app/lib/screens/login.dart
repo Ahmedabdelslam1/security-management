@@ -36,7 +36,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await Api.getUrl();
       try { await Api.autoSelect().timeout(const Duration(seconds: 10)); } catch (_) {}
-      final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text, 'android']);
+      await Api.fetchIp();
+      final r = await Api.call('login', [_u.text.trim().toLowerCase(), _p.text, 'android', Api.myIp]);
       await Api.saveToken((r as Map)['token'] as String);
       await App.I.bootstrap();
       if (!mounted) return;

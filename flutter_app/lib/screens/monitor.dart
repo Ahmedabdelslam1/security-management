@@ -17,6 +17,24 @@ class _MonitorScreenState extends State<MonitorScreen> {
   // سجل الإجراءات: التعديل والإضافة والحذف فقط
   static final _editRe = RegExp('تعديل|إضافة|اضافة|حذف|حفظ|تسوية|تسجيل دخول بوابة|فتح صفحة|^دخول\$|^خروج\$');
   bool _isEdit(String a) => _editRe.hasMatch(a);
+  static List _onDev(dynamic u) {
+    final ds = (u['devices'] as List?) ?? const [];
+    final on = ds.where((d) => d['online'] == true).toList();
+    return on.isNotEmpty ? on : (ds.isNotEmpty ? [ds.first] : const []);
+  }
+
+  // المنصة: لو فُتح الحساب من الويب والأندرويد معًا يظهران معًا
+  static String _devs(dynamic u) {
+    final d = _onDev(u);
+    return d.isEmpty ? _plat(u['platform']) : d.map((x) => _plat(x['plat'])).join(' + ');
+  }
+
+  static String _ips(dynamic u) {
+    final d = _onDev(u);
+    if (d.isEmpty) return '';
+    return '\nIP: ' + d.map((x) => '${d.length > 1 ? _plat(x['plat']) + ' ' : ''}${(x['ip'] ?? '') == '' ? '--' : x['ip']}').join(' • ');
+  }
+
   static String _plat(dynamic p) => p == 'android' ? '📱 أندرويد' : (p == 'web' ? '🌐 ويب' : '--');
 
   void _pdf() {
@@ -38,7 +56,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
       );
     } else {
       final us = (_data!['users'] as List? ?? []).map((x) => x as Map).toList();
-      final rows = [for (final u in us) ['${u['name'] ?? ''}', '${u['username'] ?? ''}', u['online'] == true ? 'متصل الآن' : 'غير متصل', _plat(u['platform']), '${u['curPage'] ?? ''}']];
+      final rows = [for (final u in us) ['${u['name'] ?? ''}', '${u['username'] ?? ''}', u['online'] == true ? 'متصل الآن' : 'غير متصل', _devs(u), '${u['curPage'] ?? ''}']];
       exportTablePdf(
         context: context,
         title: 'حالة المستخدمين',
@@ -188,7 +206,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                     subtitle: Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
-                                        '${_plat(u['platform'])} • الشاشة الحالية: ${(u['curPage'] ?? '') == '' ? '--' : u['curPage']}\nآخر دخول: ${u['lastLogin'] ?? '--'}\nآخر تعديل: ${(u['lastEdit'] ?? '') == '' ? '--' : u['lastEdit']}',
+                                        '${_devs(u)} • الشاشة الحالية: ${(u['curPage'] ?? '') == '' ? '--' : u['curPage']}${_ips(u)}${(u['email'] ?? '') == '' ? '' : '\nالإيميل: ${u['email']}'}\nآخر دخول: ${u['lastLogin'] ?? '--'}\nآخر تعديل: ${(u['lastEdit'] ?? '') == '' ? '--' : u['lastEdit']}',
                                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                                       ),
                                     ),

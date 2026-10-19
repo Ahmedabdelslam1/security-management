@@ -129,22 +129,21 @@ class _UsersScreenState extends State<UsersScreen> {
     if (ok != true) return;
     await _run(
       () => Api.auth('addUser', [
-        name.text.trim(), user.text.trim().toLowerCase(), pass.text, perms, isAdmin
+        name.text.trim(), user.text.trim().toLowerCase(), pass.text, {...perms, 'v2': true}, isAdmin
       ]),
       'تمت الإضافة',
     );
   }
 
-  static const _permDefs = [('workers', 'العاملين'), ('attendance', 'الحضور'), ('reports', 'التقارير'), ('gate', 'دفتر البوابة')];
+  static const _permDefs = [
+    ('attendance', 'الحضور'), ('settlement', 'التسوية'), ('workers', 'العاملين'), ('gate', 'دفتر البوابة'),
+    ('procs', 'الإجراءات اليومية'), ('monitor', 'المتابعة'), ('reports', 'التقارير'),
+    ('rep1', 'تقرير: حسب العامل'), ('rep2', 'تقرير: حسب مكان الحضور'), ('rep3', 'تقرير: مجمع'),
+    ('rep4', 'تقرير: خطاب الاعتماد'), ('rep5', 'تقرير: الحضور'), ('rep6', 'تقرير: الحسابات'),
+  ];
 
   Future<void> _perms(AppUser u) async {
-    final Map<String, bool> perms = {
-      'workers': u.perms['workers'] == 1 || u.perms['workers'] == true,
-      'attendance': u.perms['attendance'] == 1 || u.perms['attendance'] == true,
-      'reports': u.perms['reports'] == 1 || u.perms['reports'] == true,
-      'gate': u.perms['gate'] == 1 || u.perms['gate'] == true,
-      'procs': u.perms['procs'] == 1 || u.perms['procs'] == true,
-    };
+    final Map<String, bool> perms = {for (final p in _permDefs) p.$1: u.can(p.$1)};
     final ok = await showModalBottomSheet<bool>(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
@@ -170,7 +169,7 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
     if (ok != true) return;
-    await _run(() => Api.auth('setUser', [u.username, {'perms': perms}]), 'تم حفظ الصلاحيات');
+    await _run(() => Api.auth('setUser', [u.username, {'perms': {...perms, 'v2': true}}]), 'تم حفظ الصلاحيات');
   }
 
   Future<void> _resetPass(AppUser u) async {

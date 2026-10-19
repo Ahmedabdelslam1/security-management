@@ -92,7 +92,10 @@ class App extends ChangeNotifier {
 
   /// الحضور الحي للمتابعة: المنصة (أندرويد) والشاشة المفتوحة الآن؛ opened=true يسجّل فتح الشاشة
   Future<void> presence(String page, {bool opened = false}) async {
-    try { await Api.auth('presence', ['android', page, opened]); } catch (_) {}
+    try {
+      if (Api.myIp.isEmpty) Api.fetchIp();
+      await Api.auth('presence', ['android', page, opened, Api.myIp]);
+    } catch (_) {}
   }
 
   Future<void> logout() async {

@@ -14,7 +14,8 @@ var TZ = 'Africa/Cairo';
 var HALF_STATUS = 'حضور نصف يوم', HOURS_STATUS = 'حضور ساعات';
 var STATUSES = ['حضور', HALF_STATUS, HOURS_STATUS, 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
-var PERMS = ['workers', 'attendance', 'reports', 'gate', 'procs'];
+var REP_PERMS = ['rep1', 'rep2', 'rep3', 'rep4', 'rep5', 'rep6'];   /* بنود التقارير: حسب العامل / المكان / مجمع / خطاب الاعتماد / الحضور / الحسابات */
+var PERMS = ['workers', 'attendance', 'settlement', 'reports', 'gate', 'procs', 'monitor'].concat(REP_PERMS);
 var SESSION_TTL = 1800;             // الجلسة تنتهي بعد نصف ساعة بلا أي نشاط (تتجدد مع كل طلب)
 var SESSION_MAX_IDLE = 30 * 60 * 1000;
 var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
@@ -24,7 +25,7 @@ var SHEETS = {
   Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo', 'loc'],
   Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes', 'settleId', 'paidAmt'],
   Locations:  ['name'],
-  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'platform', 'curPage', 'curPageAt'],
+  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'platform', 'curPage', 'curPageAt', 'devices', 'email'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes', 'move'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
@@ -254,8 +255,19 @@ function ensureAdmin_() {
 }
 
 function parsePerms_(p) {
-  if (p && typeof p === 'object') return p;   // كانت تُفرَّغ الصلاحيات عند تحليلها مرتين
-  try { var o = JSON.parse(p || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
+  var o = null;
+  if (p && typeof p === 'object') o = p;   // كانت تُفرَّغ الصلاحيات عند تحليلها مرتين
+  else { try { o = JSON.parse(p || '{}'); } catch (e) { o = null; } }
+  return expandPerms_(o && typeof o === 'object' ? o : {});
+}
+/* صلاحيات قديمة (بلا v2): الحضور يشمل التسوية، والتقارير تشمل كل بنودها */
+function expandPerms_(o) {
+  if (o.v2) return o;
+  var r = {};
+  Object.keys(o).forEach(function (k) { r[k] = o[k]; });
+  if (r.attendance) r.settlement = 1;
+  if (r.reports) REP_PERMS.forEach(function (k) { r[k] = 1; });
+  return r;
 }
 
 function can_(u, perm) {
@@ -346,10 +358,40 @@ function updateUser_(username, fields) {
 }
 
 function publicUser_(u) {
-  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms), platform: u.platform || '' };
+  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms), platform: u.platform || '', email: u.email || '' };
 }
 
-function login(username, password, platform) {
+/* الأجهزة المتصلة: لكل منصة (web / android) آخر نشاط وIP وآخر شاشة — فيظهر الويب والأندرويد معًا لو فُتحا معًا */
+function cleanIp_(ip) { ip = String(ip || '').trim(); return /^[0-9a-fA-F:.]{3,45}$/.test(ip) ? ip : ''; }
+function activeEmail_() { try { return String(Session.getActiveUser().getEmail() || ''); } catch (e) { return ''; } }
+function devList_(u) {
+  var d = {};
+  try { d = JSON.parse(u.devices || '{}') || {}; } catch (e) { d = {}; }
+  var nowMs = Date.now();
+  return Object.keys(d).map(function (k) {
+    var x = d[k] || {};
+    return { plat: k, ip: x.ip || '', page: x.page || '', at: Number(x.at) || 0, online: !!(x.at && (nowMs - Number(x.at)) < ONLINE_MS) };
+  }).sort(function (a, b) { return (b.online - a.online) || (b.at - a.at); });
+}
+function touchDevice_(username, plat, ip, page, email) {
+  if (!plat) return;
+  var sheet = sh_('Users'), h = SHEETS.Users, n = sheet.getLastRow();
+  if (n < 2) return;
+  var names = sheet.getRange(2, 1, n - 1, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i][0]) !== username) continue;
+    var cell = sheet.getRange(i + 2, h.indexOf('devices') + 1), d = {};
+    try { d = JSON.parse(String(cell.getValue() || '{}')) || {}; } catch (e) { d = {}; }
+    var o = d[plat] || {};
+    ip = cleanIp_(ip);
+    d[plat] = { at: Date.now(), ip: ip || o.ip || '', page: page || o.page || '' };
+    cell.setValue(JSON.stringify(d));
+    if (email) sheet.getRange(i + 2, h.indexOf('email') + 1).setValue(String(email));
+    return;
+  }
+}
+
+function login(username, password, platform, ip) {
   ensureAdmin_();
   username = clip_(username, 40).toLowerCase();
   var cache = CacheService.getScriptCache();
@@ -370,6 +412,7 @@ function login(username, password, platform) {
   CUR_PLAT_ = plat;
   try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {}
   updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()), platform: plat, curPage: 'تسجيل الدخول', curPageAt: now_() });
+  try { touchDevice_(username, plat, ip, 'تسجيل الدخول', activeEmail_()); } catch (e) {}
   log_(u.name, 'دخول', 'النظام', username);
   return { token: token };
 }
@@ -453,7 +496,7 @@ function ping(token) {
 }
 
 /* الحضور الحي: منصة المستخدم (ويب/أندرويد) والشاشة المفتوحة الآن؛ opened=true يسجّل فتح الشاشة في السجل */
-function presence(token, platform, page, opened) {
+function presence(token, platform, page, opened, ip) {
   var u = auth_(token);
   var plat = normPlat_(platform) || CUR_PLAT_;
   if (plat && plat !== CUR_PLAT_) { CUR_PLAT_ = plat; try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {} }
@@ -461,6 +504,7 @@ function presence(token, platform, page, opened) {
   page = clip_(page, 60);
   if (page) { f.curPage = page; f.curPageAt = now_(); }
   updateUser_(u.username, f);
+  try { touchDevice_(u.username, plat, ip, page, activeEmail_()); } catch (e) {}
   if (opened && page) log_(u.name, 'فتح صفحة', page, '');
   return true;
 }
@@ -610,7 +654,7 @@ function saveDay(token, date, recs, partial) {
  * - يوم سبق صرفه ثم عُدِّل (ساعات إضافية، موقف، مكان...) ⇒ يُصرف الفرق فقط (قد يكون سالبًا = استرداد).
  * - يوم يُسجَّل لاحقًا داخل فترة سبقت تسويتها يبقى مستحقًا لأنه لم يُصرف فعلًا. */
 function settleWorkers(token, ids, from, to, adj, loc, setDate) {
-  var u = auth_(token, ['workers', 'attendance']);
+  var u = auth_(token, ['workers', 'attendance', 'settlement']);
   if (!validDate_(to)) throw new Error('تاريخ غير صحيح');
   if (from && !validDate_(from)) throw new Error('تاريخ غير صحيح');
   if (setDate && !validDate_(setDate)) throw new Error('يوم التسوية غير صحيح');
@@ -662,7 +706,7 @@ function settleWorkers(token, ids, from, to, adj, loc, setDate) {
 
 /* ===================== المرتبات ===================== */
 function listPayroll(token, from, to) {
-  auth_(token, ['workers', 'attendance']);
+  auth_(token, ['workers', 'attendance', 'settlement', 'reports']);
   if (from && !validDate_(from)) throw new Error('تاريخ غير صحيح');
   if (to && !validDate_(to)) throw new Error('تاريخ غير صحيح');
   return readAll_('Settlements').filter(function (r) {
@@ -679,7 +723,7 @@ function listPayroll(token, from, to) {
 
 /* تعديل المكافآت والخصومات والضرائب لسطر مرتب (تسوية + عامل) */
 function updatePayrollAdj(token, id, wid, b, d, t) {
-  var u = auth_(token, ['workers', 'attendance']);
+  var u = auth_(token, ['workers', 'attendance', 'settlement']);
   b = Math.max(0, num_(b)); d = Math.max(0, num_(d)); t = Math.max(0, num_(t));
   return locked_(function () {
     var sheet = sh_('Settlements'), h = SHEETS.Settlements, n = sheet.getLastRow();
@@ -759,7 +803,7 @@ function deleteWorkers(token, ids) {
 }
 
 function getImage(token, id, kind) {
-  auth_(token, ['workers', 'attendance']);
+  auth_(token, ['workers', 'attendance', 'settlement', 'reports']);
   var w = readAll_('Workers').filter(function (x) { return x.id === String(id); })[0];
   if (!w) return null;
   var fid = kind === 'card' ? w.cardImg : w.photo;
@@ -785,9 +829,7 @@ function setUser(token, username, patch) {
       log_(me.name, 'تغيير حالة مستخدم', 'المستخدمين', u.name + ' → ' + patch.status);
     }
     if (patch && patch.perms) {
-      var p = {};
-      PERMS.forEach(function (k) { if (patch.perms[k]) p[k] = 1; });
-      u.perms = JSON.stringify(p);
+      u.perms = JSON.stringify(cleanPerms_(patch.perms));
       log_(me.name, 'تعديل صلاحيات', 'المستخدمين', u.name);
     }
     writeAll_('Users', users);
@@ -796,8 +838,10 @@ function setUser(token, username, patch) {
 }
 
 function cleanPerms_(perms) {
-  var p = {};
-  PERMS.forEach(function (k) { if (perms && perms[k]) p[k] = 1; });
+  var src = expandPerms_(perms && typeof perms === 'object' ? perms : {}), p = {};
+  PERMS.forEach(function (k) { if (src[k]) p[k] = 1; });
+  if (REP_PERMS.some(function (k) { return p[k]; })) p.reports = 1;
+  p.v2 = 1;
   return p;
 }
 
@@ -852,7 +896,7 @@ function deleteUser(token, username) {
 }
 
 function getMonitor(token) {
-  auth_(token, 'admin');
+  auth_(token, 'monitor');
   var log = readAll_('Log');
   var nowMs = Date.now();
   var users = readAll_('Users').map(function (u) {
@@ -862,7 +906,7 @@ function getMonitor(token) {
     var edits = mine.filter(function (l) { return l.action !== 'فتح صفحة' && l.action !== 'دخول' && l.action !== 'خروج'; });
     var lastEdit = edits.length ? edits[edits.length - 1] : null;
     return { name: u.name, username: u.username, lastLogin: u.lastLogin, online: !!(act && (nowMs - act) < ONLINE_MS), count: mine.length, lastAction: last,
-      platform: u.platform || '', curPage: u.curPage || '', curPageAt: u.curPageAt || '', lastEdit: lastEdit ? (lastEdit.action + ' — ' + lastEdit.page + ' (' + lastEdit.time + ')') : '' };
+      platform: u.platform || '', email: u.email || '', devices: devList_(u), curPage: u.curPage || '', curPageAt: u.curPageAt || '', lastEdit: lastEdit ? (lastEdit.action + ' — ' + lastEdit.page + ' (' + lastEdit.time + ')') : '' };
   });
   return { users: users, log: log.slice(-600).reverse() };
 }
