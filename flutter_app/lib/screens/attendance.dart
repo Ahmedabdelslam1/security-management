@@ -107,22 +107,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  // الأدمن فقط: فتح اليوم/الفترة المسوّاة للتعديل أو إعادة إغلاقها
-  Future<void> _toggleOpen() async {
-    final open = App.I.dayOpen(_dstr);
-    try {
-      await Api.auth('setDayOpen', [_dstr, !open]);
-      await App.I.bootstrap(silent: true);
-      if (mounted) {
-        _build();
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(open ? 'تم إغلاق اليوم' : 'تم فتح اليوم للتعديل — عدّل ثم اضغط إغلاق')));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.red.shade700, content: Text('$e')));
-    }
-  }
-
   Future<void> _save() async {
     if (App.I.periodLocked(_dstr)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.orange.shade800, content: Text('يوم ${fmtDate(_dstr)} داخل فترة تسوية تمت — مغلق لكل الأسماء ولا يمكن تعديله')));
@@ -254,13 +238,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                     ),
                   ),
-                  if (app.user?.isAdmin == true && app.dayHasSettled(_dstr))
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      tooltip: app.dayOpen(_dstr) ? 'إغلاق اليوم المسوّى' : 'فتح اليوم المسوّى للتعديل (أدمن)',
-                      onPressed: _toggleOpen,
-                      icon: Icon(app.dayOpen(_dstr) ? Icons.lock_open : Icons.lock, color: app.dayOpen(_dstr) ? Colors.orange.shade800 : const Color(0xFF475569)),
-                    ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(

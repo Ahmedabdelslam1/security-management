@@ -6,7 +6,7 @@ import '../pdf_export.dart';
 import '../state.dart';
 import '../widgets.dart';
 
-String _nl(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim(); // إلغاء المسافات الزائدة في اسم المكان
+String _nl(String s) => s.replaceAll(RegExp(r'[\u200b-\u200f\u202a-\u202e\ufeff]'), '').replaceAll(RegExp(r'\s+'), ' ').trim(); // إلغاء المسافات الزائدة في اسم المكان
 String _ds(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 List<String> _locOptions() {
@@ -237,8 +237,16 @@ class _AccState extends State<AccountsReportTab> {
         out.add(_Acc(s['date'], per, e.key, r2(((s['amt'] as double) - (s['ot'] as double)) * sh), r2((s['ot'] as double) * sh), r2((s['b'] as double) * sh), r2(((s['amt'] as double) + (s['b'] as double)) * sh)));
       }
     }
-    out.sort((a, b) => a.date == b.date ? a.loc.compareTo(b.loc) : b.date.compareTo(a.date));
-    return out;
+    // دمج السطور المتطابقة (نفس التاريخ والفترة والمكان) فلا يتكرر المكان
+    final mg = <String, _Acc>{};
+    for (final x in out) {
+      final k = '${x.date}|${x.period}|${x.loc}';
+      final o = mg[k];
+      mg[k] = o == null ? x : _Acc(x.date, x.period, x.loc, r2(o.base + x.base), r2(o.ot + x.ot), r2(o.bonus + x.bonus), r2(o.total + x.total));
+    }
+    final res = mg.values.toList();
+    res.sort((a, b) => a.date == b.date ? a.loc.compareTo(b.loc) : b.date.compareTo(a.date));
+    return res;
   }
 
   @override

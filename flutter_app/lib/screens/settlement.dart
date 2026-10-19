@@ -16,6 +16,47 @@ class SettlementScreen extends StatefulWidget {
 class _SettlementScreenState extends State<SettlementScreen> {
   int _tab = 0; // 0 = تسوية، 1 = سجل المرتبات
 
+  Future<void> _periodsDialog() async {
+    await showDialog(
+      context: context,
+      builder: (dc) => StatefulBuilder(builder: (dc, setS) {
+        final ps = [...(App.I.data?.periods ?? const <List<String>>[])]..sort((a, b) => b[0].compareTo(a[0]));
+        return AlertDialog(
+          title: const Text('فتح / إغلاق تعديل التسويات'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ps.isEmpty
+                ? const Text('لا توجد فترات تسوية')
+                : ListView(shrinkWrap: true, children: [
+                    const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('الفترة المفتوحة يعدّل فيها الأدمن فقط. أغلقها بعد التعديل.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                    for (final p in ps)
+                      ListTile(
+                        dense: true,
+                        title: Text('${fmtDate(p[0])} ← ${fmtDate(p[1])}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        subtitle: Text(p[2] == '1' ? 'مفتوحة للتعديل' : 'مغلقة'),
+                        trailing: FilledButton(
+                          style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                          onPressed: () async {
+                            try {
+                              await Api.auth('setDayOpen', [p[0], p[2] != '1']);
+                              await App.I.bootstrap(silent: true);
+                              setS(() {});
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.red.shade700, content: Text('$e')));
+                            }
+                          },
+                          child: Text(p[2] == '1' ? 'إغلاق' : 'فتح'),
+                        ),
+                      ),
+                  ]),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(dc), child: const Text('تم'))],
+        );
+      }),
+    );
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -26,19 +67,30 @@ class _SettlementScreenState extends State<SettlementScreen> {
           elevation: 1,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: SegmentedButton<int>(
-              style: const ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
-                padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8, vertical: 0)),
+            child: Row(children: [
+              Expanded(
+                child: SegmentedButton<int>(
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+                    padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8, vertical: 0)),
+                  ),
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('تسوية'), icon: Icon(Icons.payments_outlined, size: 15)),
+                    ButtonSegment(value: 1, label: Text('سجل المرتبات'), icon: Icon(Icons.receipt_long_outlined, size: 15)),
+                  ],
+                  selected: {_tab},
+                  onSelectionChanged: (s) => setState(() => _tab = s.first),
+                ),
               ),
-              segments: const [
-                ButtonSegment(value: 0, label: Text('تسوية'), icon: Icon(Icons.payments_outlined, size: 15)),
-                ButtonSegment(value: 1, label: Text('سجل المرتبات'), icon: Icon(Icons.receipt_long_outlined, size: 15)),
-              ],
-              selected: {_tab},
-              onSelectionChanged: (s) => setState(() => _tab = s.first),
-            ),
+              // أيقونة فتح/إغلاق تعديل التسويات — للأدمن فقط
+              if (App.I.user?.isAdmin == true)
+                IconButton(
+                  tooltip: 'فتح / إغلاق تعديل التسويات',
+                  onPressed: _periodsDialog,
+                  icon: const Icon(Icons.lock_open, color: Color(0xFFB45309)),
+                ),
+            ]),
           ),
         ),
         Expanded(child: _tab == 0 ? const _SettlePane() : const _PayrollPane()),
