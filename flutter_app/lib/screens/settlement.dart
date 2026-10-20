@@ -17,19 +17,35 @@ class _SettlementScreenState extends State<SettlementScreen> {
   int _tab = 0; // 0 = تسوية، 1 = سجل المرتبات
 
   Future<void> _periodsDialog() async {
+    // التسويات تُقرأ من سجل المرتبات (موجود في كل إصدارات السكريبت) وتُدمج مع حالة الفتح
+    final m = <String, List<String>>{};
+    try {
+      final rows = await Api.auth('listPayroll', ['', '']) as List;
+      for (final x in rows) {
+        final r = x as Map;
+        final to = '${r['to'] ?? ''}';
+        if (to.isEmpty) continue;
+        final from = '${r['from'] ?? ''}';
+        m.putIfAbsent('$from|$to', () => [from, to, '0', from.isEmpty ? '0' : '1']);
+      }
+    } catch (_) {}
+    for (final p in App.I.data?.periods ?? const <List<String>>[]) {
+      m['${p[0]}|${p[1]}'] = [...p];
+    }
+    final list = m.values.toList()..sort((a, b) => b[1] == a[1] ? b[0].compareTo(a[0]) : b[1].compareTo(a[1]));
+    if (!mounted) return;
     await showDialog(
       context: context,
       builder: (dc) => StatefulBuilder(builder: (dc, setS) {
-        final ps = [...(App.I.data?.periods ?? const <List<String>>[])]..sort((a, b) => b[1] == a[1] ? b[0].compareTo(a[0]) : b[1].compareTo(a[1]));
         return AlertDialog(
           title: const Text('فتح / إغلاق تعديل التسويات'),
           content: SizedBox(
             width: double.maxFinite,
-            child: ps.isEmpty
-                ? const Text('لا توجد فترات تسوية')
+            child: list.isEmpty
+                ? const Text('لا توجد تسويات سابقة')
                 : ListView(shrinkWrap: true, children: [
                     const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('افتح أي تسوية سابقة لتعديل أيامها (الأدمن فقط) ثم أغلقها بعد الانتهاء.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-                    for (final p in ps)
+                    for (final p in list)
                       ListTile(
                         dense: true,
                         title: Text('${p[0].isEmpty ? 'من البداية' : fmtDate(p[0])} ← ${fmtDate(p[1])}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -39,10 +55,13 @@ class _SettlementScreenState extends State<SettlementScreen> {
                           onPressed: () async {
                             try {
                               await Api.auth('setDayOpen', ['${p[0].isEmpty ? '0000-00-00' : p[0]}|${p[1]}', p[2] != '1']);
-                              await App.I.bootstrap(silent: true);
+                              p[2] = p[2] == '1' ? '0' : '1';
                               setS(() {});
+                              await App.I.bootstrap(silent: true);
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.red.shade700, content: Text('$e')));
+                              final msg = '$e';
+                              final old = msg.contains('غير معروف') || msg.contains('غير متاح');
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.red.shade700, content: Text(old ? 'سكربت Google قديم: الصق Code.gs وLoader.gs الجديدين ثم Deploy ← New version' : msg)));
                             }
                           },
                           child: Text(p[2] == '1' ? 'إغلاق' : 'فتح'),
