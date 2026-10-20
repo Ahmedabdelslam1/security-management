@@ -29,9 +29,10 @@ var SHEETS = {
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes', 'move'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
-  Log:        ['time', 'user', 'action', 'page', 'details', 'platform']
+  Log:        ['time', 'user', 'action', 'page', 'details', 'platform', 'ip', 'username']
 };
 var SCHEMA_CHECKED_ = {};
+var CUR_UN_ = '', CUR_IP_ = '';   /* مستخدم وIP الجلسة الحالية: يُكتبان في سجل الإجراءات */
 var CUR_PLAT_ = ''; /* منصة الجلسة الحالية (web / android) تُضبط في auth_ وتُكتب في السجل */
 function normPlat_(p) { p = String(p || '').toLowerCase(); return p === 'android' ? 'android' : (p === 'web' ? 'web' : ''); }
 
@@ -312,6 +313,8 @@ function auth_(token, perm) {
     cache.put('T_' + token, '1', 120);
   }
   CUR_PLAT_ = cache.get('P_' + token) || '';
+  CUR_IP_ = cache.get('I_' + token) || '';
+  CUR_UN_ = un;
   var u = userCached_(un);
   if (!u || u.status !== 'approved') throw new Error('SESSION');
   u.perms = parsePerms_(u.perms);
@@ -410,7 +413,9 @@ function login(username, password, platform, ip) {
   sessionPrune_();
   var plat = normPlat_(platform);
   CUR_PLAT_ = plat;
-  try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {}
+  CUR_UN_ = username;
+  CUR_IP_ = cleanIp_(ip);
+  try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); if (CUR_IP_) CacheService.getScriptCache().put('I_' + token, CUR_IP_, SESSION_TTL); } catch (e) {}
   updateUser_(username, { lastLogin: now_(), lastActive: String(Date.now()), platform: plat, curPage: 'تسجيل الدخول', curPageAt: now_() });
   try { touchDevice_(username, plat, ip, 'تسجيل الدخول', activeEmail_()); } catch (e) {}
   log_(u.name, 'دخول', 'النظام', username);
@@ -498,6 +503,8 @@ function ping(token) {
 /* الحضور الحي: منصة المستخدم (ويب/أندرويد) والشاشة المفتوحة الآن؛ opened=true يسجّل فتح الشاشة في السجل */
 function presence(token, platform, page, opened, ip) {
   var u = auth_(token);
+  var ipc = cleanIp_(ip);
+  if (ipc) { CUR_IP_ = ipc; try { CacheService.getScriptCache().put('I_' + token, ipc, SESSION_TTL); } catch (e) {} }
   var plat = normPlat_(platform) || CUR_PLAT_;
   if (plat && plat !== CUR_PLAT_) { CUR_PLAT_ = plat; try { CacheService.getScriptCache().put('P_' + token, plat, SESSION_TTL); } catch (e) {} }
   var f = { lastActive: String(Date.now()), platform: plat };
@@ -512,7 +519,7 @@ function presence(token, platform, page, opened, ip) {
 /* ===================== السجل ===================== */
 function log_(user, action, page, details) {
   var sheet = sh_('Log');
-  sheet.appendRow([now_(), clip_(user, 60), clip_(action, 60), clip_(page, 60), clip_(details, 200), CUR_PLAT_]);
+  sheet.appendRow([now_(), clip_(user, 60), clip_(action, 60), clip_(page, 60), clip_(details, 200), CUR_PLAT_, CUR_IP_, CUR_UN_]);
   if (sheet.getLastRow() > MAX_LOG_ROWS + 1) sheet.deleteRows(2, 1000);
 }
 

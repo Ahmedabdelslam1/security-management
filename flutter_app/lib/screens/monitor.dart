@@ -1,4 +1,5 @@
 // المتابعة (للمدير): حالة المستخدمين + سجل النشاط
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
@@ -71,13 +72,15 @@ class _MonitorScreenState extends State<MonitorScreen> {
   String _filter = '';
   int _tab = 0; // 0 = نشاط، 1 = حالة المستخدمين
 
-  Future<void> _load() async {
-    setState(() => _busy = true);
+  Timer? _auto;
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _busy = true);
     try {
       final r = await Api.auth('getMonitor') as Map;
-      setState(() => _data = r);
+      if (mounted) setState(() => _data = r);
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red.shade700));
       }
     } finally {
@@ -86,7 +89,17 @@ class _MonitorScreenState extends State<MonitorScreen> {
   }
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+    _auto = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) _load(silent: true); }); // تحديث تلقائي
+  }
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +180,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
                                     subtitle: Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
-                                        '${l['page'] ?? ''}${(l['details'] ?? '') == '' ? '' : ' • ${l['details']}'}',
+                                        '${l['page'] ?? ''}${(l['details'] ?? '') == '' ? '' : ' • ${l['details']}'}\n👤 ${(l['username'] ?? '') == '' ? l['user'] : l['username']} • ${l['time'] ?? ''} • IP ${(l['ip'] ?? '') == '' ? '--' : l['ip']}',
                                         style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                                       ),
                                     ),
