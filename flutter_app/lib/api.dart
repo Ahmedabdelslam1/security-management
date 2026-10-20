@@ -1,5 +1,6 @@
 // بوابة الاتصال بالسيرفر — متوافقة مع Google Apps Script (doPost) و PHP (api.php)
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'store.dart';
 
@@ -21,10 +22,22 @@ class Api {
   static String myIp = ''; // IP الجهاز العام (يظهر للمدير في شاشة المتابعة)
   static Future<void> fetchIp() async {
     if (myIp.isNotEmpty) return;
+    var pub = '', local = '';
+    try {
+      // عنوان الشبكة المحلية الفعلي للجهاز (واي فاي/بيانات)
+      final ifs = await NetworkInterface.list(type: InternetAddressType.IPv4);
+      for (final i in ifs) {
+        for (final a in i.addresses) {
+          if (a.isLoopback || a.isLinkLocal) continue;
+          if (local.isEmpty || a.address.startsWith('192.168.') || a.address.startsWith('10.') || a.address.startsWith('172.')) local = a.address;
+        }
+      }
+    } catch (_) {}
     try {
       final r = await _shared.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 5));
-      if (r.statusCode == 200) myIp = r.body.trim();
+      if (r.statusCode == 200) pub = r.body.trim();
     } catch (_) {}
+    myIp = [local, pub].where((x) => x.isNotEmpty).join(' / ');
   }
   static String? _token;
   static const _kUrl = 'gas_url_v2';

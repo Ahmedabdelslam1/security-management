@@ -365,7 +365,8 @@ function publicUser_(u) {
 }
 
 /* الأجهزة المتصلة: لكل منصة (web / android) آخر نشاط وIP وآخر شاشة — فيظهر الويب والأندرويد معًا لو فُتحا معًا */
-function cleanIp_(ip) { ip = String(ip || '').trim(); return /^[0-9a-fA-F:.]{3,45}$/.test(ip) ? ip : ''; }
+/* IP الجهاز: المحلي والعام معًا بالشكل «192.168.1.5 / 41.42.99.104» أو أحدهما */
+function cleanIp_(ip) { ip = String(ip || '').trim(); return /^[0-9a-fA-F:.\/ ]{3,90}$/.test(ip) ? ip : ''; }
 function activeEmail_() { try { return String(Session.getActiveUser().getEmail() || ''); } catch (e) { return ''; } }
 function devList_(u) {
   var d = {};
