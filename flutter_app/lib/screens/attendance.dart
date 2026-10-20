@@ -651,7 +651,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (_, i) {
                             final r = recs[i];
-                            final settled = r.settleId.isNotEmpty;
+                            final settled = App.I.periodLocked(r.date) || (r.settleId.isNotEmpty && !App.I.dayOpen(r.date));
                             final edit = pending[r.date];
                             final shownStatus = edit?['status'] as String? ?? r.status;
                             final shownLoc = edit?['loc'] as String? ?? r.loc;

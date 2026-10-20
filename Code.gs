@@ -629,9 +629,16 @@ function bootstrap(token) {
   if (!PropertiesService.getScriptProperties().getProperty('MIG_PAIDAMT')) locked_(migrate_);
   if (Date.now() - num_(u.lastActive) > 60000) updateUser_(u.username, { lastActive: String(Date.now()) });
   var rv = revNow_();
-  var ck = 'BS_' + rv + '_' + u.username;
+  var ck = 'BS2_' + rv + '_' + u.username;
   var hit = cacheBigGet_(ck);
-  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  if (hit) {
+    try {
+      var o = JSON.parse(hit);
+      o.periods = periods_();   /* التسويات وحالة فتحها تُقرأ طازجة دائمًا (لا تُخزَّن في الكاش) */
+      o.openDays = openKeys_().filter(function (k) { return k.indexOf('d:') === 0; }).map(function (k) { return k.slice(2); });
+      return o;
+    } catch (e) {}
+  }
   var full = can_(u, 'workers');
   var ls = lastSetMap_();
   var workers = readAll_('Workers').map(function (w) { return workerOut_(w, full, ls); });
