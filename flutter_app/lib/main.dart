@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
 import 'state.dart';
-import 'updater.dart' show appVersion;
+import 'updater.dart' show appVersion, appBuild;
 import 'screens/login.dart';
 import 'screens/shell.dart';
 
@@ -147,7 +147,7 @@ class _GateState extends State<Gate> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 14),
-            Text('v$appVersion', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+            Text('v$appVersion ($appBuild)', style: const TextStyle(fontSize: 12, color: Colors.black45)),
           ]),
         ),
       );

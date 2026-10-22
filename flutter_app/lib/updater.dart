@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 const String appVersion = '1.11.11';
+/// رقم البناء يُحقن من GitHub Actions (رقم تشغيل الـ workflow + 1000) — يزيد مع كل تعديل فيتحدث التطبيق تلقائيًا
+const int appBuild = int.fromEnvironment('APP_BUILD', defaultValue: 0);
 const String _versionUrl =
     'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/app-version.json';
 const String _apkUrl =
@@ -41,9 +43,8 @@ Future<String?> fetchNewerVersion() async {
 const String _runsUrl =
     'https://api.github.com/repos/Ahmedabdelslam1/security-management/actions/workflows/build-apk.yml/runs?status=success&branch=main&per_page=1';
 
-/// يبحث في GitHub Actions عن آخر بناء ناجح للتطبيق ويقرأ رقم إصداره من pubspec.yaml الخاص بنفس الـ commit.
-/// يرجع نص الإصدار (مثل 1.10.16) أو null لو تعذر الاتصال بـ Actions.
-Future<String?> latestFromActions() async {
+/// يبحث في GitHub Actions عن آخر بناء ناجح ويرجع رقم بنائه (1000 + run_number) أو null لو تعذر الاتصال.
+Future<int?> latestBuildFromActions() async {
   try {
     final r = await http
         .get(Uri.parse(_runsUrl), headers: {'Accept': 'application/vnd.github+json'})
@@ -52,24 +53,20 @@ Future<String?> latestFromActions() async {
     final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map;
     final runs = (j['workflow_runs'] as List?) ?? const [];
     if (runs.isEmpty) return null;
-    final sha = (runs.first as Map)['head_sha']?.toString() ?? '';
-    if (sha.isEmpty) return null;
-    final p = await http
-        .get(Uri.parse('https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/$sha/flutter_app/pubspec.yaml'))
-        .timeout(const Duration(seconds: 12));
-    if (p.statusCode != 200) return null;
-    final m = RegExp(r'^version:\s*([0-9.]+)', multiLine: true).firstMatch(utf8.decode(p.bodyBytes));
-    return m?.group(1);
+    final n = (runs.first as Map)['run_number'];
+    return n is int ? 1000 + n : null;
   } catch (_) {
     return null;
   }
 }
 
-/// آخر إصدار متاح: من GitHub Actions أولًا، ثم من app-version.json كاحتياطي. يرجع الإصدار لو كان أحدث من المثبّت.
+/// يرجع وصف الإصدار الأحدث لو وُجد (أي بناء جديد أو رقم إصدار أعلى)، وإلا null.
 Future<String?> _findNewer() async {
-  final fromRuns = await latestFromActions();
-  if (fromRuns != null) {
-    return _verNum(fromRuns) > _verNum(appVersion) ? fromRuns : null;
+  final b = await latestBuildFromActions();
+  if (b != null) {
+    if (appBuild > 0) return b > appBuild ? '$appVersion (بناء $b)' : null;
+    // نسخة قديمة بلا رقم بناء: نحدّث مرة واحدة لتحصل على الآلية الجديدة
+    return '$appVersion (بناء $b)';
   }
   return fetchNewerVersion();
 }
@@ -90,7 +87,7 @@ Future<String> _runUpdate() async {
   _updating = true;
   try {
     final newer = await _findNewer();
-    if (newer == null) return 'أنت على آخر إصدار ($appVersion) — تم الفحص في GitHub Actions';
+    if (newer == null) return 'أنت على آخر إصدار ($appVersion بناء $appBuild)';
 
     final client = http.Client();
     final res = await client.send(http.Request('GET', Uri.parse(_apkUrl))).timeout(const Duration(minutes: 5));

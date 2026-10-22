@@ -70,7 +70,12 @@ class HomeScreen extends StatelessWidget {
               index: 8,
               child: Padding(
                 padding: const EdgeInsets.only(right: 6, bottom: 10),
-                child: Text('أماكن الحضور', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6))),
+                child: Builder(builder: (_) {
+                  final now = DateTime.now();
+                  final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                  final p = App.I.att.where((r) => r.date == today && r.counts).length;
+                  return Text('أماكن الحضور — ${App.I.workers.length} عامل — حضر اليوم $p', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6)));
+                }),
               ),
             ),
             GridView.count(
@@ -86,14 +91,13 @@ class HomeScreen extends StatelessWidget {
                     index: i,
                     child: Builder(builder: (_) {
                       final l = App.I.allLocs[i];
-                      final ids = <String>{
-                        for (final w in App.I.workers) if (w.loc == l) w.id,
-                        for (final r in App.I.att) if (r.loc == l) r.wid,
-                      };
+                      final now = DateTime.now();
+                      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                      final present = App.I.att.where((r) => r.date == today && r.loc == l && r.counts).length;
                       final c = _lc[i % _lc.length];
                       return _HomeCard(
                         icon: _li[i % _li.length],
-                        label: '$l\n${ids.length} عامل',
+                        label: '$l\nحضور اليوم $present',
                         colors: [Color(c).withOpacity(.15).value, c],
                         onTap: () {
                           App.I.attLoc = l;

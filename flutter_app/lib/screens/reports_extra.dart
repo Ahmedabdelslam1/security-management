@@ -66,7 +66,7 @@ class _Row {
 class _AttState extends State<AttendanceReportTab> {
   bool _day = true;
   DateTime _d = DateTime.now();
-  DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _from = App.I.startDate();
   DateTime _to = DateTime.now();
   String _loc = '';
 
@@ -92,7 +92,7 @@ class _AttState extends State<AttendanceReportTab> {
       listenable: App.I,
       builder: (_, __) {
         final rows = _rows();
-        final n = rows.fold<int>(0, (s, x) => s + x.n);
+        final n = App.I.workers.length; // إجمالي العدد = عدد العاملين المسجلين
         final d = r2(rows.fold<double>(0, (s, x) => s + x.days));
         return Column(children: [
           compactMaterial(
@@ -130,10 +130,10 @@ class _AttState extends State<AttendanceReportTab> {
                 context: context,
                 title: 'تقرير الحضور',
                 subtitle: _day ? 'يوم ${fmtDate(_ds(_d))}' : 'من ${fmtDate(_ds(_from))} إلى ${fmtDate(_ds(_to))}${_loc.isEmpty ? '' : ' — $_loc'}',
-                headers: ['التاريخ', 'مكان الحضور', 'إجمالي العدد', 'إجمالي الحضور'],
-                widths: [1.6, 3, 1.3, 1.4],
-                rows: [for (final x in rows) [fmtDate(x.date), x.loc, '${x.n}', dn(x.days)]],
-                totalsRow: ['الإجمالي', '', '$n', dn(d)],
+                headers: ['التاريخ', 'مكان الحضور', 'إجمالي الحضور'],
+                widths: [1.6, 3, 1.4],
+                rows: [for (final x in rows) [fmtDate(x.date), x.loc, dn(x.days)]],
+                totalsRow: ['الإجمالي', '', dn(d)],
               )),
           Expanded(
             child: rows.isEmpty
@@ -149,7 +149,6 @@ class _AttState extends State<AttendanceReportTab> {
                         title: Text(rows[i].loc, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
                         subtitle: Text(fmtDate(rows[i].date), style: const TextStyle(fontSize: 12)),
                         trailing: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          Text('العدد ${rows[i].n}', style: const TextStyle(fontSize: 12)),
                           Text('الحضور ${dn(rows[i].days)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
                         ]),
                       ),
@@ -176,7 +175,7 @@ class _Acc {
 }
 
 class _AccState extends State<AccountsReportTab> {
-  DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _from = App.I.startDate();
   DateTime _to = DateTime.now();
   String _loc = '';
   List _pay = [];

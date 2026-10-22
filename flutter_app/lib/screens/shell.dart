@@ -135,7 +135,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             ],
             const SizedBox(height: 10),
-            Text('v$appVersion', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+            Text('v$appVersion ($appBuild)', style: const TextStyle(fontSize: 12, color: Colors.black45)),
             const SizedBox(height: 10),
             Wrap(spacing: 10, runSpacing: 8, alignment: WrapAlignment.center, children: [
               FilledButton(

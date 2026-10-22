@@ -57,6 +57,7 @@ class _Rec { // سطر تقرير لكل عامل (مكان/مجمع/خطاب)
   double gross = 0, ot = 0; // الإجمالي (أيام × أجر) والإضافي بالمبلغ
   _Rec(this.w, {this.days = 0, this.xh = 0, this.total = 0});
   double get wageAvg => days > 0 ? r2(gross / days) : w.wage;
+  String loc = ''; // المكان الأكثر حضورًا خلال الفترة (للترتيب)
 }
 
 class ReportsScreen extends StatefulWidget {
@@ -71,7 +72,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _wid;
   String? _loc;
   String _locFilter = ''; // '' = كل الأماكن
-  DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _from = App.I.startDate();
   DateTime _to = DateTime.now();
 
   // مكافآت وخصومات وضرائب كل عامل من التسويات المتداخلة مع فترة التقرير
@@ -163,7 +164,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
       m.gross = r2(m.gross);
       m.ot = r2(m.ot);
     }
+    _sortByLoc(rows);
     return rows;
+  }
+
+  // ترتيب حسب مكان الحضور ثم اسم العامل
+  void _sortByLoc(List<_Rec> rows) {
+    for (final m in rows) {
+      final dd = <String, double>{};
+      for (final r in App.I.att) {
+        if (r.wid == m.w.id && r.counts && _inPeriod(r) && r.loc.trim().isNotEmpty) {
+          dd[r.loc.trim()] = (dd[r.loc.trim()] ?? 0) + 1;
+        }
+      }
+      var best = m.w.loc.trim(), bn = -1.0;
+      dd.forEach((k, v) { if (v > bn) { bn = v; best = k; } });
+      m.loc = best;
+    }
+    rows.sort((a, b) => a.loc == b.loc ? a.w.name.compareTo(b.w.name) : a.loc.compareTo(b.loc));
   }
 
   // سطور خطاب الاعتماد: العمال اللي ليهم حضور خلال الفترة (مع فلتر مكان اختياري)
@@ -184,6 +202,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (days == 0) continue;
       out.add(_Rec(w, days: days, xh: xh, total: r2(tot))..gross = r2(gr)..ot = r2(otA));
     }
+    _sortByLoc(out);
     return out;
   }
 
@@ -273,7 +292,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     await _loadAdj();
     final addressee = _locFilter.isNotEmpty ? _locFilter : (_loc ?? 'الموقع');
     var tot = 0.0;
-    final lrows = [for (final m in rows) LetterRow(m.w.name, m.days, m.wageAvg, m.gross, m.ot, b: _bOf(m.w.id), d: _dOf(m.w.id), tax: _tOf(m.w.id), net: r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)))];
+    final byName = [...rows]..sort((a, b) => a.w.name.compareTo(b.w.name)); // الطباعة بالاسم
+    final lrows = [for (final m in byName) LetterRow(m.w.name, m.days, m.wageAvg, m.gross, m.ot, b: _bOf(m.w.id), d: _dOf(m.w.id), tax: _tOf(m.w.id), net: r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)))];
     for (final m in lrows) {
       tot += m.net;
     }
@@ -615,7 +635,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
       builder: (_) => ListView(
         padding: const EdgeInsets.all(14),
         children: [
-          Text('تفاصيل: ${w.name}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+          Row(children: [
+            Expanded(child: Text('تفاصيل: ${w.name}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15))),
+            if (recs.isNotEmpty)
+              IconButton(
+                tooltip: 'طباعة / PDF',
+                icon: const Icon(Icons.print, color: Color(0xFF6D28D9)),
+                onPressed: () => exportTablePdf(
+                  context: context,
+                  title: 'تقرير مفصل: ${w.name}',
+                  subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
+                  headers: ['التاريخ', 'الموقف', 'المكان', 'القيمة'],
+                  widths: [1.6, 1.2, 2.4, 1.2],
+                  rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc, dn(r.valueOf(w))]],
+                  totalsRow: ['الإجمالي', '', '', dn(r2(recs.fold<double>(0, (s, r) => s + r.valueOf(w))))],
+                ),
+              ),
+          ]),
           Text('من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))} — ${recs.length} سجل', style: const TextStyle(fontSize: 12, color: Colors.black54)),
           const SizedBox(height: 8),
           for (final r in recs)

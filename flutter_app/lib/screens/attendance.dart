@@ -580,7 +580,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _showDays(Worker w) async {
     final now = DateTime.now();
-    var from = DateTime(now.year, now.month, 1);
+    var from = App.I.startDate();
+    if (from.isAfter(now)) from = now;
     var to = now;
     final pending = <String, Map<String, dynamic>>{};
     var savingPosition = false;

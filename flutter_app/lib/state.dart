@@ -37,6 +37,21 @@ class App extends ChangeNotifier {
   /// الأدمن فتح تسوية تغطي هذا اليوم
   bool dayOpen(String date) => _admin && (periodsFor(date).any((p) => p[2] == '1') || (data?.openDays ?? const []).contains(date));
 
+  /// بداية الفترة الافتراضية للتسوية والتقارير: اليوم التالي لآخر تسوية (وإلا أول الشهر)، بحد أقصى اليوم
+  DateTime startDate() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    var mx = '';
+    for (final p in data?.periods ?? const <List<String>>[]) {
+      if (p[1].isNotEmpty && p[1].compareTo(mx) > 0) mx = p[1];
+    }
+    if (mx.isEmpty) return DateTime(now.year, now.month, 1);
+    final d = DateTime.tryParse(mx);
+    if (d == null) return DateTime(now.year, now.month, 1);
+    final n = DateTime(d.year, d.month, d.day).add(const Duration(days: 1));
+    return n.isAfter(today) ? today : n;
+  }
+
   bool dayHasSettled(String date) => periodsFor(date).isNotEmpty || att.any((r) => r.date == date && r.settleId.isNotEmpty);
 
   Worker worker(String id) => workers.firstWhere((w) => w.id == id, orElse: () => Worker(id: id, name: '؟', card: '', phone: '', wage: 0, hours: 8, lastSet: '', hasCard: false, hasPhoto: false));
