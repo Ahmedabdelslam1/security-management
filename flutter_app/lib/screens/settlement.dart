@@ -528,8 +528,20 @@ class _PayrollPaneState extends State<_PayrollPane> {
   Future<void> _load() async {
     setState(() => _busy = true);
     try {
-      final r = await Api.auth('listPayroll', [_d(_from), _d(_to)]);
-      setState(() => _rows = (r as List).map((x) => x as Map).toList());
+      // تظهر التسوية إذا تقاطعت فترتها مع الفترة المختارة أو وقع يوم صرفها داخلها
+      final r = await Api.auth('listPayroll', ['', '']);
+      final f = _d(_from), t = _d(_to);
+      final out = <Map>[];
+      for (final raw in (r as List)) {
+        final x = raw as Map;
+        final rf = '${x['from'] ?? ''}'.isEmpty ? '0000-00-00' : '${x['from']}';
+        final rt = '${x['to'] ?? ''}'.isEmpty ? '${x['date'] ?? ''}' : '${x['to']}';
+        final dt = '${x['date'] ?? ''}';
+        final byPeriod = (t.isEmpty || rf.compareTo(t) <= 0) && (f.isEmpty || rt.compareTo(f) >= 0);
+        final byDate = (f.isEmpty || dt.compareTo(f) >= 0) && (t.isEmpty || dt.compareTo(t) <= 0);
+        if (byPeriod || byDate) out.add(x);
+      }
+      setState(() => _rows = out);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red.shade700));
