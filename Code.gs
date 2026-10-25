@@ -85,7 +85,7 @@ function apiMap_() {
   return {
     login: login, logout: logout, register: register, changePassword: changePassword, ping: ping, presence: presence, appUrl: appUrl, rev: rev, addLog: addLog,
     bootstrap: bootstrap, saveDay: saveDay, settleWorkers: settleWorkers, listPayroll: listPayroll,
-    updatePayrollAdj: updatePayrollAdj, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
+    updatePayrollAdj: updatePayrollAdj, updateSettlementDate: updateSettlementDate, deleteSettlement: deleteSettlement, saveWorker: saveWorker, deleteWorkers: deleteWorkers, getImage: getImage,
     setUser: setUser, addUser: addUser, resetUserPassword: resetUserPassword, deleteUser: deleteUser,
     getMonitor: getMonitor, listGate: listGate, saveGate: saveGate, deleteGate: deleteGate, getGateImage: getGateImage,
     listProcs: listProcs, saveProc: saveProc, deleteProc: deleteProc, getProcFiles: getProcFiles, refreshLive: refreshLive, srvVer: srvVer, setDayOpen: setDayOpen
@@ -821,6 +821,68 @@ function updatePayrollAdj(token, id, wid, b, d, t) {
       }
     }
     throw new Error('السطر غير موجود');
+  });
+}
+
+/* وقت إنشاء التسوية من معرّفها (s + Date.now() + عشوائي) — لترتيب التسويات */
+function sidTs_(id) { return Number(String(id).slice(1, 14)) || 0; }
+
+/* تعديل يوم التسوية (تاريخ الصرف) لكل أسطر تسوية واحدة */
+function updateSettlementDate(token, id, date) {
+  var u = auth_(token, ['workers', 'attendance', 'settlement']);
+  if (!validDate_(date)) throw new Error('تاريخ غير صحيح');
+  if (String(date) > today_()) throw new Error('يوم التسوية لا يمكن أن يكون في المستقبل');
+  id = String(id || '');
+  return locked_(function () {
+    var all = readAll_('Settlements'), n = 0;
+    all.forEach(function (r) { if (String(r.id) === id) { r.date = date; n++; } });
+    if (!n) throw new Error('التسوية غير موجودة');
+    writeAll_('Settlements', all);
+    log_(u.name, 'تعديل يوم تسوية', 'التسوية', date + ' (' + n + ' سطر)');
+    return { id: id, date: date, count: n };
+  });
+}
+
+/* الأدمن فقط: حذف تسوية كاملة (كل أسطر معرّفها) وفك صرف الأيام التي سُوّيت بها */
+function deleteSettlement(token, id) {
+  var u = auth_(token, 'admin');
+  id = String(id || '');
+  if (!id) throw new Error('التسوية غير موجودة');
+  return locked_(function () {
+    var sets = readAll_('Settlements');
+    var mine = sets.filter(function (r) { return String(r.id) === id; });
+    if (!mine.length) throw new Error('التسوية غير موجودة');
+    var rest = sets.filter(function (r) { return String(r.id) !== id; });
+    var lineAmt = {}, total = 0;
+    mine.forEach(function (r) { lineAmt[r.wid] = (lineAmt[r.wid] || 0) + num_(r.amount); total += num_(r.amount); });
+    var att = readAll_('Attendance'), cleared = 0, reduce = {};
+    att.forEach(function (r) {
+      if (String(r.settleId) !== id) return;
+      /* يوم سبقته تسوية أخرى لنفس العامل (تسوية تعديلية): يبقى مسوّى بالأقدم ويُخصم منه المبلغ فقط */
+      var prev = rest.filter(function (x) {
+        return String(x.wid) === String(r.wid) && sidTs_(x.id) < sidTs_(id) && (!x.from || r.date >= x.from) && r.date <= x.to;
+      }).sort(function (a, b) { return sidTs_(b.id) - sidTs_(a.id); })[0];
+      if (prev) { r.settleId = String(prev.id); (reduce[r.wid] = reduce[r.wid] || []).push(r); }
+      else { r.settleId = ''; r.paidAmt = ''; cleared++; }
+    });
+    Object.keys(reduce).forEach(function (wid) {
+      var rows = reduce[wid], sum = 0;
+      rows.forEach(function (r) { sum += num_(r.paidAmt); });
+      if (sum <= 0) return;
+      rows.forEach(function (r) {
+        var cut = (lineAmt[wid] || 0) * num_(r.paidAmt) / sum;
+        r.paidAmt = String(Math.max(0, Math.round((num_(r.paidAmt) - cut) * 100) / 100));
+      });
+    });
+    writeAll_('Attendance', att);
+    writeAll_('Settlements', rest);
+    /* إزالة مفاتيح الفتح للفترات التي لم يعد لها تسويات */
+    var live = {};
+    rest.forEach(function (r) { if (r.to) live[(r.from || '0000-00-00') + '|' + r.to] = 1; });
+    var keys = openKeys_().filter(function (k) { return k.indexOf('d:') === 0 || live[k]; });
+    PropertiesService.getScriptProperties().setProperty('OPEN_KEYS', JSON.stringify(keys));
+    log_(u.name, 'حذف تسوية', 'التسوية', mine.length + ' عامل — ' + Math.round(total * 100) / 100 + ' ج — ' + (mine[0].from || 'البداية') + ' ← ' + mine[0].to);
+    return { id: id, removed: mine.length, amount: Math.round(total * 100) / 100, cleared: cleared };
   });
 }
 

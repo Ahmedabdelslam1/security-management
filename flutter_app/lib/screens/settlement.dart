@@ -50,7 +50,23 @@ class _SettlementScreenState extends State<SettlementScreen> {
                         dense: true,
                         title: Text('${p[0].isEmpty ? 'من البداية' : fmtDate(p[0])} ← ${fmtDate(p[1])}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                         subtitle: Text(p[2] == '1' ? 'مفتوحة للتعديل' : 'مغلقة'),
-                        trailing: FilledButton(
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                            tooltip: 'استعراض / تعديل / حذف التسوية',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.visibility_outlined, size: 20, color: Color(0xFF1D4ED8)),
+                            onPressed: () async {
+                              final gone = await showDialog<bool>(
+                                context: context,
+                                builder: (_) => _PeriodDetailDialog(from: p[0], to: p[1]),
+                              );
+                              if (gone == true) {
+                                list.remove(p);
+                                setS(() {});
+                              }
+                            },
+                          ),
+                          FilledButton(
                           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
                           onPressed: () async {
                             try {
@@ -66,6 +82,7 @@ class _SettlementScreenState extends State<SettlementScreen> {
                           },
                           child: Text(p[2] == '1' ? 'إغلاق' : 'فتح'),
                         ),
+                        ]),
                       ),
                   ]),
           ),
@@ -659,4 +676,252 @@ class _Due {
   double amount = 0, ot = 0, hrs = 0, wsum = 0, wage = 0;
   double get gross => r2(amount - ot);
   String get label => '${dn(days)} يوم${hrs > 0 ? ' + إضافي (${hrs == hrs.truncateToDouble() ? hrs.truncate() : r2(hrs)}) ساعة' : ''}';
+}
+
+
+/* ============ استعراض / تعديل / حذف تسوية (أدمن) ============ */
+class _PeriodDetailDialog extends StatefulWidget {
+  final String from; // '' = من البداية
+  final String to;
+  const _PeriodDetailDialog({required this.from, required this.to});
+  @override
+  State<_PeriodDetailDialog> createState() => _PeriodDetailDialogState();
+}
+
+class _PeriodDetailDialogState extends State<_PeriodDetailDialog> {
+  List<Map> _rows = [];
+  bool _loading = true;
+  bool _changed = false; // تغيّرت بيانات الحضور/التسويات: يلزم تحديث التطبيق عند الإغلاق
+  String? _err;
+
+  static double _n(dynamic x) => x is num ? x.toDouble() : (double.tryParse('${x ?? ''}') ?? 0);
+  static String _f(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _err = null; });
+    try {
+      final all = await Api.auth('listPayroll', ['', '']) as List;
+      _rows = [
+        for (final x in all)
+          if ((x as Map)['to'] != null && '${x['to']}'.isNotEmpty && '${x['from'] ?? ''}' == widget.from && '${x['to']}' == widget.to) x,
+      ];
+    } catch (e) {
+      _err = '$e';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _msg(Object e) {
+    final m = '$e';
+    final old = m.contains('غير معروف') || m.contains('غير متاح');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Colors.red.shade700,
+        content: Text(old ? 'سكربت Google قديم: الصق Code.gs وLoader.gs الجديدين ثم Deploy ← New version' : m)));
+  }
+
+  void _ok(String m) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  /// التسويات مجمّعة بمعرّفها (الأحدث أولًا)
+  List<List<Map>> get _sets {
+    final m = <String, List<Map>>{};
+    for (final r in _rows) {
+      m.putIfAbsent('${r['id']}', () => []).add(r);
+    }
+    final out = m.values.toList();
+    out.sort((a, b) {
+      final c = '${b.first['date']}'.compareTo('${a.first['date']}');
+      return c != 0 ? c : '${b.first['id']}'.compareTo('${a.first['id']}');
+    });
+    return out;
+  }
+
+  Future<void> _editDate(List<Map> set) async {
+    final cur = DateTime.tryParse('${set.first['date']}') ?? DateTime.now();
+    final d = await showDatePicker(
+      context: context,
+      initialDate: cur.isAfter(DateTime.now()) ? DateTime.now() : cur,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      locale: const Locale('ar'),
+    );
+    if (d == null) return;
+    final v = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      await Api.auth('updateSettlementDate', ['${set.first['id']}', v]);
+      _ok('تم تعديل تاريخ التسوية');
+      await _load();
+    } catch (e) {
+      _msg(e);
+    }
+  }
+
+  Future<void> _editLine(Map r) async {
+    final b = TextEditingController(text: _f(_n(r['bonus'])));
+    final d = TextEditingController(text: _f(_n(r['ded'])));
+    final t = TextEditingController(text: _f(_n(r['tax'])));
+    Widget fld(String l, TextEditingController c) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: TextField(
+            controller: c,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(labelText: l, isDense: true, border: const OutlineInputBorder()),
+          ),
+        );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dc) => AlertDialog(
+        title: Text('تعديل: ${r['name']}', style: const TextStyle(fontSize: 15)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [fld('مكافآت', b), fld('خصومات', d), fld('ضرائب', t)]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dc, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dc, true), child: const Text('حفظ')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final bv = (double.tryParse(b.text.trim()) ?? 0).clamp(0, double.infinity);
+    final dv = (double.tryParse(d.text.trim()) ?? 0).clamp(0, double.infinity);
+    final tv = (double.tryParse(t.text.trim()) ?? 0).clamp(0, double.infinity);
+    try {
+      await Api.auth('updatePayrollAdj', ['${r['id']}', '${r['wid']}', bv, dv, tv]);
+      _ok('تم تعديل سطر التسوية');
+      await _load();
+    } catch (e) {
+      _msg(e);
+    }
+  }
+
+  Future<void> _delete(List<Map> set) async {
+    double amt = 0;
+    for (final r in set) {
+      amt += _n(r['amount']);
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dc) => AlertDialog(
+        title: const Text('حذف التسوية'),
+        content: Text('حذف هذه التسوية نهائيًا؟ (${set.length} عامل — إجمالي ${_f(amt)})\nسيُلغى صرف أيامها وتعود مستحقة للتسوية من جديد، ولا يمكن التراجع.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dc, false), child: const Text('إلغاء')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(dc, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Api.auth('deleteSettlement', ['${set.first['id']}']);
+      _changed = true;
+      _ok('تم حذف التسوية');
+      await _load();
+      await App.I.bootstrap(silent: true);
+      if (mounted && _rows.isEmpty) Navigator.pop(context, true);
+    } catch (e) {
+      _msg(e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sets = _sets;
+    return AlertDialog(
+      title: Text('${widget.from.isEmpty ? 'من البداية' : fmtDate(widget.from)} ← ${fmtDate(widget.to)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+      contentPadding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+            ? const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()))
+            : _err != null
+                ? Text(_err!, style: const TextStyle(color: Colors.red))
+                : sets.isEmpty
+                    ? const Text('لا توجد تسويات ضمن هذه الفترة')
+                    : ListView(shrinkWrap: true, children: [
+                        for (final set in sets) _setCard(set),
+                      ]),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            if (_changed) App.I.bootstrap(silent: true);
+            Navigator.pop(context, sets.isEmpty && !_loading);
+          },
+          child: const Text('إغلاق'),
+        ),
+      ],
+    );
+  }
+
+  Widget _setCard(List<Map> set) {
+    double amt = 0, net = 0;
+    for (final r in set) {
+      amt += _n(r['amount']);
+      net += _n(r['net']);
+    }
+    final user = '${set.first['user'] ?? ''}';
+    final by = user.isEmpty ? '' : ' — بواسطة $user';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+              child: Text('تسوية بتاريخ ${fmtDate('${set.first['date']}')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+            ),
+            IconButton(
+              tooltip: 'تعديل تاريخ التسوية',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+              onPressed: () => _editDate(set),
+            ),
+            IconButton(
+              tooltip: 'حذف التسوية',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade700),
+              onPressed: () => _delete(set),
+            ),
+          ]),
+          Text('${set.length} عامل — الإجمالي ${_f(amt)} — الصافي ${_f(net)}$by',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          const Divider(height: 12),
+          for (final r in set)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${r['name']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                    Text(
+                      '${_f(_n(r['days']))} يوم — مستحق ${_f(_n(r['amount']))}'
+                      '${_n(r['ot']) > 0 ? ' (إضافي ${_f(_n(r['ot']))})' : ''}'
+                      ' — مكافآت ${_f(_n(r['bonus']))} / خصومات ${_f(_n(r['ded']))} / ضرائب ${_f(_n(r['tax']))}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+                    ),
+                    Text('الصافي ${_f(_n(r['net']))}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF15803D))),
+                  ]),
+                ),
+                IconButton(
+                  tooltip: 'تعديل المكافآت والخصومات والضرائب',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: () => _editLine(r),
+                ),
+              ]),
+            ),
+        ]),
+      ),
+    );
+  }
 }

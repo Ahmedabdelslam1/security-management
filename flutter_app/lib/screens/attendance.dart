@@ -194,10 +194,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final all = app.workers;
     final locIds = _locF.isEmpty
         ? <String>{}
-        : <String>{
-            for (final w in all) if (w.loc == _locF) w.id,
-            for (final r in app.att) if (r.loc == _locF) r.wid,
-          };
+        : () {
+            // يظهر العامل في المكان المختار خلال تسجيل اليوم المحدد فقط:
+            // إن كان له تسجيل بمكان في هذا اليوم فالمكان المسجّل هو المعتمد، وإلا فمكانه الثابت
+            final dayLoc = <String, String>{
+              for (final r in app.att) if (r.date == _dstr && r.loc.trim().isNotEmpty) r.wid: r.loc,
+            };
+            return <String>{
+              for (final w in all) if ((dayLoc[w.id] ?? w.loc) == _locF) w.id,
+            };
+          }();
     final workers = all
         .where((w) => (_locF.isEmpty || locIds.contains(w.id)) && (_wkF.isEmpty || w.id == _wkF) && (_q.isEmpty || txtMatch(_q, [w.name, w.card])))
         .toList();
