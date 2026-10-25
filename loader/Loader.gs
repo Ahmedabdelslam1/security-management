@@ -3,7 +3,7 @@
 var SRC_URL_ = 'https://raw.githubusercontent.com/Ahmedabdelslam1/security-management/main/Code.gs';
 var FN_ = ['doGet','doPost','setup','resetAdminPassword','resetAll','rev','login','logout','register','changePassword','ping','presence','appUrl','addLog',
   'bootstrap','saveDay','settleWorkers','listPayroll','updatePayrollAdj','saveWorker','deleteWorkers','getImage','setUser','addUser',
-  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive','srvVer','setDayOpen'];
+  'resetUserPassword','deleteUser','getMonitor','listGate','saveGate','deleteGate','getGateImage','listProcs','saveProc','deleteProc','getProcFiles','refreshLive','srvVer','setDayOpen','updateSettlementDate','deleteSettlement'];
 var LIB_ = null;
 
 function src_() {
@@ -66,6 +66,8 @@ function saveDay() { return call_('saveDay', [].slice.call(arguments)); }
 function settleWorkers() { return call_('settleWorkers', [].slice.call(arguments)); }
 function listPayroll() { return call_('listPayroll', [].slice.call(arguments)); }
 function updatePayrollAdj() { return call_('updatePayrollAdj', [].slice.call(arguments)); }
+function updateSettlementDate() { return call_('updateSettlementDate', [].slice.call(arguments)); }
+function deleteSettlement() { return call_('deleteSettlement', [].slice.call(arguments)); }
 function saveWorker() { return call_('saveWorker', [].slice.call(arguments)); }
 function deleteWorkers() { return call_('deleteWorkers', [].slice.call(arguments)); }
 function getImage() { return call_('getImage', [].slice.call(arguments)); }
