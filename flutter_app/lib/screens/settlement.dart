@@ -707,10 +707,12 @@ class _PeriodDetailDialogState extends State<_PeriodDetailDialog> {
     setState(() { _loading = true; _err = null; });
     try {
       final all = await Api.auth('listPayroll', ['', '']) as List;
-      _rows = [
-        for (final x in all)
-          if ((x as Map)['to'] != null && '${x['to']}'.isNotEmpty && '${x['from'] ?? ''}' == widget.from && '${x['to']}' == widget.to) x,
-      ];
+      final out = <Map>[];
+      for (final raw in all) {
+        final x = raw as Map;
+        if ('${x['to'] ?? ''}'.isNotEmpty && '${x['from'] ?? ''}' == widget.from && '${x['to']}' == widget.to) out.add(x);
+      }
+      _rows = out;
     } catch (e) {
       _err = '$e';
     }
