@@ -38,6 +38,22 @@ class App extends ChangeNotifier {
   bool dayOpen(String date) => _admin && (periodsFor(date).any((p) => p[2] == '1') || (data?.openDays ?? const []).contains(date));
 
   /// بداية الفترة الافتراضية للتسوية والتقارير: اليوم التالي لآخر تسوية (وإلا أول الشهر)، بحد أقصى اليوم
+  /// تاريخ نهاية آخر تسوية مأخوذ من سجل المرتبات (لا يعتمد على إصدار السكربت)
+  String lastSettleTo = '';
+  bool get hasSettle => lastSettleTo.isNotEmpty || (data?.periods ?? const <List<String>>[]).isNotEmpty;
+  Future<void> loadLastSettle() async {
+    try {
+      final list = await Api.auth('listPayroll', ['', '']).timeout(const Duration(seconds: 10)) as List;
+      var mx = '';
+      for (final x in list) {
+        final r = x as Map;
+        final t = '${r['to'] ?? ''}'.isNotEmpty ? '${r['to']}' : '${r['date'] ?? ''}';
+        if (t.compareTo(mx) > 0) mx = t;
+      }
+      lastSettleTo = mx;
+    } catch (_) {}
+  }
+
   DateTime startDate() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -45,6 +61,7 @@ class App extends ChangeNotifier {
     for (final p in data?.periods ?? const <List<String>>[]) {
       if (p[1].isNotEmpty && p[1].compareTo(mx) > 0) mx = p[1];
     }
+    if (lastSettleTo.compareTo(mx) > 0) mx = lastSettleTo;
     if (mx.isEmpty) return DateTime(now.year, now.month, 1);
     final d = DateTime.tryParse(mx);
     if (d == null) return DateTime(now.year, now.month, 1);
@@ -101,6 +118,7 @@ class App extends ChangeNotifier {
       if (rv != null) _rev = rv.toString(); // نفس الطلب يرجع رقم التعديل: لا سحب مكرر
       bootError = '';
       _saveCache(j);
+      await loadLastSettle(); // آخر تسوية من سجل المرتبات (يعمل حتى مع سكربت قديم)
       notifyListeners();
     } catch (e) {
       bootError = '$e';

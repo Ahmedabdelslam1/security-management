@@ -155,7 +155,7 @@ class _SettlePaneState extends State<_SettlePane> {
   @override
   void initState() {
     super.initState();
-    if ((App.I.data?.periods ?? const []).isNotEmpty) _from = App.I.startDate(); // اليوم التالي لآخر تسوية
+    if (App.I.hasSettle) _from = App.I.startDate(); // اليوم التالي لآخر تسوية
   }
 
   List<double> _a(String id) => _adj[id] ?? [0, 0, 0];
@@ -274,7 +274,7 @@ class _SettlePaneState extends State<_SettlePane> {
         content: Text('تم صرف ${res['count']} عامل — ${res['amount']} ج'),
         backgroundColor: Colors.green.shade700,
       ));
-      setState(() { _sel.clear(); _adj.clear(); if ((App.I.data?.periods ?? const []).isNotEmpty) _from = App.I.startDate(); });
+      setState(() { _sel.clear(); _adj.clear(); if (App.I.hasSettle) _from = App.I.startDate(); });
     } on ApiException catch (e) {
       setState(() => _err = e.message);
     } finally {
@@ -552,7 +552,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
   void initState() {
     super.initState();
     // البداية التلقائية: اليوم التالي لآخر تسوية إلى اليوم (فلا تظهر تسويات سابقة)
-    if ((App.I.data?.periods ?? const []).isNotEmpty) {
+    if (App.I.hasSettle) {
       _from = App.I.startDate();
       _to = DateTime.now();
     }

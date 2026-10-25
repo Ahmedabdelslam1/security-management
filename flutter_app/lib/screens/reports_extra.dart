@@ -208,7 +208,9 @@ class _AccState extends State<AccountsReportTab> {
     for (final x in _pay) {
       final r = x as Map;
       final date = '${r['date'] ?? ''}';
-      if (date.compareTo(f) < 0 || date.compareTo(t) > 0) continue;
+      final rf = '${r['from'] ?? ''}'.isEmpty ? '0000-00-00' : '${r['from']}';
+      final rt = '${r['to'] ?? ''}'.isEmpty ? date : '${r['to']}';
+      if (!(rf.compareTo(t) <= 0 && rt.compareTo(f) >= 0)) continue; // تقاطع فترة التسوية مع الفترة المختارة (مثل شاشة المرتبات)
       final s = S.putIfAbsent('${r['id']}', () => {'date': date, 'from': '${r['from'] ?? ''}', 'to': '${r['to'] ?? ''}', 'amt': 0.0, 'ot': 0.0, 'b': 0.0, 'locs': <String, double>{}});
       s['amt'] = (s['amt'] as double) + _n(r['amount']);
       s['ot'] = (s['ot'] as double) + _n(r['ot']);
