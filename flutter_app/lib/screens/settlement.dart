@@ -528,7 +528,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
   Future<void> _load() async {
     setState(() => _busy = true);
     try {
-      // تظهر التسوية إذا تقاطعت فترتها مع الفترة المختارة أو وقع يوم صرفها داخلها
+      // تظهر التسوية فقط إذا تقاطعت فترتها مع الفترة المختارة
       final r = await Api.auth('listPayroll', ['', '']);
       final f = _d(_from), t = _d(_to);
       final out = <Map>[];
@@ -536,10 +536,7 @@ class _PayrollPaneState extends State<_PayrollPane> {
         final x = raw as Map;
         final rf = '${x['from'] ?? ''}'.isEmpty ? '0000-00-00' : '${x['from']}';
         final rt = '${x['to'] ?? ''}'.isEmpty ? '${x['date'] ?? ''}' : '${x['to']}';
-        final dt = '${x['date'] ?? ''}';
-        final byPeriod = (t.isEmpty || rf.compareTo(t) <= 0) && (f.isEmpty || rt.compareTo(f) >= 0);
-        final byDate = (f.isEmpty || dt.compareTo(f) >= 0) && (t.isEmpty || dt.compareTo(t) <= 0);
-        if (byPeriod || byDate) out.add(x);
+        if ((t.isEmpty || rf.compareTo(t) <= 0) && (f.isEmpty || rt.compareTo(f) >= 0)) out.add(x);
       }
       setState(() => _rows = out);
     } on ApiException catch (e) {
@@ -552,7 +549,15 @@ class _PayrollPaneState extends State<_PayrollPane> {
   }
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    // البداية التلقائية: اليوم التالي لآخر تسوية إلى اليوم (فلا تظهر تسويات سابقة)
+    if ((App.I.data?.periods ?? const []).isNotEmpty) {
+      _from = App.I.startDate();
+      _to = DateTime.now();
+    }
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
