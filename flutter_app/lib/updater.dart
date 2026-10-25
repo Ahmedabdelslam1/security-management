@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-const String appVersion = '1.11.13';
+const String appVersion = '1.11.14';
 /// رقم البناء يُحقن من GitHub Actions (رقم تشغيل الـ workflow + 1000) — يزيد مع كل تعديل فيتحدث التطبيق تلقائيًا
 const int appBuild = int.fromEnvironment('APP_BUILD', defaultValue: 0);
 const String _versionUrl =

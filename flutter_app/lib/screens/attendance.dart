@@ -18,6 +18,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _q = '';
   String _locF = ''; // فلتر مكان الحضور
   String _wkF = ''; // عامل محدد
+  String _view = 'all'; // عرض: all = الكل، pr = الحضور، no = بدون موقف (عند «كل الأماكن» فقط)
   DateTime _date = DateTime.now();
   late Map<String, _RowCtl> _ctl; // wid -> عناصر التحكم
   bool _saving = false;
@@ -116,6 +117,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final php = await App.I.legacySrv(); // سيرفر قديم/PHP: يُرسل اليوم كاملًا (لا يعرف الحفظ الجزئي)
     final recs = <Map<String, dynamic>>[];
     _ctl.forEach((wid, c) {
+      if (_rowLocked(wid)) return; // الأيام المسوّاة مغلقة
       final empty = c.status == '--' && c.loc.trim().isEmpty;
       if (!php && c.sig() == c.base) return;
       if (empty) {
@@ -204,10 +206,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               for (final w in all) if ((dayLoc[w.id] ?? w.loc) == _locF) w.id,
             };
           }();
-    final workers = all
+    final base = all
         .where((w) => (_locF.isEmpty || locIds.contains(w.id)) && (_wkF.isEmpty || w.id == _wkF) && (_q.isEmpty || txtMatch(_q, [w.name, w.card])))
         .toList();
-    final nPresent = workers.where((w) => (_ctl[w.id]?.status ?? '--') != '--').length;
+    bool present(Worker w) => (_ctl[w.id]?.status ?? '--') != '--';
+    final nPresent = base.where(present).length;
+    // عند اختيار مكان محدد: عدد الحضور فقط. وعند «كل الأماكن»: أيقونات استعراض الكل / الحضور / بدون موقف
+    final view = _locF.isEmpty ? _view : 'all';
+    final workers = view == 'pr' ? base.where(present).toList() : (view == 'no' ? base.where((w) => !present(w)).toList() : base);
     final locs = <String>{...app.locs, ...app.workers.map((w) => w.loc).where((l) => l.isNotEmpty)}.toList();
 
     return Scaffold(
@@ -305,13 +311,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
             child: Align(
               alignment: Alignment.centerRight,
-              child: Text.rich(TextSpan(style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12), children: [
-                TextSpan(text: 'عدد الكل = ${workers.length}', style: const TextStyle(color: Color(0xFF1D4ED8))),
-                const TextSpan(text: '  /  '),
-                TextSpan(text: 'عدد الحضور = $nPresent', style: const TextStyle(color: Color(0xFF15803D))),
-                const TextSpan(text: '  /  '),
-                TextSpan(text: 'بدون موقف = ${workers.length - nPresent}', style: const TextStyle(color: Color(0xFFDC2626))),
-              ])),
+              child: _locF.isNotEmpty
+                  ? Text('عدد الحضور = $nPresent', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF15803D)))
+                  : Wrap(spacing: 6, runSpacing: 4, children: [
+                      _viewChip('all', Icons.list_alt, 'استعرض الكل', base.length, const Color(0xFF1D4ED8)),
+                      _viewChip('pr', Icons.check_circle_outline, 'الحضور', nPresent, const Color(0xFF15803D)),
+                      _viewChip('no', Icons.remove_circle_outline, 'بدون موقف', base.length - nPresent, const Color(0xFFDC2626)),
+                    ]),
             ),
           ),
           if (_err != null)
@@ -434,12 +440,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         suffixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       );
 
+  Widget _viewChip(String v, IconData icon, String label, int n, Color col) {
+    final on = _view == v;
+    return ChoiceChip(
+      selected: on,
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      avatar: Icon(icon, size: 16, color: on ? Colors.white : col),
+      label: Text('$label ($n)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: on ? Colors.white : col)),
+      selectedColor: col,
+      backgroundColor: col.withOpacity(.08),
+      side: BorderSide(color: col.withOpacity(.5)),
+      onSelected: (_) => setState(() => _view = v),
+    );
+  }
+
+  /// يوم العامل مسوّى: مغلق (فترة تسوية تمت، أو سطر مصروف ولم يفتحه الأدمن)
+  bool _rowLocked(String wid) =>
+      App.I.periodLocked(_dstr) || (!App.I.dayOpen(_dstr) && App.I.att.any((r) => r.date == _dstr && r.wid == wid && r.settleId.isNotEmpty));
+
   Widget _workerCard(BuildContext context, Worker w, List<String> locs) {
     final c = _ctl[w.id]!;
     final cs = Theme.of(context).colorScheme;
     final isExtra = usesXh(c.status);
     final active = c.status != '--';
-    final isSettled = App.I.periodLocked(_dstr) || (!App.I.dayOpen(_dstr) && App.I.att.any((r) => r.date == _dstr && r.wid == w.id && r.settleId.isNotEmpty));
+    final isSettled = _rowLocked(w.id);
     final col = _palette[w.id.hashCode.abs() % _palette.length];
 
     return GlowCard(
@@ -520,7 +546,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     value: _sts.contains(c.status) ? c.status : '--',
                     decoration: _dec(null),
                     items: _sts.map((s) => DropdownMenuItem(value: s, child: Text(s == '--' ? 'بدون تسجيل' : s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-                    onChanged: (v) {
+                    onChanged: isSettled ? null : (v) {
                       setState(() { final prev = c.status; c.status = v ?? '--'; if (!usesXh(c.status) || (prev == kHoursStatus) != (c.status == kHoursStatus)) c.xh = ''; if (c.status == '--') c.loc = ''; });
                       if (c.status != '--' && c.loc.trim().isEmpty) {
                         // مكان تلقائي: المكان الثابت للعامل، وإلا المكان المحدد في الفلتر، وإلا المكان الوحيد المسجل
@@ -539,7 +565,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       decoration: _dec(null, hint: c.loc.isNotEmpty && !locs.contains(c.loc) ? c.loc : 'المكان',
                           suffix: InkWell(onTap: () => _newLoc(c), child: const Icon(Icons.add_location_alt_outlined, size: 15))),
                       items: locs.map((l) => DropdownMenuItem(value: l, child: Text(l, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-                      onChanged: (v) {
+                      onChanged: isSettled ? null : (v) {
                         setState(() => c.loc = v ?? '');
                       },
                     ),
@@ -557,6 +583,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       child: TextField(
                         controller: TextEditingController(text: c.xh)..selection = TextSelection.collapsed(offset: c.xh.length),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        enabled: !isSettled,
                         decoration: _dec(c.status == kHoursStatus ? 'عدد الساعات' : 'إضافي (ساعة)'),
                         style: const TextStyle(fontSize: 12),
                         onChanged: (v) => setState(() => c.xh = v),
@@ -567,6 +594,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   Expanded(
                     child: TextField(
                       controller: TextEditingController(text: c.notes)..selection = TextSelection.collapsed(offset: c.notes.length),
+                      enabled: !isSettled,
                       decoration: _dec('ملاحظات'),
                       style: const TextStyle(fontSize: 12),
                       onChanged: (v) => c.notes = v,
