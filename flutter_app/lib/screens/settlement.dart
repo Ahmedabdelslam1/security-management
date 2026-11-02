@@ -158,7 +158,17 @@ class _SettlePaneState extends State<_SettlePane> {
     if (App.I.hasSettle) _from = App.I.startDate(); // اليوم التالي لآخر تسوية
   }
 
-  List<double> _a(String id) => _adj[id] ?? [0, 0, 0];
+  /// المكافآت/الخصومات/الضرائب لكل بند (عامل + أجر اليوم)، ومجموع العامل للصرف
+  List<double> _ag(String key) => _adj[key] ?? [0, 0, 0];
+  List<double> _a(String id) {
+    final t = [0.0, 0.0, 0.0];
+    _adj.forEach((k, v) {
+      if (k.startsWith('$id|')) {
+        for (var i = 0; i < 3; i++) { t[i] += v[i]; }
+      }
+    });
+    return t;
+  }
   double _netOf(Worker w, _Due d) => r2(d.amount + _a(w.id)[0] - _a(w.id)[1] - _a(w.id)[2]);
 
   String _d(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -180,17 +190,27 @@ class _SettlePaneState extends State<_SettlePane> {
       final val = counts ? r.valueOf(w) : 0.0;
       final diff = (val - (r.settleId.isNotEmpty ? r.paidAmt : 0)) * 100;
       final diffR = diff.round() / 100;
-      if (diffR.abs() < 0.005) continue;
+      final g = d.grp.putIfAbsent(r.wage > 0 ? r.wage : w.wage, () => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]); // [أيام، إضافي، مبلغ، عدد أيام مستحقة، مصروف، أيام مصروفة]
+      if (r.settleId.isNotEmpty) g[4] += r.paidAmt;
+      if (diffR.abs() < 0.005) {
+        if (r.settleId.isNotEmpty) g[5] += 1;
+        continue;
+      }
       d.amount += diffR;
+      g[3] += 1;
+      g[2] += diffR;
       if (r.settleId.isEmpty) {
         d.days = r2(d.days + r.daysOf(w));
+        g[0] = r2(g[0] + r.daysOf(w));
         d.wsum += r.baseOf(w);
         if (counts) {
           d.ot += r.otOf(w);
+          g[1] += r.otOf(w);
           d.hrs += r.otHours;
         }
       } else {
         d.ot += diffR;
+        g[1] += diffR;
         d.hrs += hr > 0 ? diffR / hr : 0.0;
       }
     }
@@ -211,7 +231,16 @@ class _SettlePaneState extends State<_SettlePane> {
       final a = _a(w.id);
       final net = _netOf(w, d);
       total += net;
-      rows.add([w.name, dn(d.days), d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
+      final gs = d.groups;
+      if (gs.isEmpty) {
+        rows.add([w.name, dn(d.days), d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
+      } else {
+        for (var i = 0; i < gs.length; i++) {
+          final g = gs[i];
+          final ga = _ag('${w.id}|${g.wage}'); // مكافآت/خصومات/ضرائب البند نفسه
+          rows.add([w.name, dn(g.days), g.wage.toStringAsFixed(2), g.gross.toStringAsFixed(2), g.ot.toStringAsFixed(2), ga[0].toStringAsFixed(2), ga[1].toStringAsFixed(2), ga[2].toStringAsFixed(2), r2(g.amount + ga[0] - ga[1] - ga[2]).toStringAsFixed(2), '']);
+        }
+      }
     }
     exportTablePdf(
       context: context,
@@ -405,51 +434,64 @@ class _SettlePaneState extends State<_SettlePane> {
                             onChanged: (v) => setState(() { v == true ? _sel.add(w.id) : _sel.remove(w.id); }),
                             title: Row(children: [workerAvatar(w.id, size: 24), const SizedBox(width: 8), Expanded(child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AttendanceScreen(openWorkerId: w.id))), child: Text(w.name, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: workerColor(w.id), decoration: TextDecoration.underline))))]),
                             subtitle: Text(
-                              d.amount.abs() < 0.005
-                                  ? 'لا مستحقات ضمن التحديد'
-                                  : 'مستحق: ${d.amount} ج (${d.label})\nأجر اليوم ${d.wage} • الإجمالي ${d.gross}${d.ot > 0 ? ' • إضافي ${d.ot}' : ''}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: d.amount.abs() < 0.005 ? const Color(0xFF64748B) : Colors.green.shade800,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              d.amount.abs() < 0.005 ? 'لا مستحقات ضمن التحديد' : 'مستحق: ${d.amount} ج (${d.label})',
+                              style: TextStyle(fontSize: 10, color: d.amount.abs() < 0.005 ? const Color(0xFF64748B) : Colors.green.shade800, fontWeight: FontWeight.w700),
                             ),
                             secondary: d.amount.abs() < 0.005
                                 ? const Icon(Icons.check_circle_outline, color: Color(0xFF94A3B8))
                                 : Text('${_netOf(w, d)}\nالصافي', textAlign: TextAlign.center,
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
                           ),
-                          if (d.amount.abs() >= 0.005)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                              child: Row(
-                                children: [
-                                  for (final k in const [0, 1, 2]) ...[
-                                    Expanded(
-                                      child: TextFormField(
-                                        key: ValueKey('adj$k${w.id}'),
-                                        initialValue: _a(w.id)[k] == 0 ? '' : _a(w.id)[k].toString(),
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        style: const TextStyle(fontSize: 12.5),
-                                        decoration: InputDecoration(
-                                          isDense: true,
-                                          border: const OutlineInputBorder(),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-                                          labelText: const ['المكافآت', 'الخصومات', 'الضرائب'][k],
-                                          labelStyle: const TextStyle(fontSize: 11.5),
-                                        ),
-                                        onChanged: (v) {
-                                          final cur = List<double>.from(_a(w.id));
-                                          cur[k] = double.tryParse(v) ?? 0;
-                                          setState(() => _adj[w.id] = cur);
-                                        },
+                          // بند لكل أجر يوم: مستحق / تم الصرف، ومكافآت وخصومات وضرائب خاصة بالبند
+                          for (final it in d.items)
+                            if (it[4] > 0 || it[5] > 0 || it[6] > 0)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE2E8F0))),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('أجر اليوم ${it[0]}${it[4] > 0 ? ' • ${dn(r2(it[1]))} يوم • الإجمالي ${r2(it[3] - it[2])}${it[2] > 0 ? ' • إضافي ${r2(it[2])}' : ''}' : ''}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                    if (it[4] > 0)
+                                      Text('مستحق ${r2(it[3])} ج (${it[4].toInt()} ${it[1] > 0 ? 'يوم' : 'بند فرق معدّل'})', style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.w700)),
+                                    if (it[6] > 0 || it[5] > 0)
+                                      Text('تم الصرف ${r2(it[5])} ج (${it[6].toInt()} يوم)', style: const TextStyle(fontSize: 11, color: Color(0xFF1D4ED8), fontWeight: FontWeight.w700)),
+                                    if (it[4] > 0) ...[
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          for (final k in const [0, 1, 2]) ...[
+                                            Expanded(
+                                              child: TextFormField(
+                                                key: ValueKey('adj$k${w.id}|${it[0]}'),
+                                                initialValue: _ag('${w.id}|${it[0]}')[k] == 0 ? '' : _ag('${w.id}|${it[0]}')[k].toString(),
+                                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                                style: const TextStyle(fontSize: 12.5),
+                                                decoration: InputDecoration(
+                                                  isDense: true,
+                                                  border: const OutlineInputBorder(),
+                                                  contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+                                                  labelText: const ['المكافآت', 'الخصومات', 'الضرائب'][k],
+                                                  labelStyle: const TextStyle(fontSize: 11.5),
+                                                ),
+                                                onChanged: (v) {
+                                                  final key = '${w.id}|${it[0]}';
+                                                  final cur = List<double>.from(_ag(key));
+                                                  cur[k] = double.tryParse(v) ?? 0;
+                                                  setState(() => _adj[key] = cur);
+                                                },
+                                              ),
+                                            ),
+                                            if (k < 2) const SizedBox(width: 6),
+                                          ],
+                                        ],
                                       ),
-                                    ),
-                                    if (k < 2) const SizedBox(width: 6),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
                         ],
                       ),
                     ),
@@ -688,7 +730,24 @@ class _PayrollPaneState extends State<_PayrollPane> {
   }
 }
 
+class _G {
+  final double wage, days, ot, amount;
+  _G(this.wage, this.days, this.ot, this.amount);
+  double get gross => r2(amount - ot);
+}
+
 class _Due {
+  /// أجور اليوم المختلفة: صف لكل أجر بدل المتوسط
+  final Map<double, List<double>> grp = {};
+  List<_G> get groups {
+    final ks = grp.keys.toList()..sort();
+    return [for (final k in ks) if (grp[k]![2].abs() >= 0.005 || grp[k]![0] > 0) _G(k, r2(grp[k]![0]), r2(grp[k]![1]), r2(grp[k]![2]))];
+  }
+  /// كل بنود أجر اليوم (مستحقة وتم صرفها) لعرض بند/مستحق/تم الصرف لكل بند
+  List<List<double>> get items {
+    final ks = grp.keys.toList()..sort();
+    return [for (final k in ks) [k, ...grp[k]!]]; // [الأجر، أيام، إضافي، مبلغ، أيام مستحقة، مصروف، أيام مصروفة]
+  }
   double days = 0;
   double amount = 0, ot = 0, hrs = 0, wsum = 0, wage = 0;
   double get gross => r2(amount - ot);

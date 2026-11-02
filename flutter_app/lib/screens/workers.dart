@@ -52,7 +52,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (_) => Padding(
+      builder: (_) => StatefulBuilder(builder: (ctx, setS) => Padding(
         padding: EdgeInsets.only(
           left: 16, right: 16, top: 16,
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -65,7 +65,40 @@ class _WorkersScreenState extends State<WorkersScreen> {
               Text(w == null ? 'إضافة عامل' : 'تعديل عامل', textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم العامل', isDense: true)),
+              Builder(builder: (_) {
+                String nk(String x) => x.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+                final q = nk(name.text);
+                if (q.isEmpty) return const SizedBox.shrink();
+                final ms = App.I.workers.where((o) => o.id != w?.id && nk(o.name).contains(q)).toList();
+                final ex = ms.any((o) => nk(o.name) == q);
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (ex)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: const Color(0xFFFEE2E2), border: Border.all(color: const Color(0xFFDC2626), width: 2), borderRadius: BorderRadius.circular(8)),
+                      child: const Text('⛔ هذا الاسم موجود مسبقًا', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFB91C1C), fontWeight: FontWeight.w800, fontSize: 13)),
+                    ),
+                  if (ms.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 110, maxWidth: 240),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), border: Border.all(color: const Color(0xFFCBD5E1)), borderRadius: BorderRadius.circular(8)),
+                        child: SingleChildScrollView(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                            const Text('أسماء مضافة مسبقًا', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                            for (final o in ms.take(30)) Text(o.name, style: const TextStyle(fontSize: 12)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                ]);
+              }),
+              TextField(controller: name, onChanged: (_) => setS(() {}), decoration: const InputDecoration(labelText: 'اسم العامل', isDense: true)),
               const SizedBox(height: 8),
               TextField(controller: card, decoration: const InputDecoration(labelText: 'رقم البطاقة', isDense: true)),
               const SizedBox(height: 8),
@@ -85,9 +118,24 @@ class _WorkersScreenState extends State<WorkersScreen> {
             ],
           ),
         ),
-      ),
+      )),
     );
     if (saved != true) return;
+    String nk(String x) => x.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+    final cv = card.text.replaceAll(RegExp(r'\s+'), '');
+    for (final o in App.I.workers) {
+      if (o.id == w?.id) continue;
+      String? msg;
+      if (nk(o.name) == nk(name.text)) {
+        msg = 'تم إضافة الاسم من قبل';
+      } else if (cv.isNotEmpty && o.card.replaceAll(RegExp(r'\s+'), '') == cv) {
+        msg = 'تم إضافة رقم البطاقة من قبل';
+      }
+      if (msg != null) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red.shade700));
+        return;
+      }
+    }
     setState(() => _busy = true);
     try {
       await Api.auth('saveWorker', [

@@ -50,6 +50,13 @@ String amtWords(double a) {
   return '$t لا غير';
 }
 
+String _dayName(String date) {
+  final d = DateTime.tryParse(date);
+  if (d == null) return '';
+  const n = ['', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+  return n[d.weekday];
+}
+
 class _Rec { // سطر تقرير لكل عامل (مكان/مجمع/خطاب)
   final Worker w;
   double days;
@@ -164,7 +171,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       m.gross = r2(m.gross);
       m.ot = r2(m.ot);
     }
-    _sortByLoc(rows);
+    rows.sort((a, b) => a.w.name.compareTo(b.w.name));
     return rows;
   }
 
@@ -442,11 +449,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               context: context,
               title: 'تقرير عامل: ${ww.name}',
               subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}\nمكافآت: $b2 ج | خصومات: $d2 ج | ضرائب: $t2 ج — الصافي المستحق: $net2 ج',
-              headers: ['التاريخ', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
-              widths: [55, 55, 60, 40, 45, 70],
-              rows: [for (final r in recs) [fmtDate(r.date), r.status, r.loc.isEmpty ? '—' : r.loc, r.otHours > 0 ? otText(r.otHours) : '—', r.counts ? r2(r.valueOf(ww)).toStringAsFixed(2) : '—', r.notes]],
+              headers: ['اليوم', 'التاريخ', 'اسم العامل', 'الموقف', 'مكان الحضور', 'إضافي', 'القيمة', 'ملاحظات'],
+              widths: [38, 52, 70, 48, 55, 36, 40, 55],
+              rows: [for (final r in recs) [_dayName(r.date), fmtDate(r.date), ww.name, r.status, r.loc.isEmpty ? '—' : r.loc, r.otHours > 0 ? otText(r.otHours) : '—', r.counts ? r2(r.valueOf(ww)).toStringAsFixed(2) : '—', r.notes]],
               total: net2.toStringAsFixed(2),
-              totalsRow: ['الإجمالي', '${dn(days)} يوم', '', '', total.toStringAsFixed(2), ''],
+              totalsRow: ['الإجمالي', '${dn(days)} يوم', '', '', '', '', total.toStringAsFixed(2), ''],
             );
           });
         }),
@@ -584,18 +591,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
           return _totalsBar('${dn(days)} يوم — إضافي ${r2(rows.fold<double>(0, (s, m) => s + m.ot))} • الصافي ${tnet.toStringAsFixed(2)} ج', total, null, onPdf: () async {
             await _loadAdj();
             var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
-            final rws = [for (final m in rows) [m.w.name, '${dn(m.days)}', m.wageAvg.toStringAsFixed(m.wageAvg == m.wageAvg.truncateToDouble() ? 0 : 2), m.gross > 0 ? m.gross.toStringAsFixed(2) : '—', m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
+            final rws = [for (final m in rows) [m.w.name, '${dn(m.days)}', m.gross > 0 ? m.gross.toStringAsFixed(2) : '—', m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
             for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
             exportTablePdf(
               context: context,
               title: 'تقرير مجمع للعاملين',
               subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
-              headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
-              widths: [3.2, 1, 1.1, 1.3, 1.1, 1.2, 1.2, 1.1, 1.4],
+              headers: ['اسم العامل', 'عدد الأيام', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي'],
+              widths: [3.2, 1, 1.3, 1.1, 1.2, 1.2, 1.1, 1.4],
               landscape: true,
               rows: rws,
               total: r2(n2).toStringAsFixed(2),
-              totalsRow: ['الإجمالي', '${dn(days)} يوم', '', r2(rows.fold<double>(0, (s, m) => s + m.gross)).toStringAsFixed(2), r2(rows.fold<double>(0, (s, m) => s + m.ot)).toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
+              totalsRow: ['الإجمالي', '${dn(days)} يوم', r2(rows.fold<double>(0, (s, m) => s + m.gross)).toStringAsFixed(2), r2(rows.fold<double>(0, (s, m) => s + m.ot)).toStringAsFixed(2), r2(b2).toStringAsFixed(2), r2(d2).toStringAsFixed(2), r2(x2).toStringAsFixed(2), r2(n2).toStringAsFixed(2)],
             );
           });
         }),
