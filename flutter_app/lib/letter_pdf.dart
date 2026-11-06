@@ -185,28 +185,34 @@ pw.Widget signatureBlock(pw.Font bold) {
   final st = pw.TextStyle(font: bold, fontSize: 12.5);
   final d = DateTime.now();
   final today = '${d.day} / ${d.month} / ${d.year}';
-  return pw.Row(
-    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Text('تحريرًا في : $today', style: st),
-        pw.SizedBox(height: 34),
-        pw.Text('مدير قطاع الشئون الإدارية والأمن', style: st),
-        pw.SizedBox(height: 16),
-        pw.Text('عميد /', style: st),
-        pw.SizedBox(height: 16),
-        pw.Padding(padding: const pw.EdgeInsets.only(right: 60), child: pw.Text('حسام الدين حسني', style: st)),
-      ]),
-      pw.Padding(
-        padding: const pw.EdgeInsets.only(left: 30),
-        child: pw.Column(children: [
-          pw.SizedBox(height: 50),
-          pw.Text('مدير الإدارة', style: st),
-          pw.SizedBox(height: 50),
-          pw.Text('يعتمد', style: st),
+  return pw.Stack(children: [
+    pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text('تحريرًا في : $today', style: st),
+          pw.SizedBox(height: 18),
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(right: 14),
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text('مدير قطاع الشئون الإدارية والأمن', style: st),
+              pw.SizedBox(height: 2),
+              pw.Text('عميد /', style: st),
+              pw.SizedBox(height: 2),
+              pw.Padding(padding: const pw.EdgeInsets.only(right: 32), child: pw.Text('حسام الدين حسني', style: st)),
+            ]),
+          ),
         ]),
-      ),
-    ],
-  );
+        pw.SizedBox(
+          width: 230,
+          child: pw.Column(children: [
+            pw.SizedBox(height: 18),
+            pw.Padding(padding: const pw.EdgeInsets.only(right: 75), child: pw.Text('مدير الإدارة', style: st)),
+          ]),
+        ),
+      ],
+    ),
+    pw.Positioned(left: 0, right: 0, top: 90, child: pw.Center(child: pw.Text('يعتمـــد ؛؛', style: st))),
+  ]);
 }

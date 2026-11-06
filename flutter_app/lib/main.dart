@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api.dart';
@@ -8,6 +9,7 @@ import 'screens/shell.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky); // ملء الشاشة تلقائيًا
   // أي خطأ في الواجهة يظهر نصه على الشاشة بدل الإغلاق الصامت/الشاشة الفارغة (للتشخيص)
   ErrorWidget.builder = (FlutterErrorDetails d) => Material(
         color: Colors.white,
