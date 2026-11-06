@@ -1,4 +1,5 @@
 // تصدير أي شاشة كـ PDF — للطباعة والإرسال (نفس هوية الويب: جدول أزرق + خط Times New Roman + اللوجو)
+import 'letter_pdf.dart' show signatureBlock;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ Future<void> exportTablePdf({
   bool landscape = false,
   String? total,
   String totalLabel = 'الإجمالي',
+  bool signature = false,
 }) async {
   if (rows.isEmpty && totalsRow == null) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للطباعة'), backgroundColor: Colors.black54));
@@ -108,6 +110,7 @@ Future<void> exportTablePdf({
                 columnWidths: {for (var i = 0; i < widths.length; i++) i: pw.FlexColumnWidth(widths[i])},
               ),
               pw.SizedBox(height: 12),
+              if (signature) ...[pw.SizedBox(height: 20), signatureBlock(bold)],
               pw.Align(
                 alignment: pw.Alignment.centerLeft,
                 child: pw.Text('عدد السجلات: ${rows.length}', style: const pw.TextStyle(fontSize: 9.5, color: pw.PdfColor.fromInt(0xFF94A3B8))),

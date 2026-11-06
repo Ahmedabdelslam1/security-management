@@ -96,13 +96,7 @@ Future<Uint8List> buildLetterPdf({
               pw.SizedBox(height: 18),
               pw.Center(child: pw.Text('ولسيادتكم فائق الاحترام والتقدير', style: pw.TextStyle(font: bold, fontSize: 12.5))),
               pw.SizedBox(height: 26),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('تحريرًا في: ${_today()}', style: pw.TextStyle(fontSize: 11.5, color: gray)),
-                  pw.Text('يعتمد ،،', style: pw.TextStyle(font: bold, fontSize: 12.5)),
-                ],
-              ),
+              signatureBlock(bold),
         ],
       ],
     ),
@@ -111,8 +105,8 @@ Future<Uint8List> buildLetterPdf({
 }
 
 pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, double days, double txh, double tb, double td, double tt, double gTot, double tot) {
-  const headers = ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'ملاحظات'];
-  final widths = [3.0, 1.0, 1.0, 1.2, 1.0, 1.0, 1.1, 1.0, 1.3, 1.2];
+  const headers = ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الصافي', 'ملاحظات'];
+  final widths = [3.0, 1.0, 1.0, 1.2, 1.0, 1.0, 1.1, 1.3, 1.2];
   pw.Widget cell(String t, {bool head = false, bool isBold = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
@@ -150,7 +144,6 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
             cell(r.ot > 0 ? _trimNum(r.ot) : '—'),
             cell(r.b > 0 ? _trimNum(r.b) : '—'),
             cell(r.d > 0 ? _trimNum(r.d) : '—'),
-            cell(r.tax > 0 ? _trimNum(r.tax) : '—'),
             cell(_trimNum(r.net), isBold: true, fg: blue),
             cell(''),
           ],
@@ -165,7 +158,6 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
           cell(txh > 0 ? _trimNum(txh) : '—', head: true),
           cell(tb > 0 ? _trimNum(tb) : '—', head: true),
           cell(td > 0 ? _trimNum(td) : '—', head: true),
-          cell(tt > 0 ? _trimNum(tt) : '—', head: true),
           cell(_trimNum(tot), head: true, fg: blue),
           cell('', head: true),
         ],
@@ -186,4 +178,35 @@ double _r2(double x) => (x * 100).round() / 100;
 String _trimNum(double x) {
   final r = _r2(x);
   return r == r.truncateToDouble() ? r.truncate().toString() : r.toStringAsFixed(2);
+}
+
+/// أسفل البيان: تحريرًا في + مدير القطاع + عميد (يمين) — مدير الإدارة + يعتمد (يسار)
+pw.Widget signatureBlock(pw.Font bold) {
+  final st = pw.TextStyle(font: bold, fontSize: 12.5);
+  final d = DateTime.now();
+  final today = '${d.day} / ${d.month} / ${d.year}';
+  return pw.Row(
+    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('تحريرًا في : $today', style: st),
+        pw.SizedBox(height: 34),
+        pw.Text('مدير قطاع الشئون الإدارية والأمن', style: st),
+        pw.SizedBox(height: 16),
+        pw.Text('عميد /', style: st),
+        pw.SizedBox(height: 16),
+        pw.Padding(padding: const pw.EdgeInsets.only(right: 60), child: pw.Text('حسام الدين حسني', style: st)),
+      ]),
+      pw.Padding(
+        padding: const pw.EdgeInsets.only(left: 30),
+        child: pw.Column(children: [
+          pw.SizedBox(height: 50),
+          pw.Text('مدير الإدارة', style: st),
+          pw.SizedBox(height: 50),
+          pw.Text('يعتمد', style: st),
+        ]),
+      ),
+    ],
+  );
 }
