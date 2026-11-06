@@ -233,12 +233,12 @@ class _SettlePaneState extends State<_SettlePane> {
       total += net;
       final gs = d.groups;
       if (gs.isEmpty) {
-        rows.add([w.name, dn(d.days), d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), a[2].toStringAsFixed(2), net.toStringAsFixed(2), '']);
+        rows.add([w.name, dn(d.days), d.wage.toStringAsFixed(2), d.gross.toStringAsFixed(2), d.ot.toStringAsFixed(2), a[0].toStringAsFixed(2), a[1].toStringAsFixed(2), net.toStringAsFixed(2), '']);
       } else {
         for (var i = 0; i < gs.length; i++) {
           final g = gs[i];
           final ga = _ag('${w.id}|${g.wage}'); // مكافآت/خصومات/ضرائب البند نفسه
-          rows.add([w.name, dn(g.days), g.wage.toStringAsFixed(2), g.gross.toStringAsFixed(2), g.ot.toStringAsFixed(2), ga[0].toStringAsFixed(2), ga[1].toStringAsFixed(2), ga[2].toStringAsFixed(2), r2(g.amount + ga[0] - ga[1] - ga[2]).toStringAsFixed(2), '']);
+          rows.add([w.name, dn(g.days), g.wage.toStringAsFixed(2), g.gross.toStringAsFixed(2), g.ot.toStringAsFixed(2), ga[0].toStringAsFixed(2), ga[1].toStringAsFixed(2), r2(g.amount + ga[0] - ga[1] - ga[2]).toStringAsFixed(2), '']);
         }
       }
     }
@@ -246,13 +246,14 @@ class _SettlePaneState extends State<_SettlePane> {
       context: context,
       title: 'تسوية العاملين',
       subtitle: '${_from == null ? 'الكل' : fmtDate(_d(_from!))} ← ${fmtDate(_d(_to))}',
-      headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الضرائب', 'الصافي', 'التوقيع'],
-      widths: [3.2, 1, 1.1, 1.3, 1.1, 1.1, 1.1, 1.1, 1.4, 1.6],
+      headers: ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الصافي', 'التوقيع'],
+      widths: [3.2, 1, 1.1, 1.3, 1.1, 1.1, 1.1, 1.4, 1.6],
+      signature: true,
       landscape: false,
       rows: rows,
       total: r2(total).toStringAsFixed(2),
       totalLabel: 'قيمة التسوية (الإجمالي)',
-      totalsRow: ['الإجمالي', dn(rows.fold<double>(0, (s, r) => s + double.parse(r[1]))), '', r2(rows.fold<double>(0, (s, r) => s + double.parse(r[3]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[4]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[5]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[6]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[7]))).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
+      totalsRow: ['الإجمالي', dn(rows.fold<double>(0, (s, r) => s + double.parse(r[1]))), '', r2(rows.fold<double>(0, (s, r) => s + double.parse(r[3]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[4]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[5]))).toStringAsFixed(2), r2(rows.fold<double>(0, (s, r) => s + double.parse(r[6]))).toStringAsFixed(2), r2(total).toStringAsFixed(2), ''],
     );
   }
 

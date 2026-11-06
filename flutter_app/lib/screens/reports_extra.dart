@@ -81,7 +81,7 @@ class _AttState extends State<AttendanceReportTab> {
       if (_loc.isNotEmpty && l != _loc) continue;
       final x = m.putIfAbsent('${r.date}|$l', () => _Row(r.date, l));
       x.n++;
-      x.days = r2(x.days + r.daysOf(App.I.worker(r.wid)));
+      x.days = x.days + 1; // عدد الأشخاص فقط، بدون ساعات الإضافي
     }
     return m.values.toList()..sort((a, b) => a.date == b.date ? a.loc.compareTo(b.loc) : a.date.compareTo(b.date));
   }
