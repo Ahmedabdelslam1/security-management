@@ -216,3 +216,24 @@ pw.Widget signatureBlock(pw.Font bold) {
     pw.Positioned(left: 0, right: 0, top: 90, child: pw.Center(child: pw.Text('يعتمـــد ؛؛', style: st))),
   ]);
 }
+
+/// تذييل التقارير: تحريرًا في (يمين) — مدير القطاع / عميد / الاسم تحت العلامة (يسار)
+pw.Widget signatureBlock2(pw.Font bold) {
+  final st = pw.TextStyle(font: bold, fontSize: 12.5);
+  final d = DateTime.now();
+  final today = '${d.day} / ${d.month} / ${d.year}';
+  return pw.Row(
+    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Text('تحريرًا في : $today', style: st),
+      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('مدير قطاع الشئون الإدارية والأمن', style: st),
+        pw.SizedBox(height: 6),
+        pw.Text('عميد /', style: st),
+        pw.SizedBox(height: 6),
+        pw.Padding(padding: const pw.EdgeInsets.only(right: 32), child: pw.Text('حسام الدين حسنى', style: st)),
+      ]),
+    ],
+  );
+}
