@@ -126,7 +126,7 @@ class _AttState extends State<AttendanceReportTab> {
               ]),
             ),
           ),
-          _bar('إجمالي العدد $n • إجمالي الحضور ${dn(d)}', rows.isEmpty ? null : () => exportTablePdf(
+          _bar('إجمالي العدد $n • إجمالي الحضور ${dn(d)}', rows.isEmpty ? null : () => exportTablePdf( signature2: true,
                 context: context,
                 title: 'تقرير الحضور',
                 subtitle: _day ? 'يوم ${fmtDate(_ds(_d))}' : 'من ${fmtDate(_ds(_from))} إلى ${fmtDate(_ds(_to))}${_loc.isEmpty ? '' : ' — $_loc'}',
@@ -278,7 +278,7 @@ class _AccState extends State<AccountsReportTab> {
               ]),
             ),
           ),
-          _bar('إجمالي $bs • إضافي $ot • مكافآت $bn • الإجمالي $tot ج', rows.isEmpty ? null : () => exportTablePdf(
+          _bar('إجمالي $bs • إضافي $ot • مكافآت $bn • الإجمالي $tot ج', rows.isEmpty ? null : () => exportTablePdf( signature2: true,
                 context: context,
                 title: 'تسوية',
                 subtitle: 'من ${fmtDate(_ds(_from))} إلى ${fmtDate(_ds(_to))}${_loc.isEmpty ? '' : ' — $_loc'}',

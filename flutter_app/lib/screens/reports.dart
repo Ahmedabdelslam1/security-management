@@ -445,7 +445,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             final ww = App.I.worker(_wid ?? '');
             final b2 = _bOf(_wid ?? ''), d2 = _dOf(_wid ?? ''), t2 = _tOf(_wid ?? '');
             final net2 = r2(total + b2 - d2 - t2);
-            exportTablePdf(
+            exportTablePdf( signature2: true,
               context: context,
               title: 'تقرير عامل: ${ww.name}',
               subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}\nمكافآت: $b2 ج | خصومات: $d2 ج | ضرائب: $t2 ج — الصافي المستحق: $net2 ج',
@@ -534,7 +534,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
             final rws = [for (final m in rows) [m.w.name, '${dn(m.days)}', m.wageAvg.toStringAsFixed(m.wageAvg == m.wageAvg.truncateToDouble() ? 0 : 2), m.gross.toStringAsFixed(2), m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
             for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
-            exportTablePdf(
+            exportTablePdf( signature2: true,
               context: context,
               title: 'تقرير مكان الحضور: ${_loc ?? ''}',
               subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
@@ -593,7 +593,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             var b2 = 0.0, d2 = 0.0, x2 = 0.0, n2 = 0.0;
             final rws = [for (final m in rows) [m.w.name, '${dn(m.days)}', m.gross > 0 ? m.gross.toStringAsFixed(2) : '—', m.ot.toStringAsFixed(2), _bOf(m.w.id).toStringAsFixed(2), _dOf(m.w.id).toStringAsFixed(2), _tOf(m.w.id).toStringAsFixed(2), r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)).toStringAsFixed(2)]];
             for (final m in rows) { b2 += _bOf(m.w.id); d2 += _dOf(m.w.id); x2 += _tOf(m.w.id); n2 += m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id); }
-            exportTablePdf(
+            exportTablePdf( signature2: true,
               context: context,
               title: 'تقرير مجمع للعاملين',
               subtitle: 'من ${fmtDate(_d(_from))} إلى ${fmtDate(_d(_to))}',
