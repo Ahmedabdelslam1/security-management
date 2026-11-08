@@ -47,7 +47,7 @@ String amtWords(double a) {
   var t = (w > 0 || f == 0) ? '${w == 0 ? 'صفر' : numWords(w)} جنيها' : '';
   if (f > 0) t += '${t.isNotEmpty ? ' و' : ''}${numWords(f)} قرشا';
   if (t.isEmpty) t = 'صفر جنيها';
-  return '$t لا غير';
+  return t;
 }
 
 String _dayName(String date) {
@@ -277,7 +277,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     buf.writeln('خطاب اعتماد');
     buf.writeln('السيد / مدير $addressee');
     buf.writeln('تحية طيبة وبعد ،،،');
-    buf.writeln('برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( $tot ) فقط وقدرة : ( ${amtWords(tot)} )');
+    buf.writeln('برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( $tot ) فقط ( ${amtWords(tot)} )');
     buf.writeln('وذلك قيمة أجور أيام حضور العمال اليوميه الاتى أسماؤهم خلال الفترة من ${fmtDate(_d(_from))} حتى ${fmtDate(_d(_to))}');
     buf.writeln('------------------');
     for (final m in rows) {
@@ -300,7 +300,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final addressee = _locFilter.isNotEmpty ? _locFilter : (_loc ?? 'الموقع');
     var tot = 0.0;
     final byName = [...rows]..sort((a, b) => a.w.name.compareTo(b.w.name)); // الطباعة بالاسم
-    final lrows = [for (final m in byName) LetterRow(m.w.name, m.days, m.wageAvg, m.gross, m.ot, b: _bOf(m.w.id), d: _dOf(m.w.id), tax: _tOf(m.w.id), net: r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)))];
+    final lrows = [for (final m in byName) LetterRow(m.w.name, m.days, m.wageAvg, m.gross, m.ot, xh: m.wageAvg > 0 ? r2(m.ot / (m.wageAvg / (m.w.hours > 0 ? m.w.hours : 8))) : 0, b: _bOf(m.w.id), d: _dOf(m.w.id), tax: _tOf(m.w.id), net: r2(m.total + _bOf(m.w.id) - _dOf(m.w.id) - _tOf(m.w.id)))];
     for (final m in lrows) {
       tot += m.net;
     }
