@@ -25,7 +25,7 @@ var SHEETS = {
   Workers:    ['id', 'name', 'card', 'phone', 'wage', 'hours', 'lastSet', 'cardImg', 'photo', 'loc'],
   Attendance: ['date', 'wid', 'name', 'status', 'loc', 'wage', 'xh', 'notes', 'settleId', 'paidAmt'],
   Locations:  ['name'],
-  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'platform', 'curPage', 'curPageAt', 'devices', 'email'],
+  Users:      ['username', 'name', 'salt', 'hash', 'status', 'role', 'perms', 'lastLogin', 'lastActive', 'platform', 'curPage', 'curPageAt', 'devices', 'email', 'pw', 'printCfg'],
   Settlements:['id', 'date', 'from', 'to', 'wid', 'name', 'days', 'amount', 'user', 'createdAt', 'bonus', 'ded', 'tax', 'net', 'ot'],
   Gate:       ['id', 'seq', 'weekday', 'date', 'plate', 'time', 'driver', 'statement', 'notes', 'managers', 'host', 'images', 'createdBy', 'createdAt', 'action', 'rep', 'page', 'line', 'imgTypes', 'move'],
   Procs:      ['id', 'seq', 'date', 'weekday', 'plate', 'driver', 'rep', 'statement', 'ptype', 'docs', 'signed', 'signDate', 'signer', 'bookPage', 'supervisor', 'notes', 'other', 'createdBy', 'createdAt', 'page', 'line'],
@@ -360,9 +360,14 @@ function updateUser_(username, fields) {
   }
 }
 
-function publicUser_(u) {
-  return { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms), platform: u.platform || '', email: u.email || '' };
+function publicUser_(u, withPw) {
+  var pc = {};
+  try { pc = JSON.parse(u.printCfg || '{}') || {}; } catch (e) { pc = {}; }
+  var o = { name: u.name, username: u.username, role: u.role, status: u.status, perms: parsePerms_(u.perms), platform: u.platform || '', email: u.email || '', printCfg: pc };
+  if (withPw) o.pw = String(u.pw || '');
+  return o;
 }
+function pubAdm_(u) { return publicUser_(u, true); }
 
 /* الأجهزة المتصلة: لكل منصة (web / android) آخر نشاط وIP وآخر شاشة — فيظهر الويب والأندرويد معًا لو فُتحا معًا */
 /* IP الجهاز: المحلي والعام معًا بالشكل «192.168.1.5 / 41.42.99.104» أو أحدهما */
@@ -449,7 +454,7 @@ function register(name, username, password) {
     if (users.some(function (u) { return u.username === username; })) throw new Error('اسم المستخدم مستخدم من قبل');
     if (users.filter(function (u) { return u.status === 'pending'; }).length >= 50) throw new Error('عدد الطلبات المعلقة كبير، تواصل مع الإدارة');
     var salt = Utilities.getUuid();
-    users.push({ username: username, name: name, salt: salt, hash: hash_(salt, password), status: 'pending', role: 'user', perms: '{}', lastLogin: '', lastActive: '' });
+    users.push({ username: username, name: name, salt: salt, hash: hash_(salt, password), pw: password, status: 'pending', role: 'user', perms: '{}', lastLogin: '', lastActive: '' });
     writeAll_('Users', users);
     log_(name, 'طلب تسجيل', 'النظام', username);
     return true;
@@ -462,7 +467,7 @@ function changePassword(token, oldPass, newPass) {
   if (newPass.length < 6) throw new Error('كلمة المرور الجديدة 6 أحرف على الأقل');
   if (hash_(u.salt, String(oldPass || '')) !== u.hash) throw new Error('كلمة المرور الحالية غير صحيحة');
   var salt = Utilities.getUuid();
-  updateUser_(u.username, { salt: salt, hash: hash_(salt, newPass) });
+  updateUser_(u.username, { salt: salt, hash: hash_(salt, newPass), pw: newPass });
   log_(u.name, 'تغيير كلمة المرور', 'النظام', u.username);
   return true;
 }
@@ -654,7 +659,7 @@ function bootstrap(token) {
     return { date: r.date, wid: r.wid, name: r.name, status: r.status, loc: r.loc, wage: num_(r.wage), xh: num_(r.xh), notes: r.notes, settleId: r.settleId, paidAmt: num_(r.paidAmt) };
   });
   var out = { user: publicUser_(u), workers: workers, att: att, locs: allLocs_(att), rev: rv, periods: periods_(), openDays: openKeys_().filter(function (k) { return k.indexOf('d:') === 0; }).map(function (k) { return k.slice(2); }) };
-  if (u.role === 'admin') out.users = readAll_('Users').map(publicUser_);
+  if (u.role === 'admin') out.users = readAll_('Users').map(pubAdm_);
   cacheBigPut_(ck, JSON.stringify(out), 900);
   return out;
 }
@@ -977,8 +982,14 @@ function setUser(token, username, patch) {
       u.perms = JSON.stringify(cleanPerms_(patch.perms));
       log_(me.name, 'تعديل صلاحيات', 'المستخدمين', u.name);
     }
+    if (patch && patch.printCfg && typeof patch.printCfg === 'object') {
+      var pcs = JSON.stringify(patch.printCfg);
+      if (pcs.length > 20000) throw new Error('إعدادات الطباعة كبيرة جدًا');
+      u.printCfg = pcs;
+      log_(me.name, 'تعديل بنود الطباعة', 'المستخدمين', u.name);
+    }
     writeAll_('Users', users);
-    return users.map(publicUser_);
+    return users.map(pubAdm_);
   });
 }
 
@@ -1003,12 +1014,12 @@ function addUser(token, name, username, password, perms, isAdmin) {
     if (users.some(function (u) { return u.username === username; })) throw new Error('اسم المستخدم مستخدم من قبل');
     var salt = Utilities.getUuid();
     users.push({
-      username: username, name: name, salt: salt, hash: hash_(salt, password), status: 'approved',
+      username: username, name: name, salt: salt, hash: hash_(salt, password), pw: password, status: 'approved',
       role: isAdmin ? 'admin' : 'user', perms: JSON.stringify(cleanPerms_(perms)), lastLogin: '', lastActive: ''
     });
     writeAll_('Users', users);
     log_(me.name, 'إضافة مستخدم', 'المستخدمين', name + ' (' + username + ')');
-    return users.map(publicUser_);
+    return users.map(pubAdm_);
   });
 }
 
@@ -1021,7 +1032,7 @@ function resetUserPassword(token, username, newPass) {
   if (!u) throw new Error('المستخدم غير موجود');
   if (u.role === 'admin') throw new Error('غيّر كلمة مرور المدير من زر 🔑 داخل حسابه');
   var salt = Utilities.getUuid();
-  updateUser_(username, { salt: salt, hash: hash_(salt, newPass) });
+  updateUser_(username, { salt: salt, hash: hash_(salt, newPass), pw: newPass });
   log_(me.name, 'إعادة تعيين كلمة مرور', 'المستخدمين', u.name);
   return true;
 }
@@ -1036,7 +1047,7 @@ function deleteUser(token, username) {
     if (u.role === 'admin') throw new Error('لا يمكن حذف حساب المدير');
     writeAll_('Users', users.filter(function (x) { return x.username !== username; }));
     log_(me.name, 'حذف مستخدم', 'المستخدمين', u.name);
-    return readAll_('Users').map(publicUser_);
+    return readAll_('Users').map(pubAdm_);
   });
 }
 
