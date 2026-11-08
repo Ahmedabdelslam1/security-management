@@ -6,6 +6,7 @@ import '../state.dart';
 import '../api.dart';
 import '../updater.dart';
 import '../widgets.dart';
+import '../cp_style.dart';
 import 'attendance.dart';
 import 'workers.dart';
 import 'settlement.dart';
@@ -201,8 +202,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: Text(appTitle(_tab)),
+        title: Text(appTitle(_tab), style: const TextStyle(fontWeight: FontWeight.w900)),
         centerTitle: true,
+        foregroundColor: Colors.white,
+        backgroundColor: cpNavy1,
+        flexibleSpace: Container(decoration: const BoxDecoration(gradient: cpHeaderGradient)),
         actions: [
           // زر الرجوع للصفحة الرئيسية — ظاهر في كل الشاشات ما عدا الرئيسية نفسها
           if (_tab != 'home')
@@ -257,6 +261,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ],
       ),
       drawer: _drawer(context, u, tabs),
+      bottomNavigationBar: CpNavBar(
+        items: [
+          for (final t in tabs.where((t) => const ['home', 'attendance', 'settlement', 'workers', 'reports'].contains(t.id)))
+            CpNavItem(t.id, t.label, t.icon),
+        ],
+        current: _tab,
+        onSelect: (id) { if (_tab != id) setState(() => _tab = id); },
+      ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOutCubic,
@@ -286,7 +298,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)])),
+            decoration: const BoxDecoration(gradient: cpHeaderGradient),
             accountName: Text(u.name),
             accountEmail: Text(u.isAdmin ? 'مدير النظام' : 'مستخدم'),
             currentAccountPicture: CircleAvatar(
@@ -351,7 +363,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           gradient: sel
-              ? const LinearGradient(colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)])
+              ? const LinearGradient(colors: [cpNavy1, cpNavy2])
               : null,
         ),
         child: ListTile(

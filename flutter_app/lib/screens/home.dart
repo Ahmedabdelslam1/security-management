@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../state.dart';
 import '../widgets.dart';
+import '../cp_style.dart';
 import 'calculator.dart';
 import 'scanner.dart';
 
@@ -24,8 +25,10 @@ class HomeScreen extends StatelessWidget {
       if (u?.isAdmin ?? false) ('users', 'المستخدمين', Icons.manage_accounts_outlined),
       if (u?.isAdmin ?? false) ('monitor', 'المتابعة', Icons.monitor_heart_outlined),
     ];
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
+    return ColoredBox(
+      color: cpBg,
+      child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -36,7 +39,7 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('أهلاً بك 👋',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6))),
+                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: cpNavy1)),
                   const SizedBox(height: 2),
                   Text('اختر الشاشة أو الأداة اللي محتاجها',
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.black54)),
@@ -46,9 +49,9 @@ class HomeScreen extends StatelessWidget {
           ),
           GridView.count(
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.06,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            childAspectRatio: 1.25,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
@@ -74,14 +77,14 @@ class HomeScreen extends StatelessWidget {
                   final now = DateTime.now();
                   final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
                   final p = App.I.att.where((r) => r.date == today && r.counts).length;
-                  return Text('أماكن الحضور — ${App.I.workers.length} عامل — حضر اليوم $p', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6)));
+                  return Text('أماكن الحضور — ${App.I.workers.length} عامل — حضر اليوم $p', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: cpNavy1));
                 }),
               ),
             ),
             GridView.count(
               crossAxisCount: 2,
-              mainAxisSpacing: 9,
-              crossAxisSpacing: 9,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
               childAspectRatio: 1.25,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -114,14 +117,14 @@ class HomeScreen extends StatelessWidget {
             index: 9,
             child: Padding(
               padding: const EdgeInsets.only(right: 6, bottom: 10),
-              child: Text('الأدوات', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF5B21B6))),
+              child: Text('الأدوات', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: cpNavy1)),
             ),
           ),
           GridView.count(
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.06,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            childAspectRatio: 1.25,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
@@ -149,7 +152,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -162,28 +165,7 @@ class _HomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = Color(colors[0]);
-    final fg = Color(colors[1]);
-    return GlowCard(
-      glow: fg,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconTile(icon: icon, bg: bg, fg: fg, size: 46),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, height: 1.25),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final parts = label.split('\n');
+    return CpCard(icon: icon, label: parts.first, sub: parts.length > 1 ? parts.sublist(1).join(' ') : null, onTap: onTap);
   }
 }
