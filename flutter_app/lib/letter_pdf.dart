@@ -4,13 +4,15 @@ import 'package:pdf/pdf.dart' as pw;
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:typed_data';
 import 'models.dart';
+import 'state.dart';
 
 class LetterRow {
   final String name;
   final double days;
-  final double wage, gross, ot, b, d, tax, net;
-  const LetterRow(this.name, this.days, this.wage, this.gross, this.ot, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0});
+  final double wage, gross, ot, b, d, tax, net, xh;
+  const LetterRow(this.name, this.days, this.wage, this.gross, this.ot, {this.b = 0, this.d = 0, this.tax = 0, this.net = 0, this.xh = 0});
   double get total => gross + ot;
+  double get hourly => xh > 0 && ot > 0 ? _r2(ot / xh) : _r2(wage / 8);
 }
 
 /// يبني PDF خطاب الاعتماد كاملًا: ترويسة اللوجو + المعنون + التفقيط + جدول التسوية + الإجمالي
@@ -35,6 +37,7 @@ Future<Uint8List> buildLetterPdf({
   final gTot = _r2(rows.fold<double>(0, (s, r) => s + r.gross));
   final days = rows.fold<double>(0, (s, r) => s + r.days);
   final txh = _r2(rows.fold<double>(0, (s, r) => s + r.ot));
+  final txhr = _r2(rows.fold<double>(0, (s, r) => s + r.xh));
   final tb = _r2(rows.fold<double>(0, (s, r) => s + r.b));
   final td = _r2(rows.fold<double>(0, (s, r) => s + r.d));
   final tt = _r2(rows.fold<double>(0, (s, r) => s + r.tax));
@@ -60,23 +63,13 @@ Future<Uint8List> buildLetterPdf({
               pw.RichText(
                 textAlign: pw.TextAlign.right,
                 text: pw.TextSpan(
-                  text: 'برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ( ',
+                  text: 'برجاء من سيادتكم التكرم بالموافقة على اعتماد مبلغ ',
                   style: const pw.TextStyle(fontSize: 12.5),
                   children: [
                     pw.TextSpan(text: '$tot', style: pw.TextStyle(font: bold, fontSize: 13, color: blue)),
-                    const pw.TextSpan(text: ' ) فقط وقدرة : ( '),
-                    pw.TextSpan(text: amountWords, style: pw.TextStyle(font: bold, fontSize: 12.5, color: blue)),
-                    const pw.TextSpan(text: ' )'),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.RichText(
-                textAlign: pw.TextAlign.right,
-                text: pw.TextSpan(
-                  text: 'وذلك قيمة أجور أيام حضور العمال اليوميه الاتى أسماؤهم خلال الفترة من ',
-                  style: const pw.TextStyle(fontSize: 12.5),
-                  children: [
+                    const pw.TextSpan(text: ' فقط ( '),
+                    pw.TextSpan(text: amountWords, style: pw.TextStyle(font: bold, fontSize: 10.5, color: blue)),
+                    pw.TextSpan(text: (amountWords.length < 28 ? ' )\n' : ' ) ') + 'وذلك قيمة أجور أيام حضور العمال اليوميه الاتى أسماؤهم خلال الفترة من '),
                     pw.TextSpan(text: from, style: pw.TextStyle(font: bold, fontSize: 12.5, color: blue)),
                     const pw.TextSpan(text: ' حتى '),
                     pw.TextSpan(text: to, style: pw.TextStyle(font: bold, fontSize: 12.5, color: blue)),
@@ -92,7 +85,7 @@ Future<Uint8List> buildLetterPdf({
                 ),
               ),
               pw.SizedBox(height: 8),
-              _table(rows, blue, light, bold, days, txh, tb, td, tt, gTot, tot),
+              _table(rows, blue, light, bold, days, txh, tb, td, tt, gTot, tot, txhr),
               pw.SizedBox(height: 18),
               pw.Center(child: pw.Text('ولسيادتكم فائق الاحترام والتقدير', style: pw.TextStyle(font: bold, fontSize: 12.5))),
               pw.SizedBox(height: 26),
@@ -104,9 +97,9 @@ Future<Uint8List> buildLetterPdf({
   return doc.save();
 }
 
-pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, double days, double txh, double tb, double td, double tt, double gTot, double tot) {
-  const headers = ['اسم العامل', 'عدد الأيام', 'أجر اليوم', 'الإجمالي', 'إضافي', 'المكافآت', 'الخصومات', 'الصافي', 'ملاحظات'];
-  final widths = [3.0, 1.0, 1.0, 1.2, 1.0, 1.0, 1.1, 1.3, 1.2];
+pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.Font bold, double days, double txh, double tb, double td, double tt, double gTot, double tot, double txhr) {
+  const headers = ['اسم العامل', 'أيام الحضور', 'أجر اليوم', 'الإجمالي', 'ساعات إضافية', 'أجر الساعة', 'إضافي', 'المكافآت', 'الخصومات', 'الصافي', 'ملاحظات'];
+  final widths = [3.0, 0.95, 1.0, 1.2, 0.75, 0.75, 1.0, 1.0, 1.1, 1.3, 0.9];
   pw.Widget cell(String t, {bool head = false, bool isBold = false, pw.PdfColor? bg, pw.PdfColor? fg}) {
     return pw.Container(
       color: bg,
@@ -141,6 +134,8 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
             cell(dn(r.days)),
             cell(_trimNum(r.wage)),
             cell(_trimNum(r.gross)),
+            cell(r.xh > 0 ? _trimNum(r.xh) : '—'),
+            cell(r.xh > 0 ? _trimNum(r.hourly) : ''),
             cell(r.ot > 0 ? _trimNum(r.ot) : '—'),
             cell(r.b > 0 ? _trimNum(r.b) : '—'),
             cell(r.d > 0 ? _trimNum(r.d) : '—'),
@@ -155,6 +150,8 @@ pw.Widget _table(List<LetterRow> rows, pw.PdfColor blue, pw.PdfColor light, pw.F
           cell(dn(days), head: true),
           cell('', head: true),
           cell(_trimNum(gTot), head: true),
+          cell(txhr > 0 ? _trimNum(txhr) : '—', head: true),
+          cell('', head: true),
           cell(txh > 0 ? _trimNum(txh) : '—', head: true),
           cell(tb > 0 ? _trimNum(tb) : '—', head: true),
           cell(td > 0 ? _trimNum(td) : '—', head: true),
@@ -191,6 +188,8 @@ pw.Widget signatureBlock(pw.Font bold) {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text('إعداد : ${App.I.user?.name ?? ''}      التوقيع : ..................', style: pw.TextStyle(fontSize: 11.5)),
+          pw.SizedBox(height: 4),
           pw.Text('تحريرًا في : $today', style: st),
           pw.SizedBox(height: 18),
           pw.Padding(
@@ -226,7 +225,11 @@ pw.Widget signatureBlock2(pw.Font bold) {
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
-      pw.Text('تحريرًا في : $today', style: st),
+      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('إعداد : ${App.I.user?.name ?? ''}      التوقيع : ..................', style: pw.TextStyle(fontSize: 11.5)),
+        pw.SizedBox(height: 4),
+        pw.Text('تحريرًا في : $today', style: st),
+      ]),
       pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Text('مدير قطاع الشئون الإدارية والأمن', style: st),
         pw.SizedBox(height: 6),
