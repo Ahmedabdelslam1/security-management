@@ -1,0 +1,48 @@
+name: security_management
+description: تطبيق إدارة الأمن — نسخة أندرويد (Flutter)
+publish_to: 'none'
+version: 1.11.36+90
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  intl: any
+  cupertino_icons: ^1.0.8
+  image_picker: ^1.1.0
+  file_picker: ^10.3.0
+  share_plus: ^10.0.0
+  path_provider: ^2.1.4
+  mobile_scanner: ^5.2.3
+  pdf: ^3.10.8
+  printing: ^5.13.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+    - assets/icon_tile.png
+  fonts:
+    - family: TimesNewRoman
+      fonts:
+        - asset: assets/fonts/TimesNewRoman.ttf
+          weight: 400
+        - asset: assets/fonts/TimesNewRoman-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/logo.png"
+  min_sdk_android: 21
