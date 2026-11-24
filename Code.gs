@@ -15,7 +15,7 @@ var HALF_STATUS = 'حضور نصف يوم', HOURS_STATUS = 'حضور ساعات'
 var STATUSES = ['حضور', HALF_STATUS, HOURS_STATUS, 'حضور + وقت اضافى', 'حضور + مبيت'];
 var EXTRA_STATUSES = ['حضور + وقت اضافى', 'حضور + مبيت'];
 var REP_PERMS = ['rep1', 'rep2', 'rep3', 'rep4', 'rep5', 'rep6'];   /* بنود التقارير: حسب العامل / المكان / مجمع / خطاب الاعتماد / الحضور / الحسابات */
-var PERMS = ['workers', 'attendance', 'settlement', 'reports', 'gate', 'procs', 'monitor'].concat(REP_PERMS);
+var PERMS = ['workers', 'attendance', 'settlement', 'reports', 'gate', 'procs', 'monitor', 'settlock'].concat(REP_PERMS);
 var SESSION_TTL = 1800;             // الجلسة تنتهي بعد نصف ساعة بلا أي نشاط (تتجدد مع كل طلب)
 var SESSION_MAX_IDLE = 30 * 60 * 1000;
 var ONLINE_MS = 5 * 60 * 1000;      // متصل = نشاط خلال 5 دقائق
@@ -608,8 +608,10 @@ function keyCovers_(k, date) {
   return p.length === 2 && date >= p[0] && date <= p[1];
 }
 /* هل اليوم مغلق (فترة تسوية بتاريخ بداية) على هذا المستخدم؟ الأدمن لا يُغلق عليه إلا إذا لم تُفتح الفترة */
+/* من يملك فتح/إغلاق/حذف التسويات: الأدمن أو مستخدم صلاحية settlock */
+function canLock_(u) { return !!(u && (u.role === 'admin' || (u.perms && u.perms.settlock))); }
 function periodLocked_(date, u) {
-  var open = openKeys_(), admin = !!(u && u.role === 'admin');
+  var open = openKeys_(), admin = canLock_(u);
   return periods_().some(function (p) {
     if (!p.lock || date < p.from || date > p.to) return false;
     return !(admin && open.indexOf(p.from + '|' + p.to) !== -1);
@@ -617,12 +619,12 @@ function periodLocked_(date, u) {
 }
 /* الأدمن فتح تسوية/يومًا تغطي هذا التاريخ (فتح التعديل على أيام سبقت تسويتها) */
 function dayOpenForAdmin_(date, u) {
-  if (!(u && u.role === 'admin')) return false;
+  if (!canLock_(u)) return false;
   return openKeys_().some(function (k) { return keyCovers_(k, date); });
 }
 /* الأدمن فقط: فتح تسوية للتعديل أو إعادة إغلاقها. key = 'من|إلى' (من البداية: 0000-00-00) */
 function setDayOpen(token, key, open) {
-  var u = auth_(token, 'admin');
+  var u = auth_(token, 'settlock');
   key = String(key || '');
   if (!/^(\d{4}-\d{2}-\d{2})\|(\d{4}-\d{2}-\d{2})$/.test(key)) {
     if (!validDate_(key)) throw new Error('تسوية غير صحيحة');
@@ -850,7 +852,7 @@ function updateSettlementDate(token, id, date) {
 
 /* الأدمن فقط: حذف تسوية كاملة (كل أسطر معرّفها) وفك صرف الأيام التي سُوّيت بها */
 function deleteSettlement(token, id) {
-  var u = auth_(token, 'admin');
+  var u = auth_(token, 'settlock');
   id = String(id || '');
   if (!id) throw new Error('التسوية غير موجودة');
   return locked_(function () {
